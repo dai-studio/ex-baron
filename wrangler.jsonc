@@ -1,0 +1,25 @@
+// Baron — production.
+// A static site served by Workers static assets (no Worker script): `npm run build` writes dist/.
+//
+// Cloudflare Workers Builds (CI):
+//   Build command:  npm ci && npm run build
+//   Deploy command: npx wrangler deploy -c wrangler.prod.jsonc
+// Dev uses wrangler.dev.jsonc (deploy command: npx wrangler deploy -c wrangler.dev.jsonc).
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "baron",
+  "compatibility_date": "2026-11-08",
+
+  // The *.workers.dev URL. Set to false if only the custom domain should serve the app.
+  "workers_dev": true,
+
+  // Custom domain: the dai.studio zone must be on this Cloudflare account.
+  "routes": [{ "pattern": "baron.by.dai.studio", "custom_domain": true }],
+
+  "assets": {
+    "directory": "./dist",
+    // Curve is one page (no client-side routes): unknown paths get public/404.html with a real
+    // 404 status, so crawlers and browsers see missing files (robots.txt, favicon.ico…) as missing.
+    "not_found_handling": "404-page"
+  }
+}

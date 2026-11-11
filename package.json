@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "lil-gui": "^0.20.0",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "wrangler": "^4.160.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
