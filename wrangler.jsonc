@@ -1,4 +1,4 @@
-// Baron — production.
+// ex-baron — production.
 // A static site served by Workers static assets (no Worker script): `npm run build` writes dist/.
 //
 // Cloudflare Workers Builds (CI):
@@ -7,7 +7,7 @@
 // Dev uses wrangler.dev.jsonc (deploy command: npx wrangler deploy -c wrangler.dev.jsonc).
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "baron",
+  "name": "ex-baron",
   "compatibility_date": "2026-11-08",
 
   // The *.workers.dev URL. Set to false if only the custom domain should serve the app.
