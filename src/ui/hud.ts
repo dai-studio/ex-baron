@@ -1,0 +1,570 @@
+import * as THREE from 'three';
+import type { Plane } from '../plane/plane';
+import type { World } from '../world/world';
+import { BULLET_SPEED } from '../combat/weapons';
+
+/**
+ * HUD & UI (design §3): hand-drawn style overlay on a 2D canvas —
+ * airspeed, altitude, throttle, compass ribbon, ammo/heat, damage
+ * silhouette, minimap, enemy markers with off-screen arrows, aim reticle,
+ * lead indicator and a landing guide.
+ */
+const INK = '#2b1d1a';
+const PAPER = '#fff6dd';
+const ACCENT = '#2a9d8f';
+const GOLD = '#f2b134';
+const RED = '#e04f3a';
+const FONT = '"Baloo 2", "Trebuchet MS", sans-serif';
+
+const _v = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
+
+export interface HudContext {
+  player: Plane;
+  enemies: Plane[];
+  world: World;
+  camera: THREE.PerspectiveCamera;
+  objective: string;
+  mouseStick: boolean;
+  mouse: { x: number; y: number };
+  stallWarn: boolean;
+  showLanding: boolean;
+}
+
+function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+function panel(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  g.fillStyle = INK;
+  roundRect(g, x + 4, y + 4, w, h, 12);
+  g.fill();
+  g.fillStyle = PAPER;
+  roundRect(g, x, y, w, h, 12);
+  g.fill();
+  g.lineWidth = 3;
+  g.strokeStyle = INK;
+  g.stroke();
+}
+
+export class Hud {
+  private g: CanvasRenderingContext2D;
+  private w = 0;
+  private h = 0;
+  private dpr = 1;
+  private mini: HTMLCanvasElement;
+  private miniAt = new THREE.Vector2(1e9, 1e9);
+  private miniT = 0;
+  private readonly miniSpan = 7000;
+  visible = false;
+
+  constructor(private canvas: HTMLCanvasElement) {
+    this.g = canvas.getContext('2d')!;
+    this.mini = document.createElement('canvas');
+    this.mini.width = this.mini.height = 96;
+  }
+
+  resize() {
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.w = window.innerWidth;
+    this.h = window.innerHeight;
+    this.canvas.width = Math.floor(this.w * this.dpr);
+    this.canvas.height = Math.floor(this.h * this.dpr);
+  }
+
+  clear() {
+    this.g.setTransform(1, 0, 0, 1, 0, 0);
+    this.g.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  invalidateMinimap() {
+    this.miniAt.set(1e9, 1e9);
+  }
+
+  private project(p: THREE.Vector3, cam: THREE.PerspectiveCamera): { x: number; y: number; behind: boolean } {
+    _v.copy(p).project(cam);
+    const behind = _v.z > 1;
+    return { x: ((_v.x + 1) / 2) * this.w, y: ((1 - _v.y) / 2) * this.h, behind };
+  }
+
+  draw(c: HudContext, dt: number) {
+    this.clear();
+    if (!this.visible) return;
+    const g = this.g;
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const s = c.player.s;
+    const compact = this.w < 700;
+    const sc = compact ? 0.8 : 1;
+
+    // ---------- markers in the world
+    this.drawEnemyMarkers(c);
+    this.drawReticle(c);
+    if (c.showLanding) this.drawLandingGuide(c);
+
+    // ---------- bottom-left gauges
+    g.save();
+    g.translate(16, this.h - 16 - 150 * sc);
+    g.scale(sc, sc);
+    panel(g, 0, 0, 220, 150);
+    const kmh = s.airspeed * 3.6;
+    const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
+    g.fillStyle = INK;
+    g.font = `800 14px ${FONT}`;
+    g.fillText('SPEED', 14, 24);
+    g.fillText('ALT', 120, 24);
+    g.font = `800 30px ${FONT}`;
+    g.fillStyle = c.stallWarn ? RED : INK;
+    const kmhStr = `${Math.round(kmh)}`;
+    g.fillText(kmhStr, 14, 56);
+    const kw = g.measureText(kmhStr).width;
+    g.fillStyle = INK;
+    g.fillText(`${Math.round(s.pos.y)}`, 120, 56);
+    g.font = `700 13px ${FONT}`;
+    g.fillText('km/h', 14 + kw + 4, 56);
+    g.fillText(`m  (${Math.round(agl)} AGL)`, 120, 74);
+    if (c.stallWarn) {
+      g.fillStyle = RED;
+      g.font = `800 15px ${FONT}`;
+      g.fillText('STALL!', 14, 76);
+    }
+    // throttle bar
+    g.font = `800 13px ${FONT}`;
+    g.fillStyle = INK;
+    g.fillText('THROTTLE', 14, 102);
+    roundRect(g, 14, 108, 192, 16, 8);
+    g.fillStyle = '#fff';
+    g.fill();
+    g.strokeStyle = INK;
+    g.lineWidth = 2.5;
+    g.stroke();
+    roundRect(g, 16, 110, Math.max(6, 188 * s.throttle), 12, 6);
+    g.fillStyle = GOLD;
+    g.fill();
+    g.fillStyle = INK;
+    g.font = `700 12px ${FONT}`;
+    g.fillText(`${Math.round(s.throttle * 100)}%   rpm ${Math.round(s.rpm * 1400)}`, 16, 142);
+    g.restore();
+
+    // ---------- bottom-right: ammo + damage
+    g.save();
+    g.translate(this.w - 16 - 200 * sc, this.h - 16 - 150 * sc);
+    g.scale(sc, sc);
+    panel(g, 0, 0, 200, 150);
+    g.fillStyle = INK;
+    g.font = `800 14px ${FONT}`;
+    g.fillText('AMMO', 14, 24);
+    g.font = `800 26px ${FONT}`;
+    g.fillStyle = s.ammo < 60 ? RED : INK;
+    g.fillText(`${s.ammo}`, 14, 52);
+    g.fillStyle = INK;
+    g.font = `800 13px ${FONT}`;
+    g.fillText('GUN HEAT', 14, 74);
+    roundRect(g, 14, 80, 80, 12, 6);
+    g.fillStyle = '#fff';
+    g.fill();
+    g.lineWidth = 2;
+    g.stroke();
+    roundRect(g, 15, 81, Math.max(4, 78 * Math.min(s.gunHeat, 1)), 10, 5);
+    g.fillStyle = s.overheated ? RED : s.gunHeat > 0.7 ? '#ff9d3a' : ACCENT;
+    g.fill();
+    if (s.overheated) {
+      g.fillStyle = RED;
+      g.font = `800 12px ${FONT}`;
+      g.fillText('JAMMED', 14, 108);
+    }
+    this.drawDamage(g, 145, 76, s.health);
+    g.restore();
+
+    // ---------- top: compass ribbon + objective
+    this.drawCompass(c);
+    g.font = `800 ${compact ? 14 : 16}px ${FONT}`;
+    g.textAlign = 'center';
+    const objW = g.measureText(c.objective).width + 28;
+    panel(g, this.w / 2 - objW / 2, 62, objW, 30);
+    g.fillStyle = INK;
+    g.fillText(c.objective, this.w / 2, 83);
+    g.textAlign = 'left';
+
+    // ---------- minimap (top-right)
+    this.miniT -= dt;
+    this.drawMinimap(c, compact ? 120 : 160);
+  }
+
+  private drawDamage(g: CanvasRenderingContext2D, cx: number, cy: number, h: { engine: number; wings: number; tail: number; pilot: number }) {
+    const col = (v: number) => (v > 0.7 ? '#7cc95a' : v > 0.4 ? '#f2b134' : v > 0 ? '#e0703a' : '#6b2a22');
+    g.save();
+    g.translate(cx, cy);
+    g.lineWidth = 2.5;
+    g.strokeStyle = INK;
+    // wings
+    g.fillStyle = col(h.wings);
+    roundRect(g, -44, -22, 88, 16, 6);
+    g.fill();
+    g.stroke();
+    // fuselage
+    g.fillStyle = col(Math.min(h.pilot, 1));
+    roundRect(g, -8, -34, 16, 62, 6);
+    g.fill();
+    g.stroke();
+    // engine
+    g.fillStyle = col(h.engine);
+    g.beginPath();
+    g.arc(0, -36, 10, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    // tail
+    g.fillStyle = col(h.tail);
+    roundRect(g, -20, 24, 40, 10, 4);
+    g.fill();
+    g.stroke();
+    g.restore();
+  }
+
+  private drawCompass(c: HudContext) {
+    const g = this.g;
+    const w = Math.min(420, this.w - 40);
+    const x0 = this.w / 2 - w / 2;
+    const y0 = 12;
+    panel(g, x0, y0, w, 40);
+    c.player.forward(_fwd);
+    const heading = (Math.atan2(_fwd.x, -_fwd.z) * 180) / Math.PI;
+    g.save();
+    roundRect(g, x0 + 3, y0 + 3, w - 6, 34, 10);
+    g.clip();
+    const pxPerDeg = w / 120;
+    g.fillStyle = INK;
+    g.strokeStyle = INK;
+    g.textAlign = 'center';
+    for (let d = Math.floor((heading - 70) / 15) * 15; d <= heading + 70; d += 15) {
+      const x = this.w / 2 + (d - heading) * pxPerDeg;
+      const dd = ((d % 360) + 360) % 360;
+      const label = dd === 0 ? 'N' : dd === 90 ? 'E' : dd === 180 ? 'S' : dd === 270 ? 'W' : dd % 45 === 0 ? String(dd) : '';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(x, y0 + 30);
+      g.lineTo(x, y0 + (label ? 24 : 27));
+      g.stroke();
+      if (label) {
+        g.font = `800 ${label.length === 1 ? 16 : 12}px ${FONT}`;
+        g.fillText(label, x, y0 + 20);
+      }
+    }
+    // objective + home markers on the ribbon
+    const mark = (p: THREE.Vector3, color: string) => {
+      const b = (Math.atan2(p.x - c.player.s.pos.x, -(p.z - c.player.s.pos.z)) * 180) / Math.PI;
+      let rel = b - heading;
+      rel = ((rel + 540) % 360) - 180;
+      const x = this.w / 2 + THREE.MathUtils.clamp(rel, -58, 58) * pxPerDeg;
+      g.fillStyle = color;
+      g.beginPath();
+      g.moveTo(x, y0 + 36);
+      g.lineTo(x - 6, y0 + 28);
+      g.lineTo(x + 6, y0 + 28);
+      g.closePath();
+      g.fill();
+    };
+    const near = c.world.gen.nearestAirfield(c.player.s.pos.x, c.player.s.pos.z).af;
+    mark(new THREE.Vector3(near.x, 0, near.z), ACCENT);
+    for (const e of c.enemies) if (e.alive) mark(e.s.pos, RED);
+    g.restore();
+    // centre caret
+    g.fillStyle = INK;
+    g.beginPath();
+    g.moveTo(this.w / 2, y0 + 38);
+    g.lineTo(this.w / 2 - 7, y0 + 46);
+    g.lineTo(this.w / 2 + 7, y0 + 46);
+    g.closePath();
+    g.fill();
+    g.textAlign = 'left';
+  }
+
+  private drawEnemyMarkers(c: HudContext) {
+    const g = this.g;
+    const cam = c.camera;
+    for (const e of c.enemies) {
+      if (!e.alive) continue;
+      const pr = this.project(e.s.pos, cam);
+      const dist = e.s.pos.distanceTo(c.player.s.pos);
+      const on = !pr.behind && pr.x > 20 && pr.x < this.w - 20 && pr.y > 60 && pr.y < this.h - 20;
+      g.lineWidth = 3;
+      g.strokeStyle = RED;
+      g.fillStyle = RED;
+      if (on) {
+        const r = THREE.MathUtils.clamp(900 / Math.max(dist, 1), 9, 26);
+        g.beginPath();
+        g.moveTo(pr.x - r, pr.y - r + 6);
+        g.lineTo(pr.x - r, pr.y - r);
+        g.lineTo(pr.x - r + 6, pr.y - r);
+        g.moveTo(pr.x + r - 6, pr.y - r);
+        g.lineTo(pr.x + r, pr.y - r);
+        g.lineTo(pr.x + r, pr.y - r + 6);
+        g.moveTo(pr.x + r, pr.y + r - 6);
+        g.lineTo(pr.x + r, pr.y + r);
+        g.lineTo(pr.x + r - 6, pr.y + r);
+        g.moveTo(pr.x - r + 6, pr.y + r);
+        g.lineTo(pr.x - r, pr.y + r);
+        g.lineTo(pr.x - r, pr.y + r - 6);
+        g.stroke();
+        g.font = `800 12px ${FONT}`;
+        g.textAlign = 'center';
+        g.lineWidth = 3;
+        g.strokeStyle = PAPER;
+        const label = dist > 1000 ? `${(dist / 1000).toFixed(1)} km` : `${Math.round(dist)} m`;
+        g.strokeText(label, pr.x, pr.y + r + 14);
+        g.fillText(label, pr.x, pr.y + r + 14);
+        g.textAlign = 'left';
+        // lead indicator when close
+        if (dist < 700) {
+          const tof = dist / BULLET_SPEED;
+          const lead = e.s.pos.clone().addScaledVector(e.s.vel, tof).addScaledVector(c.player.s.vel, -tof);
+          const lp = this.project(lead, cam);
+          if (!lp.behind) {
+            g.strokeStyle = RED;
+            g.lineWidth = 2.5;
+            g.beginPath();
+            g.moveTo(lp.x, lp.y - 7);
+            g.lineTo(lp.x + 7, lp.y);
+            g.lineTo(lp.x, lp.y + 7);
+            g.lineTo(lp.x - 7, lp.y);
+            g.closePath();
+            g.stroke();
+          }
+        }
+      } else {
+        // off-screen arrow at the edge
+        let dx = pr.x - this.w / 2;
+        let dy = pr.y - this.h / 2;
+        if (pr.behind) {
+          dx = -dx;
+          dy = -dy;
+        }
+        const a = Math.atan2(dy, dx);
+        const rx = this.w / 2 - 50;
+        const ry = this.h / 2 - 70;
+        const k = Math.min(rx / Math.abs(Math.cos(a) || 1e-6), ry / Math.abs(Math.sin(a) || 1e-6));
+        const x = this.w / 2 + Math.cos(a) * k;
+        const y = this.h / 2 + Math.sin(a) * k;
+        g.save();
+        g.translate(x, y);
+        g.rotate(a);
+        g.beginPath();
+        g.moveTo(16, 0);
+        g.lineTo(-8, -11);
+        g.lineTo(-3, 0);
+        g.lineTo(-8, 11);
+        g.closePath();
+        g.fill();
+        g.lineWidth = 2;
+        g.strokeStyle = INK;
+        g.stroke();
+        g.restore();
+      }
+    }
+  }
+
+  private drawReticle(c: HudContext) {
+    const g = this.g;
+    const p = c.player;
+    p.forward(_fwd);
+    const aim = p.s.pos.clone().addScaledVector(_fwd, 250);
+    aim.y += 0.68;
+    const pr = this.project(aim, c.camera);
+    if (pr.behind) return;
+    g.lineWidth = 2.5;
+    g.strokeStyle = PAPER;
+    g.beginPath();
+    g.arc(pr.x, pr.y, 13, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 1.5;
+    g.strokeStyle = INK;
+    g.beginPath();
+    g.arc(pr.x, pr.y, 13, 0, Math.PI * 2);
+    g.moveTo(pr.x - 20, pr.y);
+    g.lineTo(pr.x - 7, pr.y);
+    g.moveTo(pr.x + 7, pr.y);
+    g.lineTo(pr.x + 20, pr.y);
+    g.moveTo(pr.x, pr.y + 7);
+    g.lineTo(pr.x, pr.y + 16);
+    g.stroke();
+    if (c.mouseStick) {
+      const mx = ((c.mouse.x + 1) / 2) * this.w;
+      const my = ((1 - c.mouse.y) / 2) * this.h;
+      g.strokeStyle = ACCENT;
+      g.lineWidth = 2.5;
+      g.beginPath();
+      g.arc(mx, my, 8, 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([4, 6]);
+      g.beginPath();
+      g.moveTo(this.w / 2, this.h / 2);
+      g.lineTo(mx, my);
+      g.stroke();
+      g.setLineDash([]);
+    }
+  }
+
+  private drawLandingGuide(c: HudContext) {
+    const g = this.g;
+    const s = c.player.s;
+    const { af, dist } = c.world.gen.nearestAirfield(s.pos.x, s.pos.z);
+    if (dist > 2500) return;
+    const cam = c.camera;
+    // runway end markers
+    const ends = [-1, 1].map((k) => new THREE.Vector3(af.x + af.dirX * (af.length / 2) * k, af.height + 1, af.z + af.dirZ * (af.length / 2) * k));
+    const centre = new THREE.Vector3(af.x, af.height + 1, af.z);
+    const pc = this.project(centre, cam);
+    if (!pc.behind) {
+      g.fillStyle = ACCENT;
+      g.strokeStyle = INK;
+      g.lineWidth = 2.5;
+      g.beginPath();
+      g.moveTo(pc.x, pc.y - 8);
+      g.lineTo(pc.x - 10, pc.y - 26);
+      g.lineTo(pc.x + 10, pc.y - 26);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.font = `800 12px ${FONT}`;
+      g.textAlign = 'center';
+      g.fillStyle = INK;
+      g.fillText('STRIP', pc.x, pc.y - 30);
+      g.textAlign = 'left';
+    }
+    for (const e of ends) {
+      const p = this.project(e, cam);
+      if (p.behind) continue;
+      g.fillStyle = PAPER;
+      g.strokeStyle = INK;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+    // glide slope advice (≈4°) toward the nearer runway end
+    const nearEnd = ends[0].distanceTo(s.pos) < ends[1].distanceTo(s.pos) ? ends[0] : ends[1];
+    const horiz = Math.hypot(nearEnd.x - s.pos.x, nearEnd.z - s.pos.z);
+    const ideal = af.height + horiz * Math.tan((4 * Math.PI) / 180);
+    const diff = s.pos.y - ideal;
+    if (horiz < 2200 && !s.onGround) {
+      const msg = diff > 25 ? 'HIGH ▼' : diff < -18 ? 'LOW ▲' : 'ON SLOPE ●';
+      const sink = -s.vel.y;
+      g.font = `800 15px ${FONT}`;
+      const text = `${msg}   sink ${sink.toFixed(1)} m/s`;
+      const tw = g.measureText(text).width + 24;
+      panel(g, this.w / 2 - tw / 2, this.h - 120, tw, 30);
+      g.fillStyle = sink > 3 ? RED : INK;
+      g.textAlign = 'center';
+      g.fillText(text, this.w / 2, this.h - 99);
+      g.textAlign = 'left';
+    }
+  }
+
+  private renderMinimap(c: HudContext) {
+    const m = this.mini.getContext('2d')!;
+    const n = this.mini.width;
+    const img = m.createImageData(n, n);
+    const px = c.player.s.pos.x;
+    const pz = c.player.s.pos.z;
+    const span = this.miniSpan;
+    for (let j = 0; j < n; j++)
+      for (let i = 0; i < n; i++) {
+        const x = px + (i / n - 0.5) * span;
+        const z = pz + (j / n - 0.5) * span;
+        const h = c.world.gen.rawHeight(x, z);
+        let r: number, gg: number, b: number;
+        if (h < 0) [r, gg, b] = h < -8 ? [70, 150, 205] : [110, 200, 220];
+        else if (h < 5) [r, gg, b] = [240, 220, 160];
+        else if (h > 440) [r, gg, b] = [250, 250, 255];
+        else if (h > 300) [r, gg, b] = [170, 155, 140];
+        else {
+          const t = h / 300;
+          r = 150 - t * 40;
+          gg = 210 - t * 50;
+          b = 90 - t * 20;
+        }
+        const k = (j * n + i) * 4;
+        img.data[k] = r;
+        img.data[k + 1] = gg;
+        img.data[k + 2] = b;
+        img.data[k + 3] = 255;
+      }
+    m.putImageData(img, 0, 0);
+    this.miniAt.set(px, pz);
+  }
+
+  private drawMinimap(c: HudContext, size: number) {
+    const s = c.player.s;
+    if (this.miniT <= 0 && (Math.abs(s.pos.x - this.miniAt.x) > 400 || Math.abs(s.pos.z - this.miniAt.y) > 400)) {
+      this.renderMinimap(c);
+      this.miniT = 0.5;
+    }
+    const g = this.g;
+    const x0 = this.w - size - 16;
+    const y0 = 12;
+    panel(g, x0, y0, size, size);
+    g.save();
+    roundRect(g, x0 + 3, y0 + 3, size - 6, size - 6, 10);
+    g.clip();
+    const span = this.miniSpan;
+    const k = size / span;
+    // the cached image is centred on miniAt
+    const ox = (this.miniAt.x - s.pos.x) * k;
+    const oz = (this.miniAt.y - s.pos.z) * k;
+    g.imageSmoothingEnabled = true;
+    g.drawImage(this.mini, x0 + ox, y0 + oz, size, size);
+    const toMap = (wx: number, wz: number) => ({ x: x0 + size / 2 + (wx - s.pos.x) * k, y: y0 + size / 2 + (wz - s.pos.z) * k });
+    // airfields
+    for (const af of c.world.gen.airfields) {
+      const p = toMap(af.x, af.z);
+      g.save();
+      g.translate(p.x, p.y);
+      g.rotate(af.heading);
+      g.fillStyle = af.home ? ACCENT : '#ffffff';
+      g.strokeStyle = INK;
+      g.lineWidth = 1.5;
+      g.fillRect(-7, -2.5, 14, 5);
+      g.strokeRect(-7, -2.5, 14, 5);
+      g.restore();
+    }
+    for (const e of c.enemies) {
+      if (!e.alive) continue;
+      const p = toMap(e.s.pos.x, e.s.pos.z);
+      g.fillStyle = RED;
+      g.strokeStyle = INK;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
+    // player arrow
+    c.player.forward(_fwd);
+    const a = Math.atan2(_fwd.z, _fwd.x);
+    g.save();
+    g.translate(x0 + size / 2, y0 + size / 2);
+    g.rotate(a);
+    g.fillStyle = GOLD;
+    g.strokeStyle = INK;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(9, 0);
+    g.lineTo(-6, -6);
+    g.lineTo(-3, 0);
+    g.lineTo(-6, 6);
+    g.closePath();
+    g.fill();
+    g.stroke();
+    g.restore();
+    g.font = `800 11px ${FONT}`;
+    g.fillStyle = INK;
+    g.fillText('N', x0 + size / 2 - 4, y0 + 15);
+  }
+}

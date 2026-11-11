@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:dai="https://dai.studio/schema/dai/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="https://dai.studio/workflow">
+  <bpmn:process id="Process_1" name="Baron — Build Progress" isExecutable="false">
+    <bpmn:extensionElements>
+      <dai:workflowMeta description="" version="0.1.0" docId="35cd4f3c-7bca-432b-846e-eae89fa065be" role="progress" planDoc="f9c759a9-e0fb-47b9-b1be-6dc6cd93e123" planPath="/Users/ted/Dev/_dai/ex-baron/plan.dai">
+        <dai:taskTypeEntry stepType="" description="A generic work item or activity in the process flow." />
+      </dai:workflowMeta>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>flow_255wo07v</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="task_2yckml2b" name="Scaffold Vite + TS + three.js" dai:notes="package.json (three 0.170, vite 5.4, typescript 5.6, vitest 2.1, lil-gui), tsconfig, vite.config (ES workers), index.html with title/loading/pause/debrief/no-WebGL/context-lost screens, cartoon CSS." dai:agentStatus="done" dai:planRef="task_qfhx3y6q">
+      <bpmn:incoming>flow_255wo07v</bpmn:incoming>
+      <bpmn:outgoing>flow_lrbozxnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_255wo07v" sourceRef="StartEvent_1" targetRef="task_2yckml2b" />
+    <bpmn:task id="task_zpqmox7x" name="Core engine: loop, input, settings" dai:notes="core/loop.ts: fixed 120 Hz accumulator, dt clamp, render alpha. core/input.ts: keyboard (ramped axes), throttle keys/digits, gamepad standard mapping, mouse virtual stick. core/settings.ts: settings + best records in localStorage (try/catch). GameStateMachine will live in game/game.ts.&#10;GameStateMachine in game/game.ts: title → loading (chunk prewarm) → sortie → ending → debrief; pause on Esc/P and when the tab is hidden." dai:agentStatus="done" dai:planRef="task_l3k5pldm">
+      <bpmn:incoming>flow_lrbozxnd</bpmn:incoming>
+      <bpmn:outgoing>flow_irx7mqku</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_lrbozxnd" sourceRef="task_2yckml2b" targetRef="task_zpqmox7x" />
+    <bpmn:task id="task_6afat8dw" name="World gen core + chunk streaming" dai:notes="world/rng.ts (hash32 + mulberry32), noise.ts (seeded simplex), terrain.ts: warped continental fBm + masked ridged mountains + soft terraces, airfield search &#38; flattening, biome vertex colours (sea depth bands, foam, sand, meadow, Voronoi farmland, forest, rock, snow). Checked: ~65-70% land, heights -185..740 m, airfields placed in ~10 ms, 0.5 µs per height sample." dai:agentStatus="done" dai:planRef="task_ohjh4os8">
+      <bpmn:incoming>flow_irx7mqku</bpmn:incoming>
+      <bpmn:outgoing>flow_8m2efwgu</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_irx7mqku" sourceRef="task_zpqmox7x" targetRef="task_6afat8dw" />
+    <bpmn:task id="task_5o40whmu" name="Chunk workers, LOD rings, props, clouds" dai:notes="chunkBuild.ts (pure; grid + skirts + props), chunk.worker.ts, chunks.ts ChunkManager: LOD rings (64/32/16/8 res by ring), up to 4 workers, prefetch along velocity, upload budget 2.5 ms/frame, eviction. Deviation: plain postMessage instead of Comlink, ring LOD instead of quadtree. props.ts: one InstancedMesh per prop type + shared-matrix outline. clouds.ts: seeded per-cell cumulus clusters, wind drift, densityAt() for whiteout. airfieldProps.ts: strips, hangars, tents, windsock." dai:agentStatus="done" dai:planRef="task_x5rl918x">
+      <bpmn:incoming>flow_8m2efwgu</bpmn:incoming>
+      <bpmn:outgoing>flow_sc2aikkj</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_8m2efwgu" sourceRef="task_6afat8dw" targetRef="task_5o40whmu" />
+    <bpmn:task id="task_uq5jofeo" name="Toon rendering pipeline" dai:notes="render/toon.ts (MeshToonMaterial with a 3-band ramp and rim light), outline.ts (inverted hull using smoothed outlineNormal, screen-constant width that fades with distance, works with instancing), post.ts (HalfFloat scene RT + depth → Laplacian-on-1/z ink edges + colour grade → FXAA), sky.ts (gradient dome, banded sun halo, 3 time-of-day presets), water.ts (toon wave lines, translucent over baked depth bands). Quality tiers low/med/high + dynamic resolution. Checked visually in Chrome: outlines, clouds, sea foam and beaches look right. Toned down an oversaturated first pass. Not done: normal-buffer edges, cascaded shadows (one following shadow box), cloud impostors." dai:agentStatus="done" dai:planRef="task_mccwnl4j">
+      <bpmn:incoming>flow_sc2aikkj</bpmn:incoming>
+      <bpmn:outgoing>flow_iprhf6d6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_sc2aikkj" sourceRef="task_5o40whmu" targetRef="task_uq5jofeo" />
+    <bpmn:task id="task_vjvowps9" name="Clouds, water, airfields &#38; props" dai:notes="Built alongside step 4: seeded cumulus per 1.6 km cell with wind drift and cloud whiteout; 5 airfields (home + 4) on flattened ground with striped strips, hangars, tents, windsock; instanced pines, round trees, houses, barns, windmills via Poisson-ish jittered grids." dai:agentStatus="done" dai:planRef="task_khqq1w83">
+      <bpmn:incoming>flow_iprhf6d6</bpmn:incoming>
+      <bpmn:outgoing>flow_dhlmyu09</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_iprhf6d6" sourceRef="task_uq5jofeo" targetRef="task_vjvowps9" />
+    <bpmn:task id="task_u6jjmz8k" name="Biplane, flight model &#38; camera" dai:notes="plane/biplaneMesh.ts: original procedural low-poly biplane (yellow/teal player, purple/green enemy), animated prop + blur disc, ailerons, elevator, rudder. flight.ts: forces (thrust, lift with soft stall, induced + flat-plate drag, side force, gravity), q-scaled control/damping/weathervane, spring-damper gear, crash/scrape/prop-strike/ditching. Fixed during testing: crosswind ground loop → arcade gear stability (side friction has no roll lever, yaw/roll damping on the wheels). Assists: arcade (auto-level, stall protection, auto-rudder), normal, expert. camera.ts: chase with lag + FOV kick, cockpit, padlock, orbit, shake. Measured: liftoff ~170 m / 25 m/s, Vmax ~180 km/h, stall ~70 km/h, loops and stall recovery work." dai:agentStatus="done" dai:planRef="task_isi6t5e9">
+      <bpmn:incoming>flow_dhlmyu09</bpmn:incoming>
+      <bpmn:outgoing>flow_43ycvtd9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_dhlmyu09" sourceRef="task_vjvowps9" targetRef="task_u6jjmz8k" />
+    <bpmn:task id="task_qquboqmo" name="Combat: guns, damage, AI, effects" dai:notes="combat/weapons.ts: twin guns at 15 rds/s, ray-cast bullets (780 m/s) with tracer every 4th round, heat/jam, ammo, segment-sphere then per-zone AABB hits (engine/pilot/fuselage/tail/wings). ai.ts: patrol/engage/attack (lead pursuit)/evade/disengage, Rookie/Veteran/Ace presets. Tuned using headless AI-vs-AI sims: added energy management, a bank limit near the ground, and terrain avoidance that turns toward lower ground (6 × 3-minute fights with no uncontrolled terrain crashes), and raised damage so kills take about 15-20 hits. fx/effects.ts: instanced toon puffs (smoke, fire, dust, splash, debris), sparks, muzzle flashes, POW! sprites; puffs shrink near the camera (fixed a screen-filling dust bug)." dai:agentStatus="done" dai:planRef="task_ok0shzfp">
+      <bpmn:incoming>flow_43ycvtd9</bpmn:incoming>
+      <bpmn:outgoing>flow_g5yrazaj</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_43ycvtd9" sourceRef="task_u6jjmz8k" targetRef="task_qquboqmo" />
+    <bpmn:task id="task_idchtspk" name="HUD, menus &#38; audio" dai:notes="ui/hud.ts: canvas HUD (speed/alt/AGL, throttle+rpm, compass ribbon with airfield and enemy carets, objective, ammo/heat, damage silhouette, minimap, enemy brackets + off-screen arrows, lead diamond, reticle, landing guide with glide-slope advice). menus.ts: hangar (mission, difficulty, assists, seed + reroll, quality, best record), loading bar, pause (volume, shake, invert), debrief with medal. audio.ts: synthesised engine with putt modulation, wind, guns, hits, explosions, splash, positional enemy engines. Not done: background music." dai:agentStatus="done" dai:planRef="task_ltt0d26a">
+      <bpmn:incoming>flow_g5yrazaj</bpmn:incoming>
+      <bpmn:outgoing>flow_ykyr87j8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_g5yrazaj" sourceRef="task_qquboqmo" targetRef="task_idchtspk" />
+    <bpmn:task id="task_9io6zbve" name="Gameplay loop: takeoff → land" dai:notes="Missions: Free Flight and Dogfight (2/3/4 bandits by difficulty, arriving 15 s after takeoff). Takeoff into the wind from home field; context hints; touchdown graded on sink, bank, on-runway and bounces (A+…D); landed = stopped for 1.2 s; crash / ditch / shot down / bail out (X) → orbit cam → debrief with medal and best-per-seed. Not done: Patrol mission." dai:agentStatus="done" dai:planRef="task_nzky8od5">
+      <bpmn:incoming>flow_ykyr87j8</bpmn:incoming>
+      <bpmn:outgoing>flow_6ef3ns6n</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_ykyr87j8" sourceRef="task_idchtspk" targetRef="task_9io6zbve" />
+    <bpmn:task id="task_9gbykx6r" name="Tests &#38; verification" dai:notes="vitest: 11/11 passing (rng determinism, seed determinism, chunk order-independence at all LODs, flat home strip on 5 seeds, land/sea/mountain mix, takeoff distance, crosswind ground roll, hands-off cruise, top speed, stall recovery, gentle touchdown). tsc + vite build OK (644 KB dist, 162 KB gzip main). In Chrome: title flyover and takeoff run at 60 fps with no console errors. Not checked in the browser: dogfight and landing visuals (the test tab was closed); combat checked headlessly instead.&#10;Correction: console tracking began after page load, so &#34;no console errors&#34; was not fully verified. The game ran (state machine, chunks, 60 fps) without visible failures." dai:agentStatus="done" dai:planRef="task_44e737qz">
+      <bpmn:incoming>flow_6ef3ns6n</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_6ef3ns6n" sourceRef="task_9io6zbve" targetRef="task_9gbykx6r" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_2yckml2b_di" bpmnElement="task_2yckml2b">
+        <dc:Bounds x="268" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_255wo07v_di" bpmnElement="flow_255wo07v">
+        <di:waypoint x="188" y="100" />
+        <di:waypoint x="268" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_zpqmox7x_di" bpmnElement="task_zpqmox7x">
+        <dc:Bounds x="448" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_lrbozxnd_di" bpmnElement="flow_lrbozxnd">
+        <di:waypoint x="368" y="100" />
+        <di:waypoint x="448" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_6afat8dw_di" bpmnElement="task_6afat8dw">
+        <dc:Bounds x="628" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_irx7mqku_di" bpmnElement="flow_irx7mqku">
+        <di:waypoint x="548" y="100" />
+        <di:waypoint x="628" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_5o40whmu_di" bpmnElement="task_5o40whmu">
+        <dc:Bounds x="808" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_8m2efwgu_di" bpmnElement="flow_8m2efwgu">
+        <di:waypoint x="728" y="100" />
+        <di:waypoint x="808" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_uq5jofeo_di" bpmnElement="task_uq5jofeo">
+        <dc:Bounds x="988" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_sc2aikkj_di" bpmnElement="flow_sc2aikkj">
+        <di:waypoint x="908" y="100" />
+        <di:waypoint x="988" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_vjvowps9_di" bpmnElement="task_vjvowps9">
+        <dc:Bounds x="1168" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_iprhf6d6_di" bpmnElement="flow_iprhf6d6">
+        <di:waypoint x="1088" y="100" />
+        <di:waypoint x="1168" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_u6jjmz8k_di" bpmnElement="task_u6jjmz8k">
+        <dc:Bounds x="1348" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_dhlmyu09_di" bpmnElement="flow_dhlmyu09">
+        <di:waypoint x="1268" y="100" />
+        <di:waypoint x="1348" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_qquboqmo_di" bpmnElement="task_qquboqmo">
+        <dc:Bounds x="1528" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_43ycvtd9_di" bpmnElement="flow_43ycvtd9">
+        <di:waypoint x="1448" y="100" />
+        <di:waypoint x="1528" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_idchtspk_di" bpmnElement="task_idchtspk">
+        <dc:Bounds x="268" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_g5yrazaj_di" bpmnElement="flow_g5yrazaj">
+        <di:waypoint x="1578" y="140" />
+        <di:waypoint x="1578" y="170" />
+        <di:waypoint x="318" y="170" />
+        <di:waypoint x="318" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_9io6zbve_di" bpmnElement="task_9io6zbve">
+        <dc:Bounds x="448" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ykyr87j8_di" bpmnElement="flow_ykyr87j8">
+        <di:waypoint x="368" y="240" />
+        <di:waypoint x="448" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_9gbykx6r_di" bpmnElement="task_9gbykx6r">
+        <dc:Bounds x="628" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_6ef3ns6n_di" bpmnElement="flow_6ef3ns6n">
+        <di:waypoint x="548" y="240" />
+        <di:waypoint x="628" y="240" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

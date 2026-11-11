@@ -1,0 +1,582 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dai="https://dai.studio/schema/dai/1.0" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="https://dai.studio/workflow">
+  <bpmn:process id="Process_1" name="Baron — Game Design" isExecutable="false">
+    <bpmn:extensionElements>
+      <dai:workflowMeta description="Design for Baron, a browser-based biplane flying game. The player takes off, flies, dogfights and lands a biplane over procedurally generated terrain under procedurally generated clouds. Everything is drawn with a cartoon (toon/cel) shader. It runs on WebGL 2 in any modern desktop browser. Target: TypeScript + three.js, built with Vite." version="0.1.0">
+        <dai:taskTypeEntry type="dai.types.ai.context" stepType="context" description="Background knowledge, grounding data, or reference material that informs downstream steps. Does not produce output itself — it shapes how the AI reasons." />
+        <dai:taskTypeEntry type="dai.types.product.persona" stepType="persona" description="A research-based user archetype that represents a segment of your target audience. Use it to ground product decisions in real user needs and connect to Stories, Features, and Journeys." />
+        <dai:taskTypeEntry type="dai.types.business.objective" stepType="objective" description="A strategic goal or OKR — a time-bound target the team aims to achieve. Pairs with KPIs to define what success looks like and how it will be measured." />
+        <dai:taskTypeEntry type="dai.types.ai.rule" stepType="rule" description="A constraint, policy, or business rule the AI must respect and enforce throughout the workflow. Scope, priority, and enforcement level determine how strictly it applies." />
+        <dai:taskTypeEntry stepType="" description="A generic work item or activity in the process flow." />
+        <dai:taskTypeEntry type="dai.types.product.feature" stepType="feature" description="A discrete product capability that delivers value to users. The core unit of product delivery — sits above user stories and below epics in the agile hierarchy." />
+        <dai:taskTypeEntry type="dai.types.software.component" stepType="component" description="A UI or software component — its type, props/interface, and usage description. Use it to document your component library, design system elements, or reusable building blocks." />
+        <dai:taskTypeEntry type="dai.types.software.model" stepType="model" description="A data schema or structured type definition. Documents the shape of data flowing through the system and the notation used." />
+        <dai:taskTypeEntry type="dai.types.business.requirement" stepType="requirement" description="A business or functional requirement with priority, source, acceptance criteria, and status. Bridges business goals and technical delivery using the MoSCoW prioritisation framework." />
+        <dai:taskTypeEntry type="dai.types.software.decision" stepType="" description="A technical or architecture decision record (ADR): the context, the options considered, the decision and its consequences. For business decisions use Business → Decision." />
+        <dai:taskTypeEntry type="dai.types.software.dependency" stepType="dependency" description="An external library, package, service, API, or resource the project relies on. Documents the source, version, type, and license for dependency management and compliance." />
+        <dai:taskTypeEntry type="dai.types.business.risk-item" stepType="risk" description="A potential threat or uncertainty that could negatively affect the project or outcome. Tracks probability, impact, and mitigation." />
+        <dai:taskTypeEntry type="dai.types.software.test" stepType="test" description="A test case or verification condition — documents what is being tested, how to run it, and what constitutes a pass." />
+        <dai:taskTypeEntry type="dai.types.product.metric" stepType="product-metric" description="A product or feature-level metric. Distinct from Business KPI (org/initiative-level) — product metrics track north-star signals, engagement, retention, and conversion at the feature or experiment level." />
+      </dai:workflowMeta>
+    </bpmn:extensionElements>
+    <bpmn:subProcess id="task_4jr5s0d6" name="1. Vision &#38; Principles" dai:notes="What Baron is, who it is for, and the rules every other part of the design must respect.">
+      <bpmn:task id="task_1b20th0f" name="Game vision" dai:type="dai.types.ai.context" dai:stepType="context" dai:source="manual" dai:format="markdown" dai:scope="global" dai:content="Baron is an arcade biplane game set in a WWI-inspired, cartoon world. The player takes off from a grass airfield, flies over a procedurally generated landscape under procedurally generated clouds, dogfights enemy biplanes, and lands again. Pillars: (1) Flying feels great: quick to learn, satisfying to master. (2) A readable, cheerful cartoon look: toon shading, ink outlines, bold colours. (3) Every flight is different: a seed generates terrain, clouds, airfields and encounters. (4) Instant play: opens in a browser tab with no install." />
+      <bpmn:task id="task_fa6q48n4" name="Casual sky ace" dai:type="dai.types.product.persona" dai:stepType="persona" dai:role="Casual / mid-core browser gamer" dai:age="14-45" dai:goals="Jump into a short, fun flight; get a few kills; pull off a clean landing." dai:frustrations="Simulator-level complexity; long downloads; unreadable visuals in busy dogfights." dai:behaviours="Plays 10-20 minute sessions on a laptop with keyboard + mouse or a gamepad." dai:quote="I want to feel like a flying ace without reading a manual." />
+      <bpmn:task id="task_2mjnmids" name="Playable vertical slice" dai:type="dai.types.business.objective" dai:stepType="objective" dai:status="draft" dai:timeframe="custom" dai:keyResults="1. A full takeoff → fly → dogfight → land loop is playable in Chrome, Firefox, Safari and Edge.&#10;2. 60 fps at 1080p on a 2020-era integrated GPU.&#10;3. First load under 10 MB and under 5 s on broadband.&#10;4. 8 of 10 playtesters land successfully within 3 attempts." />
+      <bpmn:task id="task_6bl3c6qz" name="WebGL in any modern browser" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Must run on WebGL 2 in the latest two versions of Chrome, Edge, Firefox and Safari (desktop) with no plugins or install. Feature-detect WebGL 2 and show a friendly error if it is missing. No native-only APIs. WebGPU can be added later as an optional path, never required." dai:scope="global" dai:rulePriority="critical" dai:enforcement="hard" />
+      <bpmn:task id="task_7oymt4a7" name="Everything looks cartoon" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Every visible object (planes, terrain, water, props, clouds, effects) goes through the toon pipeline: banded lighting, ink outlines, flat saturated palette. No photoreal textures or PBR materials. UI and HUD match the style (hand-drawn look, rounded shapes)." dai:scope="global" dai:rulePriority="high" dai:enforcement="hard" />
+      <bpmn:task id="task_dlmjq7ne" name="Original assets only" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Aircraft, insignia, characters, music and art are original designs inspired by the WWI era in general. Do not reproduce real-world military insignia or the assets, names or look of any existing game." dai:scope="global" dai:rulePriority="high" dai:enforcement="hard" />
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_4a8dncsd" name="2. Core Gameplay Loop" dai:notes="One sortie, from launching the page to the debrief. A sortie lasts about 5-15 minutes. Each step is a game state handled by the GameStateMachine.">
+      <bpmn:startEvent id="event_u9x5pis8" name="Open game in browser" dai:notes="Page loads, WebGL 2 is checked, a world seed is chosen (random or from the URL ?seed=).">
+        <bpmn:outgoing>flow_ozkbuppa</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:task id="task_peq24fkg" name="Hangar &#38; briefing" dai:notes="Title screen and hangar. The player picks a mission (Free Flight, Dogfight, Patrol), sees the seed and controls, and can re-roll the world. The world starts generating in the background so it is ready when they press Fly.">
+        <bpmn:incoming>flow_ozkbuppa</bpmn:incoming>
+        <bpmn:outgoing>flow_iizk8oyj</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_ozkbuppa" sourceRef="event_u9x5pis8" targetRef="task_peq24fkg" />
+      <bpmn:task id="task_mggvy1mn" name="Takeoff" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="planned" dai:acceptanceCriteria="- Plane starts parked on a generated airfield, engine idling.&#10;- Throttle + rudder steer on the ground; tail lifts as speed builds.&#10;- Lift-off happens at rotation speed with gentle pull-up.&#10;- A wing-tip or prop ground strike damages the plane; flipping over ends the sortie." dai:valueStatement="Lets the player feel the plane come alive: taxi, throttle up, lift off the grass strip.">
+        <bpmn:incoming>flow_iizk8oyj</bpmn:incoming>
+        <bpmn:outgoing>flow_8cj3c7hn</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_iizk8oyj" sourceRef="task_peq24fkg" targetRef="task_mggvy1mn" />
+      <bpmn:task id="task_b04nlwc2" name="Free flight &#38; navigation" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="planned" dai:acceptanceCriteria="- Terrain and clouds stream in around the player with no visible pop-in at normal speed.&#10;- Compass and minimap point to the objective and home airfield.&#10;- Flying into clouds briefly reduces visibility.&#10;- Stalls and spins are possible but recoverable." dai:valueStatement="The joy of flying over an endless cartoon landscape.">
+        <bpmn:incoming>flow_8cj3c7hn</bpmn:incoming>
+        <bpmn:outgoing>flow_o2ypvck5</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_8cj3c7hn" sourceRef="task_mggvy1mn" targetRef="task_b04nlwc2" />
+      <bpmn:task id="task_1p5i083q" name="Dogfight" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="planned" dai:acceptanceCriteria="- Enemy flights of 1-4 planes are spawned near the objective.&#10;- Twin forward machine guns with tracers, overheat and limited ammo.&#10;- Hits show cartoon sparks, smoke and parts flying off; a downed plane spirals down trailing smoke.&#10;- An off-screen indicator points to the nearest enemy." dai:valueStatement="Tense, readable close-range fights against enemy biplanes.">
+        <bpmn:incoming>flow_o2ypvck5</bpmn:incoming>
+        <bpmn:outgoing>flow_yuaqd9zc</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_o2ypvck5" sourceRef="task_b04nlwc2" targetRef="task_1p5i083q" />
+      <bpmn:exclusiveGateway id="gateway_ln9p454a" name="Shot down?" dai:notes="Health reaches 0, or the pilot bails out.">
+        <bpmn:incoming>flow_yuaqd9zc</bpmn:incoming>
+        <bpmn:outgoing>flow_tnxhphbc</bpmn:outgoing>
+        <bpmn:outgoing>flow_6byrngb6</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:sequenceFlow id="flow_yuaqd9zc" sourceRef="task_1p5i083q" targetRef="gateway_ln9p454a" />
+      <bpmn:task id="task_2osp81md" name="Return to airfield" dai:notes="Objective complete or ammo/fuel low. The minimap and a HUD marker guide the player to the nearest friendly airfield. Damage (smoke, a sputtering engine) can make it harder.">
+        <bpmn:incoming>flow_tnxhphbc</bpmn:incoming>
+        <bpmn:outgoing>flow_koezycs4</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_tnxhphbc" name="no" sourceRef="gateway_ln9p454a" targetRef="task_2osp81md" />
+      <bpmn:task id="task_y3i9ictk" name="Landing" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="planned" dai:acceptanceCriteria="- The landing is graded on sink rate, bank angle, speed and distance from the strip centre.&#10;- A gentle touchdown on the wheels (or a three-point landing) counts as a safe landing.&#10;- A hard touchdown bounces; too hard, or wing-first, is a crash.&#10;- The plane can roll to a stop and taxi." dai:valueStatement="A skill test that ends each sortie with a satisfying (or comic) finish.">
+        <bpmn:incoming>flow_koezycs4</bpmn:incoming>
+        <bpmn:outgoing>flow_v5igvmmf</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_koezycs4" sourceRef="task_2osp81md" targetRef="task_y3i9ictk" />
+      <bpmn:exclusiveGateway id="gateway_c7tsytty" name="Clean landing?">
+        <bpmn:incoming>flow_v5igvmmf</bpmn:incoming>
+        <bpmn:outgoing>flow_q2qovmac</bpmn:outgoing>
+        <bpmn:outgoing>flow_62vsz4fm</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:sequenceFlow id="flow_v5igvmmf" sourceRef="task_y3i9ictk" targetRef="gateway_c7tsytty" />
+      <bpmn:task id="task_qp0e8agg" name="Debrief &#38; score" dai:notes="Shows kills, accuracy, damage taken, landing grade and time. Awards a medal (bronze, silver or gold). Options: fly again with the same seed, new seed, or back to the hangar.">
+        <bpmn:incoming>flow_q2qovmac</bpmn:incoming>
+        <bpmn:incoming>flow_d6tfryij</bpmn:incoming>
+        <bpmn:outgoing>flow_9xvx3y9p</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_q2qovmac" name="yes" sourceRef="gateway_c7tsytty" targetRef="task_qp0e8agg" />
+      <bpmn:endEvent id="event_gl1xgirx" name="Sortie over">
+        <bpmn:incoming>flow_9xvx3y9p</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="flow_9xvx3y9p" sourceRef="task_qp0e8agg" targetRef="event_gl1xgirx" />
+      <bpmn:task id="task_nm63znum" name="Crash / bail out" dai:notes="A cartoon crash: a tumble, a puff of smoke and the pilot&#39;s parachute. Short slow-motion replay camera, then go to the debrief with a failed result.">
+        <bpmn:incoming>flow_6byrngb6</bpmn:incoming>
+        <bpmn:incoming>flow_62vsz4fm</bpmn:incoming>
+        <bpmn:outgoing>flow_d6tfryij</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_6byrngb6" name="yes" sourceRef="gateway_ln9p454a" targetRef="task_nm63znum" />
+      <bpmn:sequenceFlow id="flow_62vsz4fm" name="no" sourceRef="gateway_c7tsytty" targetRef="task_nm63znum" />
+      <bpmn:sequenceFlow id="flow_d6tfryij" sourceRef="task_nm63znum" targetRef="task_qp0e8agg" />
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_blvmys7o" name="3. Flight &#38; Combat" dai:notes="The simulation side: how the biplane flies, how the player controls it, and how combat works. Arcade-leaning physics: believable, forgiving, fun.">
+      <bpmn:task id="task_ulal5bhu" name="Flight model" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Simplified rigid-body model run at a fixed 120 Hz step. Forces: thrust (throttle × prop efficiency falling off with speed), lift = ½pv²·S·Cl(AoA) with a soft stall past the critical angle of attack, drag (parasitic + induced), gravity. Torques come from control surfaces scaled by airspeed, plus auto-coordination (assisted rudder) for casual players. Ground contact: wheels + tail skid as spring-dampers, with friction. Tunables live in PlaneSpec so different planes feel different." dai:componentType="service" dai:propsInterface="interface FlightModel {&#10;  step(state: PlaneState, input: ControlInput, dt: number): PlaneState; // fixed 120 Hz&#10;}&#10;interface PlaneSpec { mass: number; wingArea: number; maxThrust: number; stallAoA: number; rollRate: number; pitchRate: number; yawRate: number; }">
+        <bpmn:incoming>flow_b0fokrf1</bpmn:incoming>
+        <bpmn:incoming>flow_pkk2pl3g</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:task id="task_97b94fjq" name="Controls &#38; input" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Maps keyboard (WASD/arrow keys, Q/E rudder, Shift/Ctrl throttle, Space fire), mouse (mouse-aim mode: the plane steers toward the cursor) and gamepad (Gamepad API, twin-stick) to a normalised ControlInput. Remappable. Has assist levels: Arcade (auto-level, stall protection), Normal, and Expert (no assists)." dai:componentType="utility" dai:propsInterface="interface ControlInput { pitch: number; roll: number; yaw: number; throttle: number; fire: boolean; look: { x: number; y: number }; }">
+        <bpmn:outgoing>flow_b0fokrf1</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_4ox45e0m" name="Camera rig" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Chase camera with a spring-damped lag and FOV kick with speed; cockpit view; free-look. Padlock view locks onto the nearest enemy during a dogfight. Cinematic cameras for takeoff, crash replay and landing roll-out. Camera shake on hits and gunfire." dai:componentType="utility" />
+      <bpmn:task id="task_71jc4dj7" name="Weapons &#38; damage" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Twin synchronised forward machine guns. Bullets are fast ray-cast projectiles (stepped each tick) with tracer every 4th round. Gun heat and limited ammo; reload at an airfield. Damage zones: engine (sputter, smoke, power loss), wings (more drag, less lift, roll bias), tail (reduced control), pilot (game over). Visuals are cartoon sparks, bullet holes as decals, and smoke trails." dai:componentType="service" />
+      <bpmn:task id="task_8qyvga1r" name="Enemy AI pilots" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Enemies fly with the same flight model as the player (no cheating physics). A state machine per pilot: Patrol → Engage → Attack (lead pursuit) → Evade (break turn, scissors) → Disengage (low health, flee). Steering is a PD controller on the desired heading. Skill presets (Rookie, Veteran, Ace) change reaction time, aim error, aggression and how well they manage energy. Terrain avoidance uses look-ahead height samples." dai:componentType="service">
+        <bpmn:outgoing>flow_pkk2pl3g</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_g3qvmscq" name="HUD &#38; UI" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Hand-drawn style overlay (HTML/CSS on top of the canvas): airspeed, altitude, throttle, compass ribbon, ammo/heat, damage silhouette, minimap, enemy markers, landing guide (glide slope + strip arrow), and kill notifications. Menus: title, hangar, pause, settings (quality, controls, audio) and debrief." dai:componentType="ui" />
+      <bpmn:task id="task_yhwx6d3d" name="Audio" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Web Audio API. Engine sound is a loop whose pitch and volume follow RPM; wind rises with speed. Gunfire, hits, explosions and a positional sound for each enemy. Jaunty original music that changes intensity in a dogfight. Audio starts on the first user gesture (browser autoplay policy)." dai:componentType="service" />
+      <bpmn:task id="task_ijppxp7e" name="PlaneState" dai:type="dai.types.software.model" dai:stepType="model" dai:notes="interface PlaneState {&#10;  id: string; team: &#39;player&#39; | &#39;ally&#39; | &#39;enemy&#39;;&#10;  position: Vec3; velocity: Vec3; orientation: Quat; angularVelocity: Vec3;&#10;  throttle: number; rpm: number; onGround: boolean;&#10;  health: { engine: number; wings: number; tail: number; pilot: number };&#10;  ammo: number; gunHeat: number; fuel: number;&#10;}" dai:modelFormat="typescript" />
+      <bpmn:task id="task_clvy3yb9" name="Flight feel is tunable" dai:type="dai.types.business.requirement" dai:stepType="requirement" dai:notes="Flight feel is the top risk to fun. Designers must be able to iterate on it quickly without rebuilding." dai:status="draft" dai:priority="must" dai:acceptanceCriteria="- All flight constants are in data (JSON), not code.&#10;- A debug panel (lil-gui) can change them live.&#10;- Assist level is selectable in settings." />
+      <bpmn:sequenceFlow id="flow_b0fokrf1" sourceRef="task_97b94fjq" targetRef="task_ulal5bhu" />
+      <bpmn:sequenceFlow id="flow_pkk2pl3g" sourceRef="task_8qyvga1r" targetRef="task_ulal5bhu" />
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_w243etqq" name="5. Cartoon Rendering (WebGL 2)" dai:notes="The toon look: banded lighting, ink outlines, flat colours, stylised sky. Built on three.js WebGLRenderer with custom ShaderMaterials, plus a small post-processing chain. Each frame: shadow pass → opaque toon pass (+ normal/depth) → outline pass → transparent/effects → fog/tonemap → FXAA → HUD.">
+      <bpmn:task id="task_ox45hj0p" name="Toon lighting shader" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="One shared ShaderMaterial (or MeshToonMaterial with onBeforeCompile) for every object. N·L goes through a 3-band ramp (shadow, mid, lit) via a small gradient texture, with smoothstep edges so the bands stay crisp but don&#39;t alias. Adds a rim light (fresnel) for silhouettes against the sky, and a specular &#39;glint&#39; band on plane paint and water. Takes shadows from one directional sun shadow map (cascades 2-3), stepped so shadows are hard cartoon shapes. Colours come from vertex colours or a tiny palette texture." dai:componentType="library">
+        <bpmn:outgoing>flow_en0l5ldh</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_ux2nodj2" name="Ink outlines" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Two methods combined: (1) Planes and props use an inverted-hull pass: back faces pushed out along normals by a screen-space-constant width, drawn in dark ink. Cheap and clean. (2) Terrain and clouds use a screen-space edge pass: Sobel on depth + normals from the main pass (MRT), which gives ridge lines and silhouettes on large geometry. Line width and colour fade with distance so far terrain stays soft." dai:componentType="library">
+        <bpmn:incoming>flow_en0l5ldh</bpmn:incoming>
+        <bpmn:outgoing>flow_k6opxkjv</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_en0l5ldh" sourceRef="task_ox45hj0p" targetRef="task_ux2nodj2" />
+      <bpmn:task id="task_wubbf19b" name="Post-processing" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="A short chain using three.js EffectComposer (or pmndrs postprocessing): edge detection → stylised distance fog (tinted, banded) → colour grade and saturation boost → FXAA. Optional and quality-gated: soft vignette, paper-grain overlay, and a speed-lines effect at high speed or in a dive." dai:componentType="library">
+        <bpmn:incoming>flow_k6opxkjv</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_k6opxkjv" sourceRef="task_ux2nodj2" targetRef="task_wubbf19b" />
+      <bpmn:task id="task_mhep3nsv" name="Stylised sky" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="A gradient sky dome (zenith → horizon colours set by time of day), a cartoon sun disc with a halo, and fog that matches the horizon colour so terrain fades seamlessly into the sky. No HDR skybox." dai:componentType="library" />
+      <bpmn:task id="task_8zy8v9t0" name="Toon clouds" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Cloud blobs use the toon shader with a white/light-grey 2-band ramp, a soft rim and a thin outline. Vertex displacement with noise makes them gently &#39;breathe&#39;. The fragments near the camera dither-fade so the player can fly through. Far clouds turn into impostor billboards to save draw calls." dai:componentType="library" />
+      <bpmn:task id="task_s2yp6wu5" name="Effects" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="A GPU-instanced particle system with cartoon shapes: smoke puffs (toon-shaded spheres that grow and fade), fire, muzzle flashes, tracers (stretched quads), hit sparks (star sprites), explosion &#39;POW&#39; bursts, dust on takeoff and landing, and propeller blur discs. Shares the toon palette." dai:componentType="library" />
+      <bpmn:task id="task_71m60ynn" name="Quality tiers &#38; frame budget" dai:type="dai.types.business.requirement" dai:stepType="requirement" dai:notes="The tiers change view distance, LOD bias, shadow cascades, outline method (Low: hulls only), cloud count, particle caps and render scale." dai:status="draft" dai:priority="must" dai:acceptanceCriteria="- Tiers Low / Medium / High, chosen automatically on startup from a GPU benchmark and frame times, and changeable in settings.&#10;- 60 fps target (16.6 ms): ≤ 8 ms GPU, ≤ 4 ms simulation + JS on Medium.&#10;- Dynamic resolution scaling when frame time stays above budget.&#10;- ≤ 300 draw calls per frame (instancing, merged chunks)." />
+      <bpmn:task id="task_q8pyq4z0" name="Aircraft &#38; art assets" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Low-poly original biplane models (≤ 3k triangles) in glTF/GLB with Draco or meshopt compression. Flat-colour materials driven by a palette, separate nodes for the propeller, ailerons, elevator and rudder so they animate. 2-3 player plane designs and 2 enemy designs, each with bold original insignia and team colours. Exaggerated proportions (chunky engine, big wheels) for a cartoon feel." dai:componentType="library" />
+      <bpmn:task id="task_g3qfsva4" name="Context loss &#38; fallback" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Handles webglcontextlost / restored: pauses the game, then rebuilds GPU resources from CPU-side data (chunks are regenerated from the seed). If WebGL 2 is not available, shows a friendly page with browser advice instead of a blank canvas." dai:componentType="utility" />
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_pvogf6lt" name="6. Architecture &#38; Tech Stack" dai:notes="How the code is organised and what it is built with. A static single-page app with no backend: build with Vite and host on any static host or CDN.">
+      <bpmn:task id="task_p54xk6l0" name="Game loop" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="requestAnimationFrame drives the loop. The simulation (physics, AI, weapons) runs on a fixed 120 Hz accumulator; rendering interpolates between the last two states. dt is clamped after tab switches. The game pauses on visibilitychange (hidden)." dai:componentType="service">
+        <bpmn:outgoing>flow_gn0kagrc</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_9x9ocaif" name="GameStateMachine" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Boot → Title → Hangar → Loading (world prewarm) → Sortie[Takeoff | Flight | Combat | Landing] → Crash? → Debrief. Implements the Core Gameplay Loop (section 2). Each state owns its UI, its camera mode and the input contexts that are active." dai:componentType="service">
+        <bpmn:incoming>flow_gn0kagrc</bpmn:incoming>
+        <bpmn:outgoing>flow_q0k09oe0</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_3epxjsm1" name="Entities &#38; systems" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="A lightweight ECS-style structure (plain TypeScript, or the &#39;miniplex&#39; / &#39;bitecs&#39; library): entities = planes, bullets, particles, props; systems = Input, FlightModel, AI, Weapons, Damage, Audio, RenderSync. Keeps simulation code separate from three.js objects, which makes deterministic tests and future multiplayer easier." dai:componentType="service">
+        <bpmn:incoming>flow_q0k09oe0</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:task id="task_hy2dzed0" name="Worker pool" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="2-4 Web Workers (from navigator.hardwareConcurrency) run terrain, prop and cloud generation for chunks. Messages carry {seed, chunkKey, lod}; results come back as transferable typed arrays. Uses Comlink for a clean API." dai:componentType="utility" />
+      <bpmn:task id="task_kxhosx47" name="Settings &#38; saves" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="localStorage holds settings (quality, controls, volume, assists), best scores per seed, unlocked planes and medals. No account and no server in v1." dai:componentType="utility" />
+      <bpmn:task id="task_voh0ks85" name="ADR: three.js on WebGL 2" dai:type="dai.types.software.decision" dai:status="proposed" dai:context="Must run in any modern browser on WebGL. We need custom toon shaders, instancing, glTF loading and post-processing, and a small team must iterate fast." dai:decision="three.js with WebGLRenderer (WebGL 2), custom ShaderMaterial / onBeforeCompile for toon shading, and EffectComposer for post-processing." dai:consequences="+ Fast development, small bundle, many examples of toon/outline effects.&#10;- We build our own game structure (loop, ECS, physics).&#10;- three.js upgrades sometimes break APIs, so pin the version.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="options">1. Raw WebGL 2 (full control, a lot of boilerplate)
+2. three.js (light, huge ecosystem, easy custom shaders)
+3. Babylon.js (full engine, heavier)
+4. PlayCanvas (editor-centric)</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_9x8ae0vp" name="ADR: Custom arcade flight physics" dai:type="dai.types.software.decision" dai:status="proposed" dai:context="General physics engines (Rapier, cannon-es) don&#39;t model aerodynamics, and a full simulator is too hard for the target player." dai:decision="A custom simplified force-based flight model (section 3) with assist layers. Collisions are simple: plane against the terrain heightfield, ray-cast bullets, and spheres for planes and props." dai:consequences="+ Full control of how flying feels; deterministic; tiny code.&#10;- We must write the ground handling and collision response ourselves.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="options">1. Rapier rigid bodies + our aero forces
+2. A custom simplified flight model
+3. Purely kinematic arcade controls</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_y6oczx94" name="ADR: Seeded chunked generation in Workers" dai:type="dai.types.software.decision" dai:status="proposed" dai:context="Planes travel fast (150+ km/h), so the world has to stream in without frame hitches, and players should be able to share worlds." dai:decision="Option 3: deterministic per-chunk generation from a seed, run in a Worker pool, with a quadtree LOD." dai:consequences="+ Endless, shareable worlds; a smooth main thread.&#10;- The noise code must be identical on main thread and workers (for collision) → put it in one shared module.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="options">1. Pre-generate a fixed-size map at load
+2. Stream deterministic chunks on the main thread
+3. Stream deterministic chunks in Web Workers</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_mihopfzo" name="three" dai:type="dai.types.software.dependency" dai:stepType="dependency" dai:notes="Related: simplex-noise (MIT) for noise; comlink (Apache-2.0) for workers; lil-gui (MIT, dev) for tuning; howler or plain Web Audio." dai:version="pin latest stable" dai:package="three" dai:dependencyType="runtime" dai:license="MIT" dai:purpose="WebGL 2 renderer, scene graph, glTF loader, EffectComposer, InstancedMesh." />
+      <bpmn:task id="task_0nidwr59" name="Vite + TypeScript" dai:type="dai.types.software.dependency" dai:stepType="dependency" dai:notes="Output is a static build (index.html + assets) that can be hosted on any CDN, e.g. Cloudflare Pages or GitHub Pages." dai:version="pin latest stable" dai:package="vite, typescript, vitest" dai:dependencyType="dev" dai:license="MIT / Apache-2.0" dai:purpose="Dev server with HMR (including GLSL imports via vite-plugin-glsl), production bundling with code-splitting, and unit tests." />
+      <bpmn:sequenceFlow id="flow_gn0kagrc" sourceRef="task_p54xk6l0" targetRef="task_9x9ocaif" />
+      <bpmn:sequenceFlow id="flow_q0k09oe0" sourceRef="task_9x9ocaif" targetRef="task_3epxjsm1" />
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_q2sfg83a" name="7. Risks &#38; Validation" dai:notes="What could stop Baron from being fun or running everywhere, and how we check that it works.">
+      <bpmn:task id="task_5jw8vdsg" name="Flying doesn&#39;t feel fun" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="medium" dai:impact="critical" dai:mitigation="Build the flight model first, as a grey-box prototype over flat terrain. Tune it live with lil-gui. Playtest weekly. Offer assist levels." />
+      <bpmn:task id="task_51yn8js3" name="Too slow on integrated GPUs" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="high" dai:impact="high" dai:mitigation="Quality tiers and dynamic resolution; aggressive instancing and LOD; outline edge pass only on Medium+; profile on a low-end laptop from week 1. Keep the frame budget in the &#39;Quality tiers&#39; requirement." />
+      <bpmn:task id="task_b98u8sho" name="Browser / GPU differences" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="medium" dai:impact="medium" dai:mitigation="Run the CI browser matrix (Playwright on Chromium, Firefox, WebKit). Avoid rarely supported extensions (check float render targets before use). Handle context loss. Test on real Safari on macOS and on Windows/ANGLE." />
+      <bpmn:task id="task_8zp7uf65" name="Streaming hitches &#38; pop-in" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="medium" dai:impact="medium" dai:mitigation="Generate in Workers; spread GPU uploads over frames under a time budget; prefetch along the flight path; distance fog hides the far LOD edge; geomorph between LODs." />
+      <bpmn:task id="task_hm0lu3ox" name="Motion sickness" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="low" dai:impact="medium" dai:mitigation="Settings for camera shake, FOV, speed-lines and horizon lock in the chase cam. Keep the frame rate stable." />
+      <bpmn:task id="task_tx77er50" name="World generation is deterministic" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="unit" dai:testStatus="not-run" dai:testSteps="Generate chunks (0,0), (5,-3) and (100,40) at every LOD for seed 1234, in different orders and on main thread vs Worker.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="expectedResult">Hashes of heights, colours, prop and cloud placements are identical every time.</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_q38py5l9" name="Frame-time benchmark" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="performance" dai:testStatus="not-run" dai:testSteps="Run a scripted 3-minute flight path (low-level valley run, climb through clouds, a 4-enemy dogfight) at 1080p, Medium quality, on the reference integrated-GPU laptop.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="expectedResult">p95 frame time ≤ 16.6 ms; no frames &gt; 50 ms after load; JS heap stays stable (no leaks).</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_7frbr5gv" name="Browser smoke test" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="e2e" dai:testStatus="not-run" dai:testSteps="Playwright on Chromium, Firefox and WebKit: load the page, start a Free Flight sortie, fly for 10 s with scripted input, take a screenshot.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="expectedResult">No console errors; the canvas renders terrain, sky and plane; the screenshot matches the baseline within tolerance.</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_l7ftiuh3" name="Full sortie playtest" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="acceptance" dai:testStatus="not-run" dai:testSteps="A new player plays one Dogfight mission: takeoff, find and fight 2 Rookie enemies, return, land.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="expectedResult">Completes the loop in under 15 minutes; lands successfully within 3 attempts; rates fun ≥ 4/5.</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_ov4dgau7" name="Sorties completed per session" dai:type="dai.types.product.metric" dai:stepType="product-metric" dai:notes="Measured with privacy-friendly, opt-in analytics after launch. During development, measure it in playtests." dai:target="≥ 2 sorties per session; ≥ 60% of sorties reach debrief by landing">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="cadence">weekly</dai:field>
+            <dai:field key="metricType">engagement</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_2upuqme4" name="4. Procedural World" dai:notes="Everything outside the planes is generated from one seed: terrain, water, biomes, airfields, props and clouds. Generation is deterministic (same seed = same world) and streamed in chunks around the player.">
+      <bpmn:task id="task_a1hkufw3" name="World seed &#38; RNG" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="One 32-bit world seed (shareable via ?seed= in the URL). Sub-seeds are derived per system and per chunk by hashing (seed, system, chunkX, chunkZ), so chunks generate the same way in any order. Uses a small, fast PRNG (mulberry32 / sfc32). Never use Math.random() in world generation." dai:componentType="utility">
+        <bpmn:outgoing>flow_8lexa6sq</bpmn:outgoing>
+        <bpmn:outgoing>flow_g866r0c6</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_a9gi0pkp" name="Terrain heightfield" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Height h(x,z) = continental fBm (low frequency) + ridged multifractal mountains masked by a mountain-ness noise + domain warping for natural shapes. Valleys are flattened near sea level for rivers and lakes. Heights are pre-quantised into gentle terraces to suit the cartoon look. The same function is used by the renderer, collision and AI terrain avoidance." dai:componentType="service">
+        <bpmn:incoming>flow_8lexa6sq</bpmn:incoming>
+        <bpmn:outgoing>flow_w5axtb59</bpmn:outgoing>
+        <bpmn:outgoing>flow_pe01q92v</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_8lexa6sq" sourceRef="task_a1hkufw3" targetRef="task_a9gi0pkp" />
+      <bpmn:task id="task_36byee10" name="Chunk streaming &#38; LOD" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="The world is split into 512 m chunks on a quadtree with 4-5 LOD levels around the camera. Meshes are built in Web Workers (heights, normals, vertex colours) and sent back as transferable ArrayBuffers. Skirts or stitched edges hide LOD cracks. Chunks are cached in an LRU pool. Prefetching follows the velocity vector, since planes are fast. Budget: ≤ 2 ms per frame on the main thread for uploads." dai:componentType="service">
+        <bpmn:incoming>flow_w5axtb59</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_w5axtb59" sourceRef="task_a9gi0pkp" targetRef="task_36byee10" />
+      <bpmn:task id="task_4fhmg5sx" name="Biomes &#38; colouring" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Biome from height + moisture noise + slope: beach, meadow, farmland (patchwork fields), forest, rocky hills, snowy peaks. Each biome has a small flat colour palette chosen to suit the toon ramp. Farmland uses Voronoi cells for a patchwork-quilt look. Colours are baked into vertex colours (no textures) to keep the cartoon look and save memory." dai:componentType="service">
+        <bpmn:incoming>flow_pe01q92v</bpmn:incoming>
+        <bpmn:outgoing>flow_080kj7qv</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_hhhtzd32" name="Water" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Sea level plane plus lakes and rivers carved into the heightfield. Toon water: 2-3 flat colour bands by depth, animated cartoon wave lines and white foam outlines where it meets the shore (from a depth difference)." dai:componentType="service" />
+      <bpmn:task id="task_s08w8fmy" name="Airfields &#38; props" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Airfields: found by searching for flat, large enough areas near the spawn and objectives; the terrain is flattened under the strip. Each has a grass strip, a windsock (shows wind), hangars and tents. Props: trees, farmhouses, windmills, barns, fences and church spires, placed with Poisson-disk sampling per biome and drawn with InstancedMesh. Mission objectives (balloons, depots, bridges) are placed by the mission generator using the same seed." dai:componentType="service">
+        <bpmn:incoming>flow_080kj7qv</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:task id="task_khsn8ths" name="Procedural clouds" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Cumulus clouds are clusters of puffy spheres or low-poly blobs. Cluster positions come from a 2D coverage noise on a cloud layer (about 800-1500 m), with sizes and heights from the seed. They drift slowly with the wind. Rendered with the toon shader (2 bands + soft outline) and instanced. Flying inside a cloud fades the screen to white fog. A few high cirrus layers are far-away billboards. Coverage / weather presets: Clear, Fair, Overcast." dai:componentType="service">
+        <bpmn:incoming>flow_g866r0c6</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:task id="task_joe0jcb0" name="Wind &#38; weather" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="A global wind vector from the seed with gentle gusts (noise over time). It affects the flight model, cloud drift, the windsock and smoke trails. Time of day (morning, noon, golden hour) sets the sun direction and the palette of the sky and toon ramps." dai:componentType="utility" />
+      <bpmn:task id="task_6f8qaw8u" name="TerrainChunk" dai:type="dai.types.software.model" dai:stepType="model" dai:notes="interface TerrainChunk {&#10;  key: `${number},${number},${number}`; // x, z, lod&#10;  lod: number; size: number; resolution: number;&#10;  heights: Float32Array; normals: Int8Array; colors: Uint8Array;&#10;  props: InstanceBatch[];&#10;  state: &#39;queued&#39; | &#39;building&#39; | &#39;ready&#39; | &#39;evicted&#39;;&#10;}" dai:modelFormat="typescript" />
+      <bpmn:sequenceFlow id="flow_g866r0c6" sourceRef="task_a1hkufw3" targetRef="task_khsn8ths" />
+      <bpmn:sequenceFlow id="flow_pe01q92v" sourceRef="task_a9gi0pkp" targetRef="task_4fhmg5sx" />
+      <bpmn:sequenceFlow id="flow_080kj7qv" sourceRef="task_4fhmg5sx" targetRef="task_s08w8fmy" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="task_4jr5s0d6_di" bpmnElement="task_4jr5s0d6" isExpanded="true">
+        <dc:Bounds x="40" y="50" width="1060" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_1b20th0f_di" bpmnElement="task_1b20th0f">
+        <dc:Bounds x="70" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_fa6q48n4_di" bpmnElement="task_fa6q48n4">
+        <dc:Bounds x="250" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_2mjnmids_di" bpmnElement="task_2mjnmids">
+        <dc:Bounds x="430" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_6bl3c6qz_di" bpmnElement="task_6bl3c6qz">
+        <dc:Bounds x="610" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_7oymt4a7_di" bpmnElement="task_7oymt4a7">
+        <dc:Bounds x="790" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_dlmjq7ne_di" bpmnElement="task_dlmjq7ne">
+        <dc:Bounds x="970" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_4a8dncsd_di" bpmnElement="task_4a8dncsd" isExpanded="true">
+        <dc:Bounds x="40" y="320" width="1520" height="310" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="event_u9x5pis8_di" bpmnElement="event_u9x5pis8">
+        <dc:Bounds x="80" y="410" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_peq24fkg_di" bpmnElement="task_peq24fkg">
+        <dc:Bounds x="170" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ozkbuppa_di" bpmnElement="flow_ozkbuppa">
+        <di:waypoint x="120" y="430" />
+        <di:waypoint x="170" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_mggvy1mn_di" bpmnElement="task_mggvy1mn">
+        <dc:Bounds x="320" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_iizk8oyj_di" bpmnElement="flow_iizk8oyj">
+        <di:waypoint x="270" y="430" />
+        <di:waypoint x="320" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_b04nlwc2_di" bpmnElement="task_b04nlwc2">
+        <dc:Bounds x="470" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_8cj3c7hn_di" bpmnElement="flow_8cj3c7hn">
+        <di:waypoint x="420" y="430" />
+        <di:waypoint x="470" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_1p5i083q_di" bpmnElement="task_1p5i083q">
+        <dc:Bounds x="620" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_o2ypvck5_di" bpmnElement="flow_o2ypvck5">
+        <di:waypoint x="570" y="430" />
+        <di:waypoint x="620" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="gateway_ln9p454a_di" bpmnElement="gateway_ln9p454a">
+        <dc:Bounds x="776" y="406" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_yuaqd9zc_di" bpmnElement="flow_yuaqd9zc">
+        <di:waypoint x="720" y="430" />
+        <di:waypoint x="776" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_2osp81md_di" bpmnElement="task_2osp81md">
+        <dc:Bounds x="880" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_tnxhphbc_di" bpmnElement="flow_tnxhphbc">
+        <di:waypoint x="824" y="430" />
+        <di:waypoint x="880" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_y3i9ictk_di" bpmnElement="task_y3i9ictk">
+        <dc:Bounds x="1030" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_koezycs4_di" bpmnElement="flow_koezycs4">
+        <di:waypoint x="980" y="430" />
+        <di:waypoint x="1030" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="gateway_c7tsytty_di" bpmnElement="gateway_c7tsytty">
+        <dc:Bounds x="1186" y="406" width="48" height="48" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_v5igvmmf_di" bpmnElement="flow_v5igvmmf">
+        <di:waypoint x="1130" y="430" />
+        <di:waypoint x="1186" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_qp0e8agg_di" bpmnElement="task_qp0e8agg">
+        <dc:Bounds x="1290" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_q2qovmac_di" bpmnElement="flow_q2qovmac">
+        <di:waypoint x="1234" y="430" />
+        <di:waypoint x="1290" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="event_gl1xgirx_di" bpmnElement="event_gl1xgirx">
+        <dc:Bounds x="1460" y="410" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_9xvx3y9p_di" bpmnElement="flow_9xvx3y9p">
+        <di:waypoint x="1390" y="430" />
+        <di:waypoint x="1460" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_nm63znum_di" bpmnElement="task_nm63znum">
+        <dc:Bounds x="950" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_6byrngb6_di" bpmnElement="flow_6byrngb6">
+        <di:waypoint x="824" y="430" />
+        <di:waypoint x="852" y="430" />
+        <di:waypoint x="852" y="560" />
+        <di:waypoint x="950" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_62vsz4fm_di" bpmnElement="flow_62vsz4fm">
+        <di:waypoint x="1210" y="454" />
+        <di:waypoint x="1210" y="560" />
+        <di:waypoint x="1050" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_d6tfryij_di" bpmnElement="flow_d6tfryij">
+        <di:waypoint x="1050" y="560" />
+        <di:waypoint x="1261" y="560" />
+        <di:waypoint x="1261" y="430" />
+        <di:waypoint x="1290" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_blvmys7o_di" bpmnElement="task_blvmys7o" isExpanded="true">
+        <dc:Bounds x="40" y="670" width="500" height="460" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ulal5bhu_di" bpmnElement="task_ulal5bhu">
+        <dc:Bounds x="80" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_97b94fjq_di" bpmnElement="task_97b94fjq">
+        <dc:Bounds x="240" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_4ox45e0m_di" bpmnElement="task_4ox45e0m">
+        <dc:Bounds x="400" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_71jc4dj7_di" bpmnElement="task_71jc4dj7">
+        <dc:Bounds x="80" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_8qyvga1r_di" bpmnElement="task_8qyvga1r">
+        <dc:Bounds x="240" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_g3qvmscq_di" bpmnElement="task_g3qvmscq">
+        <dc:Bounds x="400" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_yhwx6d3d_di" bpmnElement="task_yhwx6d3d">
+        <dc:Bounds x="80" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ijppxp7e_di" bpmnElement="task_ijppxp7e">
+        <dc:Bounds x="240" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_clvy3yb9_di" bpmnElement="task_clvy3yb9">
+        <dc:Bounds x="400" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_b0fokrf1_di" bpmnElement="flow_b0fokrf1">
+        <di:waypoint x="240" y="770" />
+        <di:waypoint x="180" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_pkk2pl3g_di" bpmnElement="flow_pkk2pl3g">
+        <di:waypoint x="240" y="900" />
+        <di:waypoint x="210" y="900" />
+        <di:waypoint x="210" y="770" />
+        <di:waypoint x="180" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_w243etqq_di" bpmnElement="task_w243etqq" isExpanded="true">
+        <dc:Bounds x="1080" y="670" width="500" height="460" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ox45hj0p_di" bpmnElement="task_ox45hj0p">
+        <dc:Bounds x="1120" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ux2nodj2_di" bpmnElement="task_ux2nodj2">
+        <dc:Bounds x="1280" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_en0l5ldh_di" bpmnElement="flow_en0l5ldh">
+        <di:waypoint x="1220" y="770" />
+        <di:waypoint x="1280" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_wubbf19b_di" bpmnElement="task_wubbf19b">
+        <dc:Bounds x="1440" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_k6opxkjv_di" bpmnElement="flow_k6opxkjv">
+        <di:waypoint x="1380" y="770" />
+        <di:waypoint x="1440" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_mhep3nsv_di" bpmnElement="task_mhep3nsv">
+        <dc:Bounds x="1120" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_8zy8v9t0_di" bpmnElement="task_8zy8v9t0">
+        <dc:Bounds x="1280" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_s2yp6wu5_di" bpmnElement="task_s2yp6wu5">
+        <dc:Bounds x="1440" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_71m60ynn_di" bpmnElement="task_71m60ynn">
+        <dc:Bounds x="1120" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_q8pyq4z0_di" bpmnElement="task_q8pyq4z0">
+        <dc:Bounds x="1280" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_g3qfsva4_di" bpmnElement="task_g3qfsva4">
+        <dc:Bounds x="1440" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_pvogf6lt_di" bpmnElement="task_pvogf6lt" isExpanded="true">
+        <dc:Bounds x="40" y="1170" width="760" height="330" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_p54xk6l0_di" bpmnElement="task_p54xk6l0">
+        <dc:Bounds x="70" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_9x9ocaif_di" bpmnElement="task_9x9ocaif">
+        <dc:Bounds x="220" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_3epxjsm1_di" bpmnElement="task_3epxjsm1">
+        <dc:Bounds x="370" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_hy2dzed0_di" bpmnElement="task_hy2dzed0">
+        <dc:Bounds x="520" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_kxhosx47_di" bpmnElement="task_kxhosx47">
+        <dc:Bounds x="670" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_voh0ks85_di" bpmnElement="task_voh0ks85">
+        <dc:Bounds x="70" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_9x8ae0vp_di" bpmnElement="task_9x8ae0vp">
+        <dc:Bounds x="220" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_y6oczx94_di" bpmnElement="task_y6oczx94">
+        <dc:Bounds x="370" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_mihopfzo_di" bpmnElement="task_mihopfzo">
+        <dc:Bounds x="520" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_0nidwr59_di" bpmnElement="task_0nidwr59">
+        <dc:Bounds x="670" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_gn0kagrc_di" bpmnElement="flow_gn0kagrc">
+        <di:waypoint x="170" y="1250" />
+        <di:waypoint x="220" y="1250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_q0k09oe0_di" bpmnElement="flow_q0k09oe0">
+        <di:waypoint x="320" y="1250" />
+        <di:waypoint x="370" y="1250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_q2sfg83a_di" bpmnElement="task_q2sfg83a" isExpanded="true">
+        <dc:Bounds x="820" y="1170" width="760" height="330" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_5jw8vdsg_di" bpmnElement="task_5jw8vdsg">
+        <dc:Bounds x="850" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_51yn8js3_di" bpmnElement="task_51yn8js3">
+        <dc:Bounds x="1000" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_b98u8sho_di" bpmnElement="task_b98u8sho">
+        <dc:Bounds x="1150" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_8zp7uf65_di" bpmnElement="task_8zp7uf65">
+        <dc:Bounds x="1300" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_hm0lu3ox_di" bpmnElement="task_hm0lu3ox">
+        <dc:Bounds x="1450" y="1210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_tx77er50_di" bpmnElement="task_tx77er50">
+        <dc:Bounds x="850" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_q38py5l9_di" bpmnElement="task_q38py5l9">
+        <dc:Bounds x="1000" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_7frbr5gv_di" bpmnElement="task_7frbr5gv">
+        <dc:Bounds x="1150" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_l7ftiuh3_di" bpmnElement="task_l7ftiuh3">
+        <dc:Bounds x="1300" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ov4dgau7_di" bpmnElement="task_ov4dgau7">
+        <dc:Bounds x="1450" y="1360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_2upuqme4_di" bpmnElement="task_2upuqme4" isExpanded="true">
+        <dc:Bounds x="560" y="670" width="500" height="460" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_a1hkufw3_di" bpmnElement="task_a1hkufw3">
+        <dc:Bounds x="600" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_a9gi0pkp_di" bpmnElement="task_a9gi0pkp">
+        <dc:Bounds x="760" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_8lexa6sq_di" bpmnElement="flow_8lexa6sq">
+        <di:waypoint x="700" y="770" />
+        <di:waypoint x="760" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_36byee10_di" bpmnElement="task_36byee10">
+        <dc:Bounds x="920" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_w5axtb59_di" bpmnElement="flow_w5axtb59">
+        <di:waypoint x="860" y="770" />
+        <di:waypoint x="920" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_4fhmg5sx_di" bpmnElement="task_4fhmg5sx">
+        <dc:Bounds x="600" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_hhhtzd32_di" bpmnElement="task_hhhtzd32">
+        <dc:Bounds x="760" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_s08w8fmy_di" bpmnElement="task_s08w8fmy">
+        <dc:Bounds x="920" y="860" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_khsn8ths_di" bpmnElement="task_khsn8ths">
+        <dc:Bounds x="600" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_joe0jcb0_di" bpmnElement="task_joe0jcb0">
+        <dc:Bounds x="760" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_6f8qaw8u_di" bpmnElement="task_6f8qaw8u">
+        <dc:Bounds x="920" y="990" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_g866r0c6_di" bpmnElement="flow_g866r0c6">
+        <di:waypoint x="650" y="810" />
+        <di:waypoint x="650" y="990" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_pe01q92v_di" bpmnElement="flow_pe01q92v">
+        <di:waypoint x="760" y="770" />
+        <di:waypoint x="730" y="770" />
+        <di:waypoint x="730" y="900" />
+        <di:waypoint x="700" y="900" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_080kj7qv_di" bpmnElement="flow_080kj7qv">
+        <di:waypoint x="700" y="900" />
+        <di:waypoint x="920" y="900" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
