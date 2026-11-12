@@ -110,6 +110,8 @@ export interface AirframeDef {
   third: V3;
   /** where the propeller hub sits (jet: where the exhaust flame starts, pointing +Z) */
   engineMount: V3;
+  /** cockpit-view eye point, high enough that the fuselage below stays beyond the near plane */
+  eye: V3;
   crash: { p: V3; kind: 'wing' | 'nose' | 'top' | 'tail' }[];
 }
 
@@ -125,6 +127,7 @@ export const AIRFRAMES: Record<PlaneStyle, AirframeDef> = {
     ],
     third: [0, -0.22, 3.85],
     engineMount: [0, 0.05, -2.9],
+    eye: [0, 1.05, 0.05],
     crash: [
       { p: [-4.0, -0.45, -0.55], kind: 'wing' },
       { p: [4.0, -0.45, -0.55], kind: 'wing' },
@@ -159,6 +162,7 @@ export const AIRFRAMES: Record<PlaneStyle, AirframeDef> = {
     ],
     third: [0, -1.05, -2.5],
     engineMount: [0, 0.05, -3.6],
+    eye: [0, 1.02, -0.6],
     crash: [
       { p: [-4.9, -0.4, 0.1], kind: 'wing' },
       { p: [4.9, -0.4, 0.1], kind: 'wing' },
@@ -193,6 +197,7 @@ export const AIRFRAMES: Record<PlaneStyle, AirframeDef> = {
     ],
     third: [0, -0.9, -2.9],
     engineMount: [0, 0.05, 4.75],
+    eye: [0, 0.95, -2.36],
     crash: [
       { p: [-4.4, -0.2, 2.0], kind: 'wing' },
       { p: [4.4, -0.2, 2.0], kind: 'wing' },

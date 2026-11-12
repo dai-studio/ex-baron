@@ -30,6 +30,8 @@ interface Surface {
 
 interface Built {
   body: G[];
+  /** pilot head and canopy: hidden in cockpit view (the camera sits at the pilot's eyes) */
+  cockpit: G[];
   ailL: Surface;
   ailR: Surface;
   elev: Surface;
@@ -71,10 +73,6 @@ function buildBiplane(l: Livery): Built {
     part(new THREE.CylinderGeometry(0.66, 0.66, 0.12, 14), l.accent, { pos: [0, 0.05, -2.72], rot: [Math.PI / 2, 0, 0] }),
     // cockpit, pilot, scarf, windscreen
     part(new THREE.BoxGeometry(0.72, 0.08, 0.95), DARK, { pos: [0, 0.62, 0.0] }),
-    part(new THREE.IcosahedronGeometry(0.25, 1), 0x6b4226, { pos: [0, 0.86, 0.08], flat: true }),
-    part(new THREE.BoxGeometry(0.42, 0.1, 0.12), GLASS, { pos: [0, 0.9, -0.15] }),
-    part(new THREE.BoxGeometry(0.16, 0.08, 0.6), 0xfdfbf0, { pos: [0.18, 0.7, 0.42], rot: [0.2, 0.3, 0] }),
-    part(new THREE.BoxGeometry(0.55, 0.28, 0.04), 0xbfe6ff, { pos: [0, 0.78, -0.55], rot: [-0.3, 0, 0] }),
     // wings
     part(new THREE.BoxGeometry(8.6, 0.14, 1.5), l.wing, { pos: [0, 1.5, -1.0] }),
     part(new THREE.BoxGeometry(8.0, 0.14, 1.4), l.wingUnder, { pos: [0, -0.45, -0.55] }),
@@ -103,6 +101,13 @@ function buildBiplane(l: Livery): Built {
   if (l.stripe) body.push(part(new THREE.BoxGeometry(1.09, 0.2, 2.3), l.stripe, { pos: [0, -0.15, -1.0] }));
   return {
     body,
+    // pilot (head, goggles, scarf) and windscreen
+    cockpit: [
+      part(new THREE.IcosahedronGeometry(0.25, 1), 0x6b4226, { pos: [0, 0.86, 0.08], flat: true }),
+      part(new THREE.BoxGeometry(0.42, 0.1, 0.12), GLASS, { pos: [0, 0.9, -0.15] }),
+      part(new THREE.BoxGeometry(0.16, 0.08, 0.6), 0xfdfbf0, { pos: [0.18, 0.7, 0.42], rot: [0.2, 0.3, 0] }),
+      part(new THREE.BoxGeometry(0.55, 0.28, 0.04), 0xbfe6ff, { pos: [0, 0.78, -0.55], rot: [-0.3, 0, 0] }),
+    ],
     ailL: { at: [-3.0, 1.5, -0.25], geo: part(new THREE.BoxGeometry(2.2, 0.08, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     ailR: { at: [3.0, 1.5, -0.25], geo: part(new THREE.BoxGeometry(2.2, 0.08, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     elev: { at: [0, 0.32, 3.85], geo: part(new THREE.BoxGeometry(2.9, 0.07, 0.5), l.accent, { pos: [0, 0, 0.25] }) },
@@ -122,9 +127,6 @@ function buildTurboprop(l: Livery): Built {
     part(new THREE.BoxGeometry(1.3, 1.3, 2.6), l.body, { pos: [0, 0, -1.3] }),
     part(taperBox(1.3, 1.3, 4.3, 0.35, 0.5, 0.25), l.body, { pos: [0, 0, 0] }),
     part(new THREE.BoxGeometry(1.33, 1.33, 0.3), l.accent, { pos: [0, 0, 0.9] }),
-    // bubble canopy with pilot
-    part(new THREE.IcosahedronGeometry(0.62, 1), GLASS, { pos: [0, 0.55, -0.7], scale: [0.85, 0.72, 1.55], flat: true }),
-    part(new THREE.IcosahedronGeometry(0.22, 1), 0x6b4226, { pos: [0, 0.75, -0.55], flat: true }),
     // low wing
     part(new THREE.BoxGeometry(9.8, 0.18, 1.8), l.wing, { pos: [0, -0.42, -0.2] }),
     part(new THREE.BoxGeometry(9.6, 0.04, 1.7), l.wingUnder, { pos: [0, -0.53, -0.2] }),
@@ -141,6 +143,11 @@ function buildTurboprop(l: Livery): Built {
   if (l.stripe) body.push(part(new THREE.BoxGeometry(1.33, 0.22, 2.5), l.stripe, { pos: [0, -0.1, -1.3] }));
   return {
     body,
+    // bubble canopy with pilot
+    cockpit: [
+      part(new THREE.IcosahedronGeometry(0.62, 1), GLASS, { pos: [0, 0.55, -0.7], scale: [0.85, 0.72, 1.55], flat: true }),
+      part(new THREE.IcosahedronGeometry(0.22, 1), 0x6b4226, { pos: [0, 0.75, -0.55], flat: true }),
+    ],
     ailL: { at: [-3.6, -0.42, 0.7], geo: part(new THREE.BoxGeometry(2.4, 0.09, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     ailR: { at: [3.6, -0.42, 0.7], geo: part(new THREE.BoxGeometry(2.4, 0.09, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     elev: { at: [0, 0.3, 4.15], geo: part(new THREE.BoxGeometry(3.5, 0.07, 0.45), l.accent, { pos: [0, 0, 0.22] }) },
@@ -164,9 +171,6 @@ function buildJet(l: Livery): Built {
     part(new THREE.BoxGeometry(1.1, 1.1, 4.0), l.body, { pos: [0, 0, -2.0] }),
     part(taperBox(1.1, 1.1, 4.2, 0.95, 0.95, 0.05), l.body, { pos: [0, 0, 0] }),
     part(new THREE.BoxGeometry(1.13, 1.13, 0.25), l.accent, { pos: [0, 0, -3.6] }),
-    // canopy + pilot
-    part(new THREE.IcosahedronGeometry(0.55, 1), GLASS, { pos: [0, 0.55, -2.4], scale: [0.85, 0.7, 2.0], flat: true }),
-    part(new THREE.IcosahedronGeometry(0.2, 1), 0x6b4226, { pos: [0, 0.72, -2.3], flat: true }),
     // side intakes
     ...[-1, 1].flatMap((sx) => [
       part(new THREE.BoxGeometry(0.45, 0.7, 1.6), l.body, { pos: [sx * 0.75, -0.05, -1.4] }),
@@ -186,6 +190,11 @@ function buildJet(l: Livery): Built {
   if (l.stripe) body.push(part(new THREE.BoxGeometry(1.16, 0.2, 3.9), l.stripe, { pos: [0, -0.1, -2.0] }));
   return {
     body,
+    // canopy + pilot
+    cockpit: [
+      part(new THREE.IcosahedronGeometry(0.55, 1), GLASS, { pos: [0, 0.55, -2.4], scale: [0.85, 0.7, 2.0], flat: true }),
+      part(new THREE.IcosahedronGeometry(0.2, 1), 0x6b4226, { pos: [0, 0.72, -2.3], flat: true }),
+    ],
     ailL: { at: [-3.1, -0.15, 1.95], rot: [0, sweep, 0], geo: part(new THREE.BoxGeometry(1.8, 0.08, 0.4), l.accent, { pos: [0, 0, 0.2] }) },
     ailR: { at: [3.1, -0.15, 1.95], rot: [0, -sweep, 0], geo: part(new THREE.BoxGeometry(1.8, 0.08, 0.4), l.accent, { pos: [0, 0, 0.2] }) },
     elev: { at: [0, 0.1, 4.3], geo: part(new THREE.BoxGeometry(3.4, 0.07, 0.4), l.accent, { pos: [0, 0, 0.2] }) },
@@ -209,6 +218,11 @@ export class PlaneVisual {
   private elev = new THREE.Group();
   private rudder = new THREE.Group();
   private hasProp: boolean;
+  private cockpit: THREE.Mesh;
+  /** instrument panel across the bottom of the cockpit view (only shown in cockpit view) */
+  private dash = new THREE.Group();
+  private rpmNeedle = new THREE.Group();
+  private dashMat: THREE.MeshToonMaterial | null = null;
 
   constructor(readonly loadout: Loadout, toon: THREE.Material, outline: THREE.Material) {
     const l = liveryFor(loadout.paint);
@@ -223,6 +237,9 @@ export class PlaneVisual {
     if (af.gear === 'tricycle') parts.push(...wheelParts(af.third, wd.radius * 0.85, wd.width * 0.9, l.accent));
 
     this.root.add(toonMesh(mergeParts(parts), toon, outline));
+    this.cockpit = toonMesh(mergeParts(b.cockpit), toon, outline);
+    this.root.add(this.cockpit);
+    this.buildDash(af.eye, l, toon);
 
     // the engine that comes with the style: wooden prop, turbo prop or jet flame
     const engine = af.engine;
@@ -278,7 +295,68 @@ export class PlaneVisual {
     surf(b.rudder, this.rudder);
   }
 
+  private cockpitView = false;
+
+  /**
+   * In cockpit view the camera is at the pilot's eyes: hide the head and canopy, and the
+   * plane's own ink outlines (from inside a clipped part they would show as solid black).
+   */
+  setCockpitView(on: boolean) {
+    if (on === this.cockpitView) return;
+    this.cockpitView = on;
+    this.cockpit.visible = !on;
+    this.dash.visible = on;
+    this.root.traverse((o) => {
+      if (o.name === 'outline') o.visible = !on;
+    });
+  }
+
+  /**
+   * Cockpit dashboard, placed relative to the pilot's eye: a wide panel 0.8 m ahead whose top
+   * edge sits ~20° below eye level, so the bottom of the screen shows the cockpit, not the
+   * landscape, while the horizon and the runway ahead stay visible. Wide enough for 21:9 screens.
+   */
+  private buildDash(eye: V3, l: Livery, toon: THREE.Material) {
+    const W = 3.6;
+    const H = 0.6;
+    const parts: G[] = [
+      part(new THREE.BoxGeometry(W, H, 0.08), 0x3b2e28, {}),
+      // padded rim in the paint colour
+      part(new THREE.BoxGeometry(W + 0.04, 0.07, 0.14), l.body, { pos: [0, H / 2, 0.01] }),
+    ];
+    const gauges: [number, number][] = [
+      [-0.3, 0.1],
+      [0, 0.12],
+      [0.3, 0.1],
+    ];
+    for (const [x, y] of gauges) {
+      parts.push(part(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 20), 0x1e1814, { pos: [x, y, 0.05], rot: [Math.PI / 2, 0, 0] }));
+      parts.push(part(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 20), 0xfdf3d6, { pos: [x, y, 0.056], rot: [Math.PI / 2, 0, 0] }));
+    }
+    const tilt = new THREE.Group();
+    tilt.position.set(eye[0], eye[1] - 0.6, eye[2] - 0.8);
+    tilt.rotation.x = -0.2; // top leans away from the pilot
+    // Nothing sits between the pilot's eyes and the dashboard, so draw it last and on top of
+    // the scene (it still writes depth, so the ink-edge pass outlines it and not what is behind).
+    this.dashMat = (toon as THREE.MeshToonMaterial).clone();
+    // depthFunc ALWAYS (not depthTest = false, which in WebGL also stops depth writes)
+    this.dashMat.depthFunc = THREE.AlwaysDepth;
+    const panel = new THREE.Mesh(mergeParts(parts), this.dashMat);
+    panel.renderOrder = 10;
+    tilt.add(panel);
+    // the middle gauge shows engine RPM
+    this.rpmNeedle.position.set(0, 0.12, 0.07);
+    const needle = new THREE.Mesh(mergeParts([part(new THREE.BoxGeometry(0.012, 0.06, 0.006), 0xd94a3d, { pos: [0, 0.03, 0] })]), this.dashMat);
+    needle.renderOrder = 11;
+    this.rpmNeedle.add(needle);
+    tilt.add(this.rpmNeedle);
+    this.dash.add(tilt);
+    this.dash.visible = false;
+    this.root.add(this.dash);
+  }
+
   animate(dt: number, pitch: number, roll: number, yaw: number, rpm: number) {
+    if (this.dash.visible) this.rpmNeedle.rotation.z = 2.2 - rpm * 4.4;
     if (this.hasProp) {
       this.prop.rotation.z += rpm * 95 * dt + (rpm > 0.02 ? 6 * dt : 0);
       (this.disc!.material as THREE.MeshBasicMaterial).opacity = THREE.MathUtils.clamp((rpm - 0.25) * 0.5, 0, 0.3);
@@ -308,5 +386,6 @@ export class PlaneVisual {
       }
     });
     for (const m of mats) m.dispose();
+    this.dashMat?.dispose();
   }
 }

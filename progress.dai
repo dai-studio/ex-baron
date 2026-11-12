@@ -131,8 +131,18 @@
     <bpmn:sequenceFlow id="flow_0jnu5ncg" sourceRef="task_ta8rbc88" targetRef="task_cvbxb9rh" />
     <bpmn:task id="task_j24gc04j" name="Hangar: plane left, dialog right" dai:notes="game.ts updatePreview: the camera&#39;s view offset (setViewOffset) slides the image so the plane sits in the middle of the free space left of the hangar dialog: shift = W/2 − panelLeft/2, eased in, recomputed every frame so it follows window resizes; no shift when the dialog drops below the view on narrow screens. Cleared on leaving the hangar. Checked in Chrome at 1440 px: dialog 982-1382 px, plane centre at 491 px = free-space centre, for the Jet and the Biplane; main menu has no offset afterwards. Tests 43/43." dai:agentStatus="done">
       <bpmn:incoming>flow_frb4zovq</bpmn:incoming>
+      <bpmn:outgoing>flow_vh53qzhx</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_frb4zovq" sourceRef="task_cvbxb9rh" targetRef="task_j24gc04j" />
+    <bpmn:task id="task_zlhj5tfe" name="Fix blocked cockpit view" dai:notes="Cause: the cockpit camera sat inside (turboprop, jet) or on the edge of (biplane) the pilot&#39;s head, and inside the turboprop/jet canopy; the ink-outline hull (back faces) of those parts surrounded the camera, and the near plane (0.5 m) cut the fuselage just below the eye, exposing its outline hull as a black band. Fix: planeMesh.ts builds the pilot (head, goggles, scarf), canopy and biplane windscreen as a separate &#39;cockpit&#39; mesh; setCockpitView(on) hides it and the plane&#39;s own outline meshes. game.ts sets it every frame from the camera mode (not during the crash orbit) and moves the eye points to biplane (0,1.05,0.05), turboprop (0,1.02,-0.6), jet (0,0.95,-2.36) so the fuselage stays beyond the near plane. Checked in Chrome with canvas captures on the runway and in the air for all three planes: clear forward view (biplane between the struts under the top wing, turboprop and jet over the nose); chase view restores pilot and outlines. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_vh53qzhx</bpmn:incoming>
+      <bpmn:outgoing>flow_ctr5squx</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_vh53qzhx" sourceRef="task_j24gc04j" targetRef="task_zlhj5tfe" />
+    <bpmn:task id="task_90h01vcy" name="Cockpit dashboard covers the lower view" dai:notes="planeMesh.ts buildDash(): a cockpit instrument panel shown only in cockpit view, placed from the airframe eye point (moved from game.ts into AIRFRAMES[].eye): 3.6 m wide (covers 21:9), 0.8 m ahead, top edge ~20° below eye level, tilted toward the pilot, with a rim in the paint colour and three gauges; the middle needle follows engine RPM. It draws after the scene (renderOrder 10) with depthFunc ALWAYS, so the fuselage between the eye and the panel cannot cover it, while it still writes depth (depthTest = false would stop depth writes in WebGL, letting water and ink edges bleed through: seen and fixed). Checked with canvas captures in the air for all three planes: no landscape below the dashboard edge or in the lower corners; horizon, nose and runway ahead visible. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_ctr5squx</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_ctr5squx" sourceRef="task_zlhj5tfe" targetRef="task_90h01vcy" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -319,6 +329,20 @@
         <di:waypoint x="1578" y="450" />
         <di:waypoint x="318" y="450" />
         <di:waypoint x="318" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_zlhj5tfe_di" bpmnElement="task_zlhj5tfe">
+        <dc:Bounds x="448" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_vh53qzhx_di" bpmnElement="flow_vh53qzhx">
+        <di:waypoint x="368" y="520" />
+        <di:waypoint x="448" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_90h01vcy_di" bpmnElement="task_90h01vcy">
+        <dc:Bounds x="628" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ctr5squx_di" bpmnElement="flow_ctr5squx">
+        <di:waypoint x="548" y="520" />
+        <di:waypoint x="628" y="520" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -5,7 +5,7 @@ import { Loop } from '../core/loop';
 import { loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
 import { DEFAULT_SPEC, LANDING_FORGIVENESS, groundAttitude, restHeight, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
-import { composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
+import { AIRFRAMES, composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
 import { Plane } from '../plane/plane';
 import { bankAngle } from '../plane/steer';
 import { outlineMaterial } from '../render/outline';
@@ -67,7 +67,6 @@ interface Mission {
 }
 
 /** pilot eye point per airframe (body space) */
-const COCKPIT_EYE = { biplane: [0, 0.98, 0.32], turboprop: [0, 0.78, -0.55], jet: [0, 0.78, -2.25] } as const;
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -454,7 +453,7 @@ export class Game {
     const p = new Plane({ ...this.loadout }, this.planeToon, this.planeOutline, this.spec);
     this.audio.setEngine(engineOf(this.loadout.style));
     this.rig.chaseScale = this.loadout.style === 'jet' ? 1.25 : this.loadout.style === 'turboprop' ? 1.1 : 1;
-    const eye = COCKPIT_EYE[this.loadout.style];
+    const eye = AIRFRAMES[this.loadout.style].eye;
     this.rig.cockpit.set(eye[0], eye[1], eye[2]);
     this.camera.fov = 70;
     this.camera.updateProjectionMatrix();
@@ -828,6 +827,7 @@ export class Game {
       case 'ending': {
         for (const pl of this.planes) if (!pl.wrecked) pl.syncVisual(this.paused ? 1 : alpha, this.paused ? 0 : dt);
         const m = this.mission;
+        if (p) p.visual.setCockpitView(this.rig.mode === 'cockpit' && !(this.state === 'ending' && m.wreckAt));
         if (this.state === 'ending' && m.wreckAt) {
           this.rig.orbit(dt, m.wreckAt, 45, 18, 0.35);
         } else if (p) {
