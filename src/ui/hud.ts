@@ -380,7 +380,7 @@ export class Hud {
     }
     const g = this.g;
     const x0 = this.w - size - 16;
-    const y0 = 12;
+    const y0 = 46; // below the "Built with DAI Studio" badge in the top-right corner
     panel(g, x0, y0, size, size);
     g.save();
     roundRect(g, x0 + 3, y0 + 3, size - 6, size - 6, 10);

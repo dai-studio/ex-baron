@@ -141,8 +141,18 @@
     <bpmn:sequenceFlow id="flow_vh53qzhx" sourceRef="task_j24gc04j" targetRef="task_zlhj5tfe" />
     <bpmn:task id="task_90h01vcy" name="Cockpit dashboard covers the lower view" dai:notes="planeMesh.ts buildDash(): a cockpit instrument panel shown only in cockpit view, placed from the airframe eye point (moved from game.ts into AIRFRAMES[].eye): 3.6 m wide (covers 21:9), 0.8 m ahead, top edge ~20° below eye level, tilted toward the pilot, with a rim in the paint colour and three gauges; the middle needle follows engine RPM. It draws after the scene (renderOrder 10) with depthFunc ALWAYS, so the fuselage between the eye and the panel cannot cover it, while it still writes depth (depthTest = false would stop depth writes in WebGL, letting water and ink edges bleed through: seen and fixed). Checked with canvas captures in the air for all three planes: no landscape below the dashboard edge or in the lower corners; horizon, nose and runway ahead visible. Tests 43/43." dai:agentStatus="done">
       <bpmn:incoming>flow_ctr5squx</bpmn:incoming>
+      <bpmn:outgoing>flow_lrgd2601</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_ctr5squx" sourceRef="task_zlhj5tfe" targetRef="task_90h01vcy" />
+    <bpmn:task id="task_ninoqfv1" name="&#34;Built with DAI Studio&#34; badge" dai:notes="index.html + style.css: a pill-shaped link &#34;Built with DAI Studio&#34; (dark navy #121826, grey text, bold purple #7b61e8 &#34;DAI Studio&#34;, hover border) fixed in the top-right corner of every screen, including in flight; opens https://dai.studio in a new tab; smaller on screens under 560 px. hud.ts: the in-flight minimap moved from y 12 to y 62 so it sits below the badge. Checked in Chrome: badge at 1236,16 (188×36) on menu, hangar (no overlap with the dialog), pause and in flight; HUD canvas is empty under the badge and the minimap starts below it. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_lrgd2601</bpmn:incoming>
+      <bpmn:outgoing>flow_a8shfvpr</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_lrgd2601" sourceRef="task_90h01vcy" targetRef="task_ninoqfv1" />
+    <bpmn:task id="task_pi4xelr0" name="Smaller DAI Studio badge" dai:notes="Badge shrunk from 188×36 to 147×26 px (12 px text, 5×12 px padding, 12 px from the corner; 11 px text on phones). Minimap moved up to y 46 to stay just below it. Checked in Chrome: badge 1281,12 147×26; HUD empty under it, minimap starts below." dai:agentStatus="done">
+      <bpmn:incoming>flow_a8shfvpr</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_a8shfvpr" sourceRef="task_ninoqfv1" targetRef="task_pi4xelr0" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -343,6 +353,20 @@
       <bpmndi:BPMNEdge id="flow_ctr5squx_di" bpmnElement="flow_ctr5squx">
         <di:waypoint x="548" y="520" />
         <di:waypoint x="628" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_ninoqfv1_di" bpmnElement="task_ninoqfv1">
+        <dc:Bounds x="808" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_lrgd2601_di" bpmnElement="flow_lrgd2601">
+        <di:waypoint x="728" y="520" />
+        <di:waypoint x="808" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_pi4xelr0_di" bpmnElement="task_pi4xelr0">
+        <dc:Bounds x="988" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_a8shfvpr_di" bpmnElement="flow_a8shfvpr">
+        <di:waypoint x="908" y="520" />
+        <di:waypoint x="988" y="520" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
