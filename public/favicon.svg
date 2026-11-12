@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Baron favicon: a cartoon biplane climbing through the sky -->
+  <rect width="64" height="64" rx="14" fill="#9fd3ef"/>
+  <g fill="#fff" stroke="#2b1d1a" stroke-width="1.5">
+    <path d="M6 52a5 5 0 0 1 7-5 6 6 0 0 1 11 2 4 4 0 0 1 0 8H8a3 3 0 0 1-2-5z"/>
+  </g>
+  <g transform="rotate(-14 32 32)" stroke="#2b1d1a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- struts -->
+    <path d="M26 21v16M40 21v16" fill="none" stroke-width="2.5"/>
+    <!-- tail fin + tailplane -->
+    <path d="M8 22l7 3 3 9H9z" fill="#e04f3a"/>
+    <!-- fuselage -->
+    <path d="M10 30l34-3c7 0 10 2 10 6s-3 6-10 6L10 36z" fill="#e04f3a"/>
+    <!-- pilot -->
+    <circle cx="31" cy="26" r="4" fill="#8a5a33"/>
+    <path d="M28 25.5h6" stroke-width="2"/>
+    <!-- wings -->
+    <rect x="18" y="16" width="30" height="6" rx="3" fill="#f2b134"/>
+    <rect x="20" y="36" width="26" height="6" rx="3" fill="#f2b134"/>
+    <!-- cowl + spinning prop -->
+    <circle cx="54" cy="33" r="3" fill="#2b4a6b"/>
+    <ellipse cx="58" cy="33" rx="2" ry="11" fill="#fff6dd" stroke-width="2"/>
+  </g>
+</svg>
