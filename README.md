@@ -50,3 +50,7 @@ The game opens on a main menu over a flyover of the world. Press **Hangar** (or 
 | `src/game` | game state machine (core loop §2), camera rig | §2, §6 |
 
 All art and audio are generated in code. There are no external asset files.
+
+## License
+
+BSD 2-Clause License. Copyright (c) 2026, DAI Studio. See [LICENSE](LICENSE).
