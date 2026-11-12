@@ -61,8 +61,78 @@
     <bpmn:sequenceFlow id="flow_ykyr87j8" sourceRef="task_idchtspk" targetRef="task_9io6zbve" />
     <bpmn:task id="task_9gbykx6r" name="Tests &#38; verification" dai:notes="vitest: 11/11 passing (rng determinism, seed determinism, chunk order-independence at all LODs, flat home strip on 5 seeds, land/sea/mountain mix, takeoff distance, crosswind ground roll, hands-off cruise, top speed, stall recovery, gentle touchdown). tsc + vite build OK (644 KB dist, 162 KB gzip main). In Chrome: title flyover and takeoff run at 60 fps with no console errors. Not checked in the browser: dogfight and landing visuals (the test tab was closed); combat checked headlessly instead.&#10;Correction: console tracking began after page load, so &#34;no console errors&#34; was not fully verified. The game ran (state machine, chunks, 60 fps) without visible failures." dai:agentStatus="done" dai:planRef="task_44e737qz">
       <bpmn:incoming>flow_6ef3ns6n</bpmn:incoming>
+      <bpmn:outgoing>flow_wh0abcn5</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_6ef3ns6n" sourceRef="task_9io6zbve" targetRef="task_9gbykx6r" />
+    <bpmn:task id="task_btxk8ebi" name="Remove dogfighting" dai:notes="Scope change on 2026-11-11: removed all combat, so Baron is now free flight only (take off, explore, land on any strip).&#10;Removed: src/combat (weapons.ts, ai.ts); the Dogfight mission and the hangar&#39;s Mission and Enemy pilots selectors; the enemy livery; the fire input (Space / click / RT), ammo, gun heat and the spec.ammo setting; the padlock camera (C now switches between chase and cockpit); gun muzzle and ground-hit effects; enemy markers, the lead diamond, the aim reticle and the ammo/heat HUD panel; gun/hit/ouch sounds, positional enemy engines and the audio listener; and kills and accuracy in the debrief and best records.&#10;Kept: the damage model from prop strikes and wing scrapes, with the damage silhouette in its own HUD panel and the low-health red edge; bail out (X), where the empty plane spirals down; and the mouse-stick cursor. The twin guns stay on the biplane mesh as decoration.&#10;Medals now depend only on the landing grade: A/A+ gold, B silver, any landing bronze. Best records are keyed free:&#60;seed&#62;, and older saved settings have mission and difficulty removed when they load. steer.ts now keeps only bankAngle.&#10;Docs: README and the in-game controls list were updated. design.dai and plan.dai still describe dogfighting.&#10;Verified: tsc clean, vitest 11/11, vite build OK (577 KB main, 155 KB gzip). Not played in the browser." dai:agentStatus="done">
+      <bpmn:incoming>flow_wh0abcn5</bpmn:incoming>
+      <bpmn:outgoing>flow_31dm82bc</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_wh0abcn5" sourceRef="task_9gbykx6r" targetRef="task_btxk8ebi" />
+    <bpmn:task id="task_9by84gvy" name="Loadout &#38; spec composer" dai:notes="plane/loadout.ts: Loadout type + options (3 styles, 8 paints, 3 engines, 3 wheels), AIRFRAMES (base spec, taildragger/tricycle gear, prop mount, jet exhausts, crash points), ENGINE_DEFS (thrust-to-weight, thrust lapse speed, spool rate, mass), WHEEL_DEFS (spring/damper, friction, crash speed, grip per surface), composeSpec(), gearFor(), stallSpeed(), loadoutStats() for the hangar bars, sanitize/parse/print, localStorage &#39;baron.loadout.v1&#39; + ?plane=style.paint.engine.wheels. flight.ts: Gear (contact + crash points) passed to stepFlight/groundAttitude/restHeight (default = the original biplane), spoolRate, nose wheel, &#39;tail&#39; strike points (scrape), per-wheel surface grip via Env.surfaceAt. Deviation from design numbers: jet engine T/W 0.55 with thrust falling to 0 at 200 m/s (keeps jet top speed ≈ 133 m/s / 478 km/h), jet airframe mass 2500 kg, wing 22 m². composeSpec(default) === DEFAULT_SPEC, so the original biplane flies exactly as before. Matrix test (27 flight combos × paint-independent): all take off and land; worst ground roll Jet+Prop+Soft 504 m (limit 630), worst landing roll Jet+Jet+Soft 599 m. Test pilot needed AoA-targeted rotation, stall protection and bounce handling." dai:agentStatus="done" dai:planRef="task_dm9i0pir">
+      <bpmn:incoming>flow_31dm82bc</bpmn:incoming>
+      <bpmn:outgoing>flow_lz6vxihb</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_31dm82bc" sourceRef="task_btxk8ebi" targetRef="task_9by84gvy" />
+    <bpmn:task id="task_gz4xh2hq" name="Airframe, engine &#38; wheel meshes" dai:notes="plane/planeMesh.ts replaces biplaneMesh.ts: PlaneVisual(loadout) with builders for Biplane (original, guns removed), Turboprop (low wing, bubble canopy, tricycle gear) and Jet (nose cone, swept wings, side intakes, swept fin, nozzle). Engine attachments: 2-blade wooden prop, 4-blade steel prop + spinner + exhaust stacks, jet (nose intake + side exhaust pipes on prop airframes) with additive flame cones scaled by RPM. Wheels sized per tyre choice (r 0.30 / 0.36 / 0.48). 8 paints via liveryFor(); Sky and Snow get a dark stripe. Swept, tapered fins via finGeo(). Prop radius clamped per airframe for ground clearance. ~1.2k triangles. Checked in Chrome via canvas captures (the screenshot tool timed out on every page): all three styles, jet-on-biplane and prop-on-jet render correctly. Deviation: a paint change rebuilds the mesh instead of recolouring in place (a few ms, not noticeable)." dai:agentStatus="done" dai:planRef="task_0fp4papg">
+      <bpmn:incoming>flow_lz6vxihb</bpmn:incoming>
+      <bpmn:outgoing>flow_arfr70ip</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_lz6vxihb" sourceRef="task_9by84gvy" targetRef="task_gz4xh2hq" />
+    <bpmn:task id="task_1omd6cn9" name="Upgraded runway &#38; surfaces" dai:notes="terrain.ts: Airfield gets paved/pavedWidth; RUNWAY = 900 m × 30 m asphalt, 15 m grass shoulders, 60 m grass overruns (1020 × 60 total). scoreSite samples ±510 m × ±90 m; FLAT_A 40, FLAT_B 110. surfaceAt() → paved | grass | rough | water. Median terrain cut under the strip rose from 7.7 m to 12.2 m (p90 12 → 23 m), still fine for the cartoon look, so the &#39;gentle slope&#39; allowance was not needed. airfieldProps.ts: mowed grass base, asphalt, threshold bars + piano keys, seven-segment runway numbers from the heading (HUD compass convention), dashed centreline, touchdown-zone and aiming bars, edge lights (green at the ends) and PAPI (4 lights per end, live red/white from the player&#39;s glide angle; checked: 3° → RRWW), jet-sized arched hangars with open doors, apron and taxiway; dispose() added. flight.ts: per-wheel grip/rolling friction by surface and tyre. Spawn moved to 20 m inside the paved threshold. Test: &#39;runway fits the terrain on 200 seeds&#39; (flat ±1 m, never over water, paved/grass surfaces, home within 7 km)." dai:agentStatus="done" dai:planRef="task_rpikw3qw">
+      <bpmn:incoming>flow_arfr70ip</bpmn:incoming>
+      <bpmn:outgoing>flow_kcdcbfeq</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_arfr70ip" sourceRef="task_gz4xh2hq" targetRef="task_1omd6cn9" />
+    <bpmn:task id="task_2r48sc2i" name="Hangar screen &#38; preview" dai:notes="ui/hangar.ts + index.html/style.css: Hangar panel on the right of the title screen with Plane / Paint / Engine / Wheels tabs, option cards (icon, name, trait), 8 paint swatches, loadout name line, 5 stat bars (Top speed, Climb, Handling, Short takeoff, Easy landing) from loadoutStats() with animated +/- deltas. Keyboard ←/→/↑/↓ (and WASD), gamepad bumpers/d-pad, Enter / A to fly. Saved on every change. game.ts: preview Plane on the home apron in front of the hangar doors, slow turntable, drag to rotate, camera framed per airframe size, engine idles quietly once audio is unlocked by a click. Sortie uses the loadout: composed spec (same object, so ?debug tuning still works), per-airframe gear, cockpit eye point and chase distance, hints with the computed rotation speed, landing grade thresholds scaled by tyre crash speed, debrief &#39;Aircraft&#39; row. Checked in Chrome: all 17 cards build with no errors; ?plane= works; panels leave the centre free at 1440 px." dai:agentStatus="done" dai:planRef="task_1zwngb8u">
+      <bpmn:incoming>flow_kcdcbfeq</bpmn:incoming>
+      <bpmn:outgoing>flow_hhw5o1tk</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_kcdcbfeq" sourceRef="task_1omd6cn9" targetRef="task_2r48sc2i" />
+    <bpmn:task id="task_z0wf3alz" name="Engine audio &#38; HUD per type" dai:notes="audio.ts: setEngine(); prop = pulsing putt (as before), turbo = buzzier saw + turbine whine, jet = low rumble + filtered noise roar + rising whistle; update() takes a gain for the quiet hangar idle. hud.ts: throttle readout shows &#39;spool %&#39; for the jet and higher RPM for the turbo. Not verified by ear (no audio in the automated browser)." dai:agentStatus="done" dai:planRef="task_dvofzdw4">
+      <bpmn:incoming>flow_hhw5o1tk</bpmn:incoming>
+      <bpmn:outgoing>flow_cplzpbnj</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_hhw5o1tk" sourceRef="task_2r48sc2i" targetRef="task_z0wf3alz" />
+    <bpmn:task id="task_imeu4ufw" name="Loadout tests &#38; verification" dai:notes="vitest 43/43: flight (6, unchanged), world (6, incl. runway on 200 seeds), loadout (31: default == original spec, 216 combos, parse/sanitise, 27 flight combos take off ≤ 630 m and land ≤ 750 m roll with no crash, stat ranking). tsc + vite build OK (600 KB main, 163 KB gzip). Chrome at localhost:5288: three styles spawn on asphalt resting on their gear (3 wheels) and roll straight at full throttle for 8 s; landing → debrief shows the aircraft row; back to hangar rebuilds the preview; PAPI angles correct; no console errors. Screenshots via the extension timed out, so visuals were checked with canvas captures. Not done: a hand-flown landing in each airframe, audio by ear." dai:agentStatus="done" dai:planRef="task_07tcv09h">
+      <bpmn:incoming>flow_cplzpbnj</bpmn:incoming>
+      <bpmn:outgoing>flow_clo6m0kr</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_cplzpbnj" sourceRef="task_z0wf3alz" targetRef="task_imeu4ufw" />
+    <bpmn:task id="task_pjdrvauj" name="Engine comes with the plane" dai:notes="loadout.ts: Loadout is now { style, paint, wheels }; AirframeDef.engine (biplane prop, turboprop turbo, jet jet) and one engineMount; removed ENGINES, jetExhaust, maxPropRadius, propRadius(); engineOf(style). Turbo prop radius 1.15 (same clearance as before). parseLoadout accepts style.paint.wheels and old style.paint.engine.wheels links; saved loadouts with an engine key are sanitised. planeMesh.ts: one engine path per style (turboprop exhaust stacks moved into its body; single jet flame at the nozzle); jet-pod and nose-prop variants deleted. Hangar has Plane / Paint / Wheels tabs; plane cards name their engine. Audio, HUD and hints use engineOf(style). Tests 25/25 (9 flight combos), tsc OK. Chrome: tabs Plane/Paint/Wheels, each style builds the right engine, legacy ?plane= link works, sortie spawns on asphalt, no errors. design.dai: Engine feature and &#39;Odd combos&#39; risk removed, style/model/composer/ADR/rule/save/test updated." dai:agentStatus="done" dai:planRef="task_snxp38pz">
+      <bpmn:incoming>flow_clo6m0kr</bpmn:incoming>
+      <bpmn:outgoing>flow_abwugsv3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_clo6m0kr" sourceRef="task_imeu4ufw" targetRef="task_pjdrvauj" />
+    <bpmn:task id="task_1mv0e90e" name="Fix wingtip z-fighting" dai:notes="Flicker on the wing edges in the hangar was z-fighting, not depth precision (24-bit depth, near 0.5 m, camera 14 m away). Confirmed by recolouring faces in the live mesh: the wingtip caps ended flush with the wing, so their end faces shared a plane (biplane x = ±4.3, turboprop ±4.9). New tests/mesh.test.ts finds every pair of overlapping, coplanar (within 4 mm), same-facing, differently coloured faces across all styles, wheels and stripe paints. It also found: paint stripes ending flush with the fuselage block, elevators as wide as the tailplanes, and the jet stripe flush with its accent band. Fixes in planeMesh.ts: caps are larger and stick 3 cm past the wing tip, stripes 10 cm shorter (jet stripe wider than the band), elevators 10 cm narrower. Tests 43/43; checked with canvas captures at several turntable angles." dai:agentStatus="done">
+      <bpmn:incoming>flow_abwugsv3</bpmn:incoming>
+      <bpmn:outgoing>flow_elpyus10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_abwugsv3" sourceRef="task_pjdrvauj" targetRef="task_1mv0e90e" />
+    <bpmn:task id="task_w52k1d09" name="Fix runway marking z-fighting" dai:notes="Runway paint (threshold keys, numbers, centreline, touchdown bars) sat 4 cm above the asphalt in the same mesh, which z-fought at approach distances (24-bit depth resolves only a few cm at 1 km). Raised the markings to 10 cm above the asphalt (top 0.31 m) and moved them into their own mesh with a separate material (polygonOffset factor -4, units -16 vs the strip&#39;s -2/-4), created once per world and disposed with it. Checked with zoomed canvas captures on a 3° approach at 400 m, 1.2 km and 2 km: markings solid, no flicker. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_elpyus10</bpmn:incoming>
+      <bpmn:outgoing>flow_8sjdjlm2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_elpyus10" sourceRef="task_1mv0e90e" targetRef="task_w52k1d09" />
+    <bpmn:task id="task_miq54ef9" name="Landing 15% more forgiving" dai:notes="flight.ts: LANDING_FORGIVENESS = 1.15 scales all touchdown crash limits (nose-in, cartwheel wing strike, tail strike, prop nose-over); REBOUND_DAMPING = 2 makes the strut damp extension twice as hard as compression; DEFAULT_SPEC.gearC 6000 → 6900. game.ts: landing grade sink thresholds (A &#60; 1.72, B &#60; 3.45 m/s with medium tyres) and bank (&#60; 6°) ×1.15. hud.ts: sink warning turns red above 3.45 m/s. Measured with a headless drop test: the crash limit was already high (≈11 m/s level), so the main difficulty was bouncing; biplane bounce height at 2/3/4 m/s sink went 0.19/1.27/0.88 m → 0.15/0.92/0.56 m (≈30% lower); tricycle planes did not bounce in the test. Tests 43/43 incl. the every-loadout landing matrix. Not hand-flown yet." dai:agentStatus="done">
+      <bpmn:incoming>flow_8sjdjlm2</bpmn:incoming>
+      <bpmn:outgoing>flow_oifen32e</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_8sjdjlm2" sourceRef="task_w52k1d09" targetRef="task_miq54ef9" />
+    <bpmn:task id="task_ta8rbc88" name="Main menu flyover + separate hangar screen" dai:notes="The app opens on the main menu over the terrain flyover again (orbit of the home airfield). The menu shows the current aircraft and a Hangar button (H, gamepad Y). New &#39;hangar&#39; game state and #hangar-screen: plane turntable in front of the hangar + customization panel + &#39;Back to menu&#39; (Esc / Enter / Backspace / gamepad B). FLY! only on the main menu. Preview is built when entering the hangar and disposed when leaving; camera FOV reset to 70 on return. Pause and debrief buttons renamed &#39;Main menu&#39;. README controls updated. Checked in Chrome: load → menu (camera 677 m from the field), Hangar → preview, ↓ changes plane, Esc → menu with updated aircraft line, H reopens, Fly from menu starts the sortie with the chosen plane, back to menu has no preview; no errors. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_oifen32e</bpmn:incoming>
+      <bpmn:outgoing>flow_0jnu5ncg</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_oifen32e" sourceRef="task_miq54ef9" targetRef="task_ta8rbc88" />
+    <bpmn:task id="task_cvbxb9rh" name="Low clouds you can fly through" dai:notes="clouds.ts: cloud base is now 200-460 m above the terrain under the cloud (was 760-1240 m above sea level); each puff is also kept ≥ 120 m above the ground below it. Measured on one seed: puff undersides min 106 m, p10 214 m, median 313 m AGL. game.ts: whiteout is a smoothed value: up to fully white at 6/s when the camera is in a cloud (≈0.2 s), back to clear at 0.7/s after leaving (≈1.4 s); only during a sortie; held while paused. index.html: #whiteout moved under the HUD canvas so instruments stay readable in cloud. Menu flyover lowered from 170 to 110 m so it stays under the cloud base. Checked in Chrome by flying a plane straight through a puff: 0 → 1.0 in 0.2 s, 1.0 while inside, then a smooth 1.4 s fade to 0; captures show low clouds around the airfield and a full white-out inside. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_0jnu5ncg</bpmn:incoming>
+      <bpmn:outgoing>flow_frb4zovq</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_0jnu5ncg" sourceRef="task_ta8rbc88" targetRef="task_cvbxb9rh" />
+    <bpmn:task id="task_j24gc04j" name="Hangar: plane left, dialog right" dai:notes="game.ts updatePreview: the camera&#39;s view offset (setViewOffset) slides the image so the plane sits in the middle of the free space left of the hangar dialog: shift = W/2 − panelLeft/2, eased in, recomputed every frame so it follows window resizes; no shift when the dialog drops below the view on narrow screens. Cleared on leaving the hangar. Checked in Chrome at 1440 px: dialog 982-1382 px, plane centre at 491 px = free-space centre, for the Jet and the Biplane; main menu has no offset afterwards. Tests 43/43." dai:agentStatus="done">
+      <bpmn:incoming>flow_frb4zovq</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_frb4zovq" sourceRef="task_cvbxb9rh" targetRef="task_j24gc04j" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -147,6 +217,108 @@
       <bpmndi:BPMNEdge id="flow_6ef3ns6n_di" bpmnElement="flow_6ef3ns6n">
         <di:waypoint x="548" y="240" />
         <di:waypoint x="628" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_btxk8ebi_di" bpmnElement="task_btxk8ebi">
+        <dc:Bounds x="808" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_wh0abcn5_di" bpmnElement="flow_wh0abcn5">
+        <di:waypoint x="728" y="240" />
+        <di:waypoint x="808" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_9by84gvy_di" bpmnElement="task_9by84gvy">
+        <dc:Bounds x="988" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_31dm82bc_di" bpmnElement="flow_31dm82bc">
+        <di:waypoint x="908" y="240" />
+        <di:waypoint x="988" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_gz4xh2hq_di" bpmnElement="task_gz4xh2hq">
+        <dc:Bounds x="1168" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_lz6vxihb_di" bpmnElement="flow_lz6vxihb">
+        <di:waypoint x="1088" y="240" />
+        <di:waypoint x="1168" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_1omd6cn9_di" bpmnElement="task_1omd6cn9">
+        <dc:Bounds x="1348" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_arfr70ip_di" bpmnElement="flow_arfr70ip">
+        <di:waypoint x="1268" y="240" />
+        <di:waypoint x="1348" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_2r48sc2i_di" bpmnElement="task_2r48sc2i">
+        <dc:Bounds x="1528" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_kcdcbfeq_di" bpmnElement="flow_kcdcbfeq">
+        <di:waypoint x="1448" y="240" />
+        <di:waypoint x="1528" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_z0wf3alz_di" bpmnElement="task_z0wf3alz">
+        <dc:Bounds x="268" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_hhw5o1tk_di" bpmnElement="flow_hhw5o1tk">
+        <di:waypoint x="1578" y="280" />
+        <di:waypoint x="1578" y="310" />
+        <di:waypoint x="318" y="310" />
+        <di:waypoint x="318" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_imeu4ufw_di" bpmnElement="task_imeu4ufw">
+        <dc:Bounds x="448" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_cplzpbnj_di" bpmnElement="flow_cplzpbnj">
+        <di:waypoint x="368" y="380" />
+        <di:waypoint x="448" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_pjdrvauj_di" bpmnElement="task_pjdrvauj">
+        <dc:Bounds x="628" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_clo6m0kr_di" bpmnElement="flow_clo6m0kr">
+        <di:waypoint x="548" y="380" />
+        <di:waypoint x="628" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_1mv0e90e_di" bpmnElement="task_1mv0e90e">
+        <dc:Bounds x="808" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_abwugsv3_di" bpmnElement="flow_abwugsv3">
+        <di:waypoint x="728" y="380" />
+        <di:waypoint x="808" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_w52k1d09_di" bpmnElement="task_w52k1d09">
+        <dc:Bounds x="988" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_elpyus10_di" bpmnElement="flow_elpyus10">
+        <di:waypoint x="908" y="380" />
+        <di:waypoint x="988" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_miq54ef9_di" bpmnElement="task_miq54ef9">
+        <dc:Bounds x="1168" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_8sjdjlm2_di" bpmnElement="flow_8sjdjlm2">
+        <di:waypoint x="1088" y="380" />
+        <di:waypoint x="1168" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_ta8rbc88_di" bpmnElement="task_ta8rbc88">
+        <dc:Bounds x="1348" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_oifen32e_di" bpmnElement="flow_oifen32e">
+        <di:waypoint x="1268" y="380" />
+        <di:waypoint x="1348" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_cvbxb9rh_di" bpmnElement="task_cvbxb9rh">
+        <dc:Bounds x="1528" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_0jnu5ncg_di" bpmnElement="flow_0jnu5ncg">
+        <di:waypoint x="1448" y="380" />
+        <di:waypoint x="1528" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_j24gc04j_di" bpmnElement="task_j24gc04j">
+        <dc:Bounds x="268" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_frb4zovq_di" bpmnElement="flow_frb4zovq">
+        <di:waypoint x="1578" y="420" />
+        <di:waypoint x="1578" y="450" />
+        <di:waypoint x="318" y="450" />
+        <di:waypoint x="318" y="480" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

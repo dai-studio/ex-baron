@@ -8,6 +8,8 @@ export interface MenuHandlers {
   resume(): void;
   restart(): void;
   quit(): void;
+  openHangar(): void;
+  closeHangar(): void;
   again(): void;
   newWorld(): void;
   seedChanged(seed: number): void;
@@ -33,8 +35,6 @@ export class Menus {
     private settings: Settings,
     private h: MenuHandlers,
   ) {
-    this.bindSeg('mission-seg', () => settings.mission, (v) => (settings.mission = v as Settings['mission']));
-    this.bindSeg('difficulty-seg', () => settings.difficulty, (v) => (settings.difficulty = v as Settings['difficulty']));
     this.bindSeg('assist-seg', () => settings.assist, (v) => (settings.assist = v as Settings['assist']));
     this.bindSeg('quality-seg', () => settings.quality, (v) => {
       settings.quality = v as Settings['quality'];
@@ -68,6 +68,8 @@ export class Menus {
     $('again-btn').addEventListener('click', () => h.again());
     $('newworld-btn').addEventListener('click', () => h.newWorld());
     $('hangar-btn').addEventListener('click', () => h.quit());
+    $('open-hangar').addEventListener('click', () => h.openHangar());
+    $('close-hangar').addEventListener('click', () => h.closeHangar());
 
     const vol = $<HTMLInputElement>('volume');
     vol.value = String(settings.volume);
@@ -108,8 +110,8 @@ export class Menus {
   }
 
   refreshBest() {
-    const b = getBest(this.settings.seed, this.settings.mission);
-    $('best-line').textContent = b ? `Best on this world: ${MEDALS[b.medal]} ${b.kills} kills, landing ${b.landing}` : '';
+    const b = getBest(this.settings.seed);
+    $('best-line').textContent = b ? `Best on this world: ${MEDALS[b.medal]} landing ${b.landing}` : '';
   }
 
   setSeed(seed: number) {
@@ -117,8 +119,12 @@ export class Menus {
     this.refreshBest();
   }
 
-  show(screen: 'title' | 'loading' | 'pause' | 'debrief' | 'nogl' | 'ctxlost' | 'none') {
-    for (const id of ['title', 'loading', 'pause', 'debrief', 'nogl', 'ctxlost']) $(id).classList.toggle('hidden', id !== screen);
+  show(screen: 'title' | 'hangar-screen' | 'loading' | 'pause' | 'debrief' | 'nogl' | 'ctxlost' | 'none') {
+    for (const id of ['title', 'hangar-screen', 'loading', 'pause', 'debrief', 'nogl', 'ctxlost']) $(id).classList.toggle('hidden', id !== screen);
+  }
+
+  setAircraft(name: string) {
+    $('aircraft-name').textContent = name;
   }
 
   setLoading(f: number) {

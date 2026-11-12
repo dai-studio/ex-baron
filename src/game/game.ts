@@ -1,13 +1,11 @@
 import * as THREE from 'three';
 import { AudioEngine } from '../audio/audio';
-import { AIPilot, SKILLS, type Skill } from '../combat/ai';
-import { Bullets, type HitInfo } from '../combat/weapons';
 import { Input } from '../core/input';
 import { Loop } from '../core/loop';
-import { loadSettings, saveSettings, randomSeed, submitBest, type Difficulty, type Settings } from '../core/settings';
+import { loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
-import { ENEMY_LIVERY, PLAYER_LIVERY } from '../plane/biplaneMesh';
-import { DEFAULT_SPEC, groundAttitude, restHeight, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
+import { DEFAULT_SPEC, LANDING_FORGIVENESS, groundAttitude, restHeight, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
+import { composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
 import { Plane } from '../plane/plane';
 import { bankAngle } from '../plane/steer';
 import { outlineMaterial } from '../render/outline';
@@ -15,21 +13,22 @@ import { PostFX } from '../render/post';
 import { Sky, sunDirection } from '../render/sky';
 import { toonMaterial } from '../render/toon';
 import { Water } from '../render/water';
+import { Hangar } from '../ui/hangar';
 import { Hud } from '../ui/hud';
 import { Menus } from '../ui/menus';
-import { hash32, mulberry32 } from '../world/rng';
 import { CHUNK_SIZE } from '../world/terrain';
 import { World } from '../world/world';
 import { CameraRig } from './camera';
 
 /**
  * GameStateMachine (design §6) implementing the Core Gameplay Loop (§2):
- * Title/Hangar → Loading (world prewarm) → Sortie [takeoff | flight | combat |
- * landing] → Ending (crash/landed) → Debrief.
+ * Title (main menu over a terrain flyover) ⇄ Hangar (customize the plane);
+ * Title → Loading (world prewarm) → Sortie [takeoff | flight | landing]
+ * → Ending (crash/landed) → Debrief.
  */
-type State = 'title' | 'loading' | 'sortie' | 'ending' | 'debrief';
+type State = 'title' | 'hangar' | 'loading' | 'sortie' | 'ending' | 'debrief';
 type TierName = 'low' | 'medium' | 'high';
-type Result = 'landed' | 'field landing' | 'crashed' | 'shot down' | 'ditched' | 'bailed out';
+type Result = 'landed' | 'field landing' | 'crashed' | 'ditched' | 'bailed out';
 
 interface Tier {
   radius: number;
@@ -45,10 +44,6 @@ const TIERS: Record<TierName, Tier> = {
   high: { radius: 8, post: true, shadows: true, shadowSize: 2048, maxPR: 2 },
 };
 
-const PLAYER_DAMAGE: Record<Difficulty, number> = { rookie: 0.3, veteran: 0.4, ace: 0.5 };
-const ENEMY_COUNT: Record<Difficulty, number> = { rookie: 2, veteran: 3, ace: 4 };
-const ZONE_DAMAGE = { engine: 0.09, wings: 0.06, tail: 0.1, pilot: 0.15, fuselage: 0.05 };
-
 interface Touchdown {
   sink: number;
   bank: number;
@@ -58,14 +53,8 @@ interface Touchdown {
 }
 
 interface Mission {
-  type: Settings['mission'];
-  difficulty: Difficulty;
   tookOff: boolean;
   takeoffT: number;
-  spawnAt: number;
-  enemiesSpawned: boolean;
-  enemiesTotal: number;
-  objectiveDone: boolean;
   touch: Touchdown | null;
   bounces: number;
   stoppedT: number;
@@ -77,8 +66,12 @@ interface Mission {
   hintStage: number;
 }
 
+/** pilot eye point per airframe (body space) */
+const COCKPIT_EYE = { biplane: [0, 0.98, 0.32], turboprop: [0, 0.78, -0.55], jet: [0, 0.78, -2.25] } as const;
+
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
 
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
@@ -94,7 +87,6 @@ export class Game {
   private sun = new THREE.DirectionalLight(0xffffff, 2.8);
   private hemi = new THREE.HemisphereLight(0xffffff, 0x556644, 1.2);
   private fx = new Effects();
-  private bullets = new Bullets();
   private audio = new AudioEngine();
   private hud: Hud;
   private ui: Menus;
@@ -105,19 +97,28 @@ export class Game {
   private planeToon = toonMaterial({ vertexColors: true, rim: 0.3 });
   private planeOutline = outlineMaterial(0x2b1d1a, 1.1, 400);
   private spec: PlaneSpec = { ...DEFAULT_SPEC };
+  private loadout: Loadout = loadLoadout();
+  private hangar: Hangar;
+  /** the plane on the hangar apron while the title / hangar screen is up */
+  private preview: Plane | null = null;
+  private previewYaw = 2.2;
+  private previewDrag: number | null = null;
+  private readonly previewCam = new THREE.Vector3();
+  private previewCamReady = false;
+  /** px the hangar view is slid right, so the plane shows left of the dialog */
+  private viewShift = 0;
   private state: State = 'title';
   private paused = false;
   private simTime = 0;
   private tick = 0;
   private time = 0;
   private loadT = 0;
+  private whiteout = 0;
   private tierName: TierName = 'medium';
   private tier: Tier = TIERS.medium;
   private renderScale = 1;
   private frameAvg = 16;
   private resTimer = 0;
-  private hurt = 0;
-  private rnd = mulberry32(1);
   private mission!: Mission;
   private contextLost = false;
   private stats: HTMLDivElement | null = null;
@@ -138,6 +139,8 @@ export class Game {
       resume: () => this.setPaused(false),
       restart: () => this.startSortie(),
       quit: () => this.toTitle(),
+      openHangar: () => this.openHangar(),
+      closeHangar: () => this.closeHangar(),
       again: () => this.startSortie(),
       newWorld: () => {
         this.settings.seed = randomSeed();
@@ -149,11 +152,26 @@ export class Game {
       seedChanged: (s) => this.newWorld(s),
       qualityChanged: () => this.applyTier(),
       volumeChanged: (v) => this.audio.setVolume(v),
-      click: () => this.audio.click(),
+      click: () => this.uiClick(),
     });
+    this.hangar = new Hangar(
+      this.loadout,
+      () => this.buildPreview(),
+      () => this.uiClick(),
+      () => this.state === 'hangar',
+    );
+    canvas.addEventListener('pointerdown', (e) => {
+      if (this.state === 'hangar') this.previewDrag = e.clientX;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (this.previewDrag === null) return;
+      this.previewYaw += (e.clientX - this.previewDrag) * 0.01;
+      this.previewDrag = e.clientX;
+    });
+    window.addEventListener('pointerup', () => (this.previewDrag = null));
     this.audio.setVolume(this.settings.volume);
 
-    this.scene.add(this.sky.mesh, this.water.mesh, this.hemi, this.sun, this.sun.target, this.fx.group, this.bullets.mesh);
+    this.scene.add(this.sky.mesh, this.water.mesh, this.hemi, this.sun, this.sun.target, this.fx.group);
     this.sun.castShadow = true;
     const sc = this.sun.shadow.camera;
     sc.left = -130;
@@ -174,7 +192,7 @@ export class Game {
     });
     canvas.addEventListener('webglcontextrestored', () => {
       this.contextLost = false;
-      this.ui.show(this.state === 'title' ? 'title' : 'pause');
+      this.ui.show(this.state === 'title' ? 'title' : this.state === 'hangar' ? 'hangar-screen' : 'pause');
     });
     window.addEventListener('resize', () => this.resize());
     document.addEventListener('visibilitychange', () => {
@@ -184,6 +202,7 @@ export class Game {
     this.applyTier();
     this.newWorld(this.settings.seed);
     this.resize();
+    this.ui.setAircraft(describeLoadout(this.loadout));
     this.ui.show('title');
     this.loop = new Loop(
       (dt) => this.step(dt),
@@ -260,7 +279,7 @@ export class Game {
     this.clearPlanes();
     const w = new World(seed, this.tier.radius);
     this.world = w;
-    this.env = { groundHeight: (x, z) => w.groundHeight(x, z), wind: w.wind };
+    this.env = { groundHeight: (x, z) => w.groundHeight(x, z), surfaceAt: (x, z) => w.surfaceAt(x, z), wind: w.wind };
     this.scene.add(w.group);
     w.setRadius(this.tier.radius);
     const t = w.time;
@@ -275,7 +294,106 @@ export class Game {
     this.post.setInk(t.ink);
     (this.planeOutline.uniforms.outlineColor.value as THREE.Color).setHex(t.ink);
     this.hud.invalidateMinimap();
-    this.rnd = mulberry32(hash32(seed, 31337));
+    this.previewCamReady = false;
+    if (this.state === 'hangar') this.buildPreview();
+  }
+
+  // ------------------------------------------------------------ hangar
+
+  private openHangar() {
+    if (this.state !== 'title') return;
+    this.uiClick();
+    this.state = 'hangar';
+    this.previewCamReady = false;
+    this.ui.show('hangar-screen');
+    this.buildPreview();
+  }
+
+  /** Back to the main menu (the only place to start a sortie). */
+  private closeHangar() {
+    if (this.state !== 'hangar') return;
+    this.uiClick();
+    this.clearPreview();
+    this.clearViewShift();
+    this.state = 'title';
+    this.camera.fov = 70;
+    this.camera.updateProjectionMatrix();
+    this.ui.setAircraft(describeLoadout(this.loadout));
+    this.ui.show('title');
+  }
+
+  private uiClick() {
+    // any click in the menus is a user gesture: audio may start now
+    this.audio.init();
+    this.audio.click();
+  }
+
+  /** (Re)build the preview plane for the current loadout on the home apron. */
+  private buildPreview() {
+    this.clearPreview();
+    if (!this.world || this.state !== 'hangar') return;
+    this.preview = new Plane(this.loadout, this.planeToon, this.planeOutline);
+    this.scene.add(this.preview.visual.root);
+    this.audio.setEngine(engineOf(this.loadout.style));
+  }
+
+  private clearPreview() {
+    if (!this.preview) return;
+    this.scene.remove(this.preview.visual.root);
+    this.preview.visual.dispose();
+    this.preview = null;
+  }
+
+  /** Turntable on the apron in front of the home hangar, camera on the runway side. */
+  private updatePreview(dt: number) {
+    const w = this.world!;
+    const p = this.preview;
+    const field = w.fields[0];
+    field.group.updateMatrixWorld();
+    const spot = field.group.localToWorld(_v.copy(field.previewSpot));
+    const size = this.loadout.style === 'jet' ? 1.3 : this.loadout.style === 'turboprop' ? 1.12 : 1;
+    if (p) {
+      if (this.previewDrag === null) this.previewYaw += dt * 0.35;
+      const q = groundAttitude(Math.cos(this.previewYaw), Math.sin(this.previewYaw), p.gear);
+      p.s.quat.copy(q);
+      p.s.pos.set(spot.x, spot.y + restHeight(q, p.gear), spot.z);
+      p.teleport();
+      p.input.pitch = p.input.roll = p.input.yaw = 0;
+      p.s.rpm = 0.18;
+      p.syncVisual(1, dt);
+    }
+    // camera: in front of the hangar door, looking back at the plane
+    const af = w.home;
+    const ox = -af.dirZ;
+    const oz = af.dirX; // local +z (towards the hangars) in world space
+    const target = _v2.set(spot.x, spot.y + 1.4 * size, spot.z);
+    const want = _v3.set(spot.x + af.dirX * 8 * size - ox * 11 * size, spot.y + 3.4 * size, spot.z + af.dirZ * 8 * size - oz * 11 * size);
+    if (!this.previewCamReady) {
+      this.previewCam.copy(want);
+      this.previewCamReady = true;
+    }
+    this.previewCam.lerp(want, 1 - Math.exp(-dt * 3));
+    this.camera.position.copy(this.previewCam);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(target);
+    if (this.camera.fov !== 50) {
+      this.camera.fov = 50;
+      this.camera.updateProjectionMatrix();
+    }
+    // balance the screen: slide the view so the plane sits in the middle of the
+    // free space left of the hangar dialog (none when the dialog is below, on narrow screens)
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const panel = document.getElementById('hangar')!.getBoundingClientRect();
+    const beside = panel.width > 0 && panel.left > W * 0.4;
+    const shift = beside ? W / 2 - panel.left / 2 : 0;
+    this.viewShift += (shift - this.viewShift) * (1 - Math.exp(-dt * 6));
+    this.camera.setViewOffset(W, H, this.viewShift, 0, W, H);
+  }
+
+  private clearViewShift() {
+    this.viewShift = 0;
+    this.camera.clearViewOffset();
   }
 
   private clearPlanes() {
@@ -285,15 +403,13 @@ export class Game {
     }
     this.planes = [];
     this.player = null;
-    this.bullets.clear();
     this.fx.clear();
   }
 
   // ----------------------------------------------------------- state changes
 
   private fly() {
-    this.audio.init();
-    this.audio.click();
+    this.uiClick();
     this.startSortie();
   }
 
@@ -306,7 +422,10 @@ export class Game {
     this.ui.clearHint();
     this.ui.setWhiteout(0);
     this.ui.refreshBest();
+    this.ui.setAircraft(describeLoadout(this.loadout));
     this.ui.show('title');
+    this.camera.fov = 70;
+    this.camera.updateProjectionMatrix();
   }
 
   private setPaused(p: boolean) {
@@ -327,9 +446,18 @@ export class Game {
     const w = this.world!;
     this.setPaused(false);
     this.clearPlanes();
+    this.clearPreview();
     this.input.invertPitch = this.settings.invertPitch;
     this.rig.shakeEnabled = this.settings.cameraShake;
-    const p = new Plane('player', PLAYER_LIVERY, this.planeToon, this.planeOutline, this.spec);
+    // compose into the same object so the ?debug panel keeps tuning it live
+    Object.assign(this.spec, composeSpec(this.loadout));
+    const p = new Plane({ ...this.loadout }, this.planeToon, this.planeOutline, this.spec);
+    this.audio.setEngine(engineOf(this.loadout.style));
+    this.rig.chaseScale = this.loadout.style === 'jet' ? 1.25 : this.loadout.style === 'turboprop' ? 1.1 : 1;
+    const eye = COCKPIT_EYE[this.loadout.style];
+    this.rig.cockpit.set(eye[0], eye[1], eye[2]);
+    this.camera.fov = 70;
+    this.camera.updateProjectionMatrix();
     const af = w.home;
     // take off into the wind
     let dx = af.dirX;
@@ -338,11 +466,12 @@ export class Game {
       dx = -dx;
       dz = -dz;
     }
-    const back = af.length / 2 - 30;
+    // line up just inside the asphalt threshold
+    const back = af.paved / 2 - 20;
     const x = af.x - dx * back;
     const z = af.z - dz * back;
-    p.s.quat.copy(groundAttitude(dx, dz));
-    p.s.pos.set(x, w.groundHeight(x, z) + restHeight(p.s.quat), z);
+    p.s.quat.copy(groundAttitude(dx, dz, p.gear));
+    p.s.pos.set(x, w.groundHeight(x, z) + restHeight(p.s.quat, p.gear), z);
     p.s.rpm = 0.15;
     p.teleport();
     this.input.resetThrottle(0);
@@ -351,16 +480,9 @@ export class Game {
     this.scene.add(p.visual.root);
     this.simTime = 0;
     this.tick = 0;
-    this.hurt = 0;
     this.mission = {
-      type: this.settings.mission,
-      difficulty: this.settings.difficulty,
       tookOff: false,
       takeoffT: 0,
-      spawnAt: Infinity,
-      enemiesSpawned: false,
-      enemiesTotal: this.settings.mission === 'dogfight' ? ENEMY_COUNT[this.settings.difficulty] : 0,
-      objectiveDone: false,
       touch: null,
       bounces: 0,
       stoppedT: 0,
@@ -386,103 +508,18 @@ export class Game {
     this.hud.visible = true;
     this.hud.invalidateMinimap();
     this.ui.show('none');
-    this.ui.hint('Open the throttle: hold Shift (or press 0). Steer with Q / E.', 6000);
+    const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : '';
+    this.ui.hint(`Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}`, 6000);
   }
 
-  private get enemies(): Plane[] {
-    return this.planes.filter((p) => p.team === 'enemy');
-  }
+  // ------------------------------------------------------------- outcomes
 
-  private spawnEnemies() {
-    const w = this.world!;
-    const p = this.player!;
-    const m = this.mission;
-    m.enemiesSpawned = true;
-    const ang = this.rnd() * Math.PI * 2;
-    const base = _v.set(Math.cos(ang), 0, Math.sin(ang)).multiplyScalar(2600).add(p.s.pos);
-    const toward = _v2.copy(p.s.pos).sub(base).setY(0).normalize();
-    const gy = Math.max(w.groundHeight(base.x, base.z), 0);
-    const y = Math.max(gy + 380, p.s.pos.y + 120);
-    const lead = this.settings.difficulty;
-    for (let i = 0; i < m.enemiesTotal; i++) {
-      const skill: Skill = i === 0 ? SKILLS[lead] : SKILLS[lead === 'ace' ? 'veteran' : lead === 'veteran' ? 'rookie' : 'rookie'];
-      const e = new Plane('enemy', ENEMY_LIVERY, this.planeToon, this.planeOutline, this.spec);
-      const side = new THREE.Vector3(-toward.z, 0, toward.x);
-      e.s.pos.copy(base).addScaledVector(side, (i - (m.enemiesTotal - 1) / 2) * 55).addScaledVector(toward, -i * 25);
-      e.s.pos.y = y + i * 12;
-      const right = new THREE.Vector3().crossVectors(toward, THREE.Object3D.DEFAULT_UP).normalize();
-      const mat = new THREE.Matrix4().makeBasis(right, THREE.Object3D.DEFAULT_UP, toward.clone().negate());
-      e.s.quat.setFromRotationMatrix(mat);
-      e.s.vel.copy(toward).multiplyScalar(45);
-      e.s.rpm = 1;
-      e.ai = new AIPilot(skill, mulberry32(hash32(this.settings.seed, i, Math.floor(this.simTime))));
-      e.teleport();
-      this.planes.push(e);
-      this.scene.add(e.visual.root);
-    }
-    this.ui.toast('BANDITS!');
-    this.ui.hint('Get on their tail and fire with Space. Aim at the ◇ lead marker.', 6000);
-  }
-
-  // ---------------------------------------------------------------- combat
-
-  private onHit(h: HitInfo) {
-    const t = h.target;
-    if (t.wrecked) return;
-    const mult = t.team === 'player' ? PLAYER_DAMAGE[this.mission.difficulty] : 1;
-    const dmg = ZONE_DAMAGE[h.zone] * mult * (0.8 + Math.random() * 0.4);
-    const hl = t.s.health;
-    switch (h.zone) {
-      case 'engine':
-        hl.engine -= dmg;
-        break;
-      case 'wings':
-        hl.wings -= dmg;
-        break;
-      case 'tail':
-        hl.tail -= dmg;
-        break;
-      case 'pilot':
-        hl.pilot -= dmg;
-        break;
-      case 'fuselage':
-        hl.tail -= dmg * 0.5;
-        hl.engine -= dmg * 0.5;
-        break;
-    }
-    hl.engine = Math.max(0, hl.engine);
-    hl.wings = Math.max(0, hl.wings);
-    hl.tail = Math.max(0, hl.tail);
-    hl.pilot = Math.max(0, hl.pilot);
-    t.damageTaken += dmg;
-    t.lastAttacker = h.shooter;
-    h.shooter.hits++;
-    this.fx.sparksAt(h.point, 5);
-    if (Math.random() < 0.3) this.fx.debris(h.point, t.s.vel, t.team === 'player' ? PLAYER_LIVERY.body : ENEMY_LIVERY.wing);
-    if (t === this.player) {
-      this.rig.addShake(0.25);
-      this.hurt = Math.min(1, this.hurt + 0.35);
-      this.audio.ouch();
-    } else if (h.shooter === this.player) this.audio.hit();
-    if (t.alive && (hl.wings <= 0 || hl.tail <= 0 || hl.pilot <= 0 || (t.team === 'enemy' && hl.engine <= 0))) this.downPlane(t, h.shooter);
-  }
-
-  private downPlane(t: Plane, by: Plane | null) {
+  /** The pilot has bailed out: the empty plane spirals down. */
+  private abandonPlane(t: Plane) {
     if (t.downed || t.wrecked) return;
     t.downed = true;
     t.downedSide = Math.random() < 0.5 ? -1 : 1;
     t.s.health.engine = 0;
-    this.fx.explosion(t.s.pos, true);
-    this.audio.explosion(this.camera.position.distanceTo(t.s.pos));
-    if (t.team === 'enemy' && by === this.player && this.player) {
-      this.player.kills++;
-      const left = this.enemies.filter((e) => e.alive).length;
-      this.ui.toast(left ? `KILL!  ${this.player.kills}/${this.mission.enemiesTotal}` : 'SKY CLEARED!');
-    }
-    if (t === this.player) {
-      this.ui.toast('SHOT DOWN!');
-      this.ui.hint('Out of control! Press X to bail out.', 4000);
-    }
   }
 
   private crashPlane(t: Plane, reason: string, splash: boolean) {
@@ -496,19 +533,14 @@ export class Game {
     } else {
       this.fx.explosion(pos, true);
       this.audio.explosion(this.camera.position.distanceTo(pos));
-      const cols = t.team === 'player' ? [PLAYER_LIVERY.body, PLAYER_LIVERY.wing] : [ENEMY_LIVERY.body, ENEMY_LIVERY.wing];
+      const cols = [t.livery.body, t.livery.wing];
       for (let i = 0; i < 12; i++) this.fx.debris(pos, t.s.vel.clone().multiplyScalar(0.3), cols[i % 2]);
     }
-    if (t.team === 'enemy' && !t.downed && t.lastAttacker === this.player && this.player) {
-      this.player.kills++;
-      this.ui.toast(`KILL!  ${this.player.kills}/${this.mission.enemiesTotal}`);
-    }
-    const wasDowned = t.downed;
     t.downed = true;
     if (t === this.player) {
       const m = this.mission;
       if (!m.result) {
-        m.result = splash ? 'ditched' : wasDowned ? 'shot down' : 'crashed';
+        m.result = splash ? 'ditched' : 'crashed';
         m.resultText = reason;
       }
       this.rig.addShake(1);
@@ -536,8 +568,10 @@ export class Game {
     const t = m.touch;
     let score = 0;
     if (t) {
-      score += t.sink < 1.5 ? 2 : t.sink < 3 ? 1 : 0;
-      score += t.bank < 0.09 ? 1 : 0;
+      // softer tyres forgive a firmer touchdown (design §8.2 Wheels)
+      const k = (p.spec.crashSpeed / 6) * LANDING_FORGIVENESS;
+      score += t.sink < 1.5 * k ? 2 : t.sink < 3 * k ? 1 : 0;
+      score += t.bank < 0.09 * LANDING_FORGIVENESS ? 1 : 0;
       score += t.onRunway ? 1 : 0;
       score += m.bounces === 0 ? 1 : 0;
     }
@@ -557,31 +591,23 @@ export class Game {
     this.hud.visible = false;
     this.hud.clear();
     const landedOk = m.result === 'landed' || m.result === 'field landing';
-    const allKilled = m.enemiesTotal > 0 && p.kills >= m.enemiesTotal;
     const damage = 1 - p.integrity;
     const gradeA = m.grade === 'A' || m.grade === 'A+';
     let medal = 0;
-    if (m.type === 'dogfight') {
-      if (landedOk && allKilled && damage < 0.3 && gradeA) medal = 3;
-      else if (landedOk && allKilled) medal = 2;
-      else if (landedOk || p.kills > 0) medal = 1;
-    } else {
-      if (landedOk && gradeA) medal = 3;
-      else if (landedOk && m.grade === 'B') medal = 2;
-      else if (landedOk) medal = 1;
-    }
+    if (landedOk && gradeA) medal = 3;
+    else if (landedOk && m.grade === 'B') medal = 2;
+    else if (landedOk) medal = 1;
     const flight = m.tookOff ? this.simTime - m.takeoffT : 0;
     const mmss = `${Math.floor(flight / 60)}:${String(Math.floor(flight % 60)).padStart(2, '0')}`;
     const rows: [string, string][] = [['Result', `${m.result ?? '—'}${m.resultText ? ` (${m.resultText})` : ''}`]];
-    if (m.type === 'dogfight') rows.push(['Kills', `${p.kills} / ${m.enemiesTotal}`]);
-    rows.push(['Accuracy', p.shots ? `${Math.round((p.hits / p.shots) * 100)}%  (${p.hits}/${p.shots})` : '—']);
     rows.push(['Damage taken', `${Math.round(damage * 100)}%`]);
     if (m.touch) rows.push(['Touchdown', `${m.touch.sink.toFixed(1)} m/s sink, ${Math.round((m.touch.bank * 180) / Math.PI)}° bank`]);
     rows.push(['Landing grade', landedOk ? m.grade : '—']);
     rows.push(['Flight time', mmss]);
+    rows.push(['Aircraft', describeLoadout(p.loadout)]);
     rows.push(['World seed', String(this.settings.seed)]);
-    const newBest = submitBest(this.settings.seed, m.type, { medal, kills: p.kills, landing: landedOk ? m.grade : '—' });
-    const title = landedOk ? (medal >= 2 ? 'Mission accomplished!' : 'Back on the ground') : m.result === 'bailed out' ? 'Hit the silk!' : 'Better luck next time';
+    const newBest = submitBest(this.settings.seed, { medal, landing: landedOk ? m.grade : '—' });
+    const title = landedOk ? (medal >= 2 ? 'Nicely done!' : 'Back on the ground') : m.result === 'bailed out' ? 'Hit the silk!' : 'Better luck next time';
     this.ui.showDebrief({ title, medal, rows, newBest });
     this.audio.fanfare(medal >= 2);
   }
@@ -610,7 +636,6 @@ export class Game {
     inp.roll = 0.7 * p.downedSide;
     inp.pitch = 0.2;
     inp.yaw = 0.3 * p.downedSide;
-    inp.fire = false;
     inp.brake = false;
   }
 
@@ -657,21 +682,13 @@ export class Game {
       // landed / ending: idle and brake
       p.input.throttle = 0;
       p.input.pitch = p.input.roll = p.input.yaw = 0;
-      p.input.fire = false;
       p.input.brake = true;
-    }
-    const enemies = this.enemies;
-    const gh = this.env.groundHeight;
-    for (const e of enemies) {
-      if (e.wrecked) continue;
-      if (e.alive && e.ai) e.ai.update(dt, e, p.alive ? p : null, enemies, gh);
-      else this.downedControls(e);
     }
 
     // physics
     for (const pl of this.planes) {
       if (pl.wrecked) continue;
-      const ev = stepFlight(pl.s, pl.spec, pl.input, this.env, dt);
+      const ev = stepFlight(pl.s, pl.spec, pl.input, this.env, dt, pl.gear);
       if (ev.crashed) {
         this.crashPlane(pl, ev.crashed, ev.splash);
         continue;
@@ -697,66 +714,25 @@ export class Game {
       this.emitFx(pl, dt);
     }
 
-    // guns & bullets
-    for (const pl of this.planes) {
-      if (pl.wrecked) continue;
-      this.bullets.updateGuns(pl, dt, (muzzle, shooter) => {
-        this.fx.muzzle(muzzle, shooter.s.vel);
-        if (shooter === p) {
-          this.audio.gun();
-          this.rig.addShake(0.035);
-        } else if (shooter.s.pos.distanceTo(this.camera.position) < 700) this.audio.gun(0.35);
-      });
-    }
-    this.bullets.step(
-      dt,
-      this.planes,
-      gh,
-      (h) => this.onHit(h),
-      (pt) => {
-        if (pt.distanceToSquared(this.camera.position) < 1500 * 1500) this.fx.groundHit(pt);
-      },
-      this.tick,
-    );
-
-    // mid-air collisions
-    for (let i = 0; i < this.planes.length; i++)
-      for (let j = i + 1; j < this.planes.length; j++) {
-        const a = this.planes[i];
-        const b = this.planes[j];
-        if (a.wrecked || b.wrecked) continue;
-        if (a.s.pos.distanceToSquared(b.s.pos) < 4.5 * 4.5) {
-          a.s.health.wings = 0;
-          b.s.health.wings = 0;
-          this.downPlane(a, b);
-          this.downPlane(b, a);
-        }
-      }
-
-    // remove long-gone wrecks
-    for (const e of enemies) if (e.wrecked) e.wreckT += dt;
-
     // ------------------------------------------------------ mission logic
     if (this.state === 'sortie' && p.alive) {
       const agl = p.s.pos.y - Math.max(w.groundHeight(p.s.pos.x, p.s.pos.z), 0);
       if (m.hintStage === 0 && p.s.onGround && p.s.airspeed > 14) {
         m.hintStage = 1;
-        this.ui.hint('Ease the tail up with W, then pull back gently with S at about 90 km/h.', 6000);
+        const vr = Math.round((stallSpeed(p.spec) * 1.25 * 3.6) / 5) * 5;
+        this.ui.hint(
+          p.gear.tricycle
+            ? `Keep it straight with Q / E, then pull back gently with S at about ${vr} km/h.`
+            : `Ease the tail up with W, then pull back gently with S at about ${vr} km/h.`,
+          6000,
+        );
       }
       if (!m.tookOff && p.s.airTime > 2 && agl > 15) {
         m.tookOff = true;
         m.takeoffT = this.simTime;
         m.touch = null;
         this.ui.toast('AIRBORNE!');
-        if (m.type === 'dogfight') {
-          m.spawnAt = this.simTime + 15;
-          this.ui.hint('Climb out! Bandits will show up soon — watch for red markers.', 6000);
-        } else this.ui.hint('Enjoy the view! Land on any airfield strip to finish.', 6000);
-      }
-      if (m.type === 'dogfight' && m.tookOff && !m.enemiesSpawned && this.simTime >= m.spawnAt) this.spawnEnemies();
-      if (m.enemiesSpawned && !m.objectiveDone && enemies.every((e) => !e.alive)) {
-        m.objectiveDone = true;
-        this.ui.hint('Sky cleared! Return to an airfield and land: throttle back, gentle descent.', 7000);
+        this.ui.hint('Enjoy the view! Land on any airfield strip to finish.', 6000);
       }
       if (m.tookOff && p.s.onGround && p.s.vel.length() < 2.5) {
         m.stoppedT += dt;
@@ -783,28 +759,35 @@ export class Game {
     if (this.state === 'sortie') {
       if (i.wasPressed('KeyM')) {
         i.mouseStick = !i.mouseStick;
-        this.ui.hint(i.mouseStick ? 'Mouse stick ON: move the cursor to fly, click to fire.' : 'Mouse stick OFF', 3000);
+        this.ui.hint(i.mouseStick ? 'Mouse stick ON: move the cursor to fly.' : 'Mouse stick OFF', 3000);
       }
       const p = this.player;
       if (i.wasPressed('KeyX') && p && !p.wrecked && !p.s.onGround && this.mission.tookOff) {
-        if (!p.downed) this.downPlane(p, null);
+        this.abandonPlane(p);
         this.mission.result = 'bailed out';
         this.mission.resultText = 'Parachuted to safety';
         this.ui.toast('BAILED OUT!');
         this.endSortie(4, p.s.pos.clone());
       }
     }
-    if (this.state === 'title' && (i.wasPressed('Enter') || i.padWasPressed(0))) this.fly();
+    if (this.state === 'title') {
+      if (i.wasPressed('Enter') || i.padWasPressed(0)) this.fly();
+      if (i.wasPressed('KeyH') || i.padWasPressed(3)) this.openHangar();
+    } else if (this.state === 'hangar') {
+      // to fly, go back to the main menu first
+      if (i.wasPressed('Escape') || i.wasPressed('Enter') || i.wasPressed('Backspace') || i.padWasPressed(1)) this.closeHangar();
+      // gamepad: bumpers / d-pad left-right = category, d-pad up-down = option
+      if (i.padWasPressed(4) || i.padWasPressed(14)) this.hangar.nav(-1, 0);
+      if (i.padWasPressed(5) || i.padWasPressed(15)) this.hangar.nav(1, 0);
+      if (i.padWasPressed(12)) this.hangar.nav(0, -1);
+      if (i.padWasPressed(13)) this.hangar.nav(0, 1);
+    }
   }
 
   private objectiveText(): string {
     const m = this.mission;
     if (!m.tookOff) return 'Take off!';
-    if (m.type === 'free') return 'Free flight — land on any strip to finish';
-    if (!m.enemiesSpawned) return 'Climb and patrol — bandits incoming';
-    const alive = this.enemies.filter((e) => e.alive).length;
-    if (alive > 0) return `Shoot down the bandits  ${m.enemiesTotal - alive}/${m.enemiesTotal}`;
-    return 'Return to an airfield and land!';
+    return 'Free flight — land on any strip to finish';
   }
 
   private frame(dt: number, alpha: number) {
@@ -818,10 +801,16 @@ export class Game {
     const p = this.player;
 
     switch (this.state) {
+      case 'hangar': {
+        this.updatePreview(dt);
+        w.update(this.camera.position, null, dt);
+        break;
+      }
       case 'title':
       case 'debrief': {
         const af = w.home;
-        this.rig.orbit(dt, _v.set(af.x, af.height + 20, af.z), 650, 170, 0.04);
+        // keep the menu flyover under the (now low) cloud base
+        this.rig.orbit(dt, _v.set(af.x, af.height + 20, af.z), 650, 110, 0.04);
         w.update(this.camera.position, null, dt);
         break;
       }
@@ -829,7 +818,7 @@ export class Game {
         this.loadT += dt;
         w.update(p!.s.pos, null, dt);
         p!.syncVisual(1, dt);
-        this.rig.follow(dt, p!.s.pos, p!.s.quat, 0, (x, z) => w.groundHeight(x, z), null);
+        this.rig.follow(dt, p!.s.pos, p!.s.quat, 0, (x, z) => w.groundHeight(x, z));
         const r = w.chunks.readiness(p!.s.pos, 2);
         this.ui.setLoading(r);
         if (r >= 1 && this.loadT > 0.4) this.beginSortie();
@@ -838,27 +827,14 @@ export class Game {
       case 'sortie':
       case 'ending': {
         for (const pl of this.planes) if (!pl.wrecked) pl.syncVisual(this.paused ? 1 : alpha, this.paused ? 0 : dt);
-        // drop wrecks after a while
-        for (const e of this.planes) if (e.wrecked && e.wreckT > 6 && e !== p) this.scene.remove(e.visual.root);
         const m = this.mission;
         if (this.state === 'ending' && m.wreckAt) {
           this.rig.orbit(dt, m.wreckAt, 45, 18, 0.35);
         } else if (p) {
-          let padlock: THREE.Vector3 | null = null;
-          if (this.rig.mode === 'padlock') {
-            let best = Infinity;
-            for (const e of this.enemies)
-              if (e.alive) {
-                const d = e.s.pos.distanceToSquared(p.s.pos);
-                if (d < best) {
-                  best = d;
-                  padlock = e.visual.root.position;
-                }
-              }
-          }
-          this.rig.follow(dt, p.visual.root.position, p.visual.root.quaternion, p.s.airspeed, (x, z) => w.groundHeight(x, z), padlock);
+          this.rig.follow(dt, p.visual.root.position, p.visual.root.quaternion, p.s.airspeed, (x, z) => w.groundHeight(x, z));
         }
         w.update(this.camera.position, p ? p.s.vel : null, this.paused ? 0 : dt);
+        if (p) w.updatePapi(p.s.pos);
         if (this.state === 'ending' && !this.paused) {
           m.endT -= dt;
           if (m.endT <= 0) this.showDebrief();
@@ -870,49 +846,48 @@ export class Game {
     // world dressing
     this.sky.follow(this.camera, this.camera.far * 0.9);
     this.water.update(this.camera, this.time, this.camera.far * 2.2);
-    const focus = p && this.state !== 'title' && this.state !== 'debrief' ? p.s.pos : this.camera.position;
+    const focus = p && this.state !== 'title' && this.state !== 'hangar' && this.state !== 'debrief' ? p.s.pos : this.camera.position;
     const sd = sunDirection(w.time);
     const snap = (260 / this.tier.shadowSize) * 2;
     this.sun.target.position.set(Math.round(focus.x / snap) * snap, Math.round(focus.y / snap) * snap, Math.round(focus.z / snap) * snap);
     this.sun.position.copy(this.sun.target.position).addScaledVector(sd, 600);
     if (!this.paused) {
       this.fx.update(dt, this.camera.position);
-      this.bullets.syncVisual();
     }
 
     // overlays
-    const dens = w.clouds.densityAt(this.camera.position);
-    this.ui.setWhiteout(Math.min(1, dens * 3) * 0.92);
-    this.hurt = Math.max(0, this.hurt - dt * 1.2);
+    // cloud whiteout: snap to white on entering a cloud, fade back to clear after leaving it
+    const flying = this.state === 'sortie' || this.state === 'ending';
+    const dens = flying ? w.clouds.densityAt(this.camera.position) : 0;
+    const target = Math.min(1, dens * 5);
+    const rate = target > this.whiteout ? 6 : 0.7; // per second: ~0.2 s in, ~1.5 s out
+    if (!this.paused) this.whiteout += Math.sign(target - this.whiteout) * Math.min(Math.abs(target - this.whiteout), rate * dt);
+    if (!flying) this.whiteout = 0;
+    this.ui.setWhiteout(this.whiteout);
     const lowHealth = p && p.alive && this.state === 'sortie' ? Math.max(0, 0.45 - p.integrity) : 0;
-    this.ui.setHurt(Math.min(1, this.hurt + lowHealth));
+    this.ui.setHurt(Math.min(1, lowHealth));
     if (p && (this.state === 'sortie' || this.state === 'ending')) {
-      const enemies = this.enemies;
       const agl = p.s.pos.y - Math.max(w.groundHeight(p.s.pos.x, p.s.pos.z), 0);
       const m = this.mission;
       this.hud.draw(
         {
           player: p,
-          enemies,
           world: w,
           camera: this.camera,
           objective: this.objectiveText(),
           mouseStick: this.input.mouseStick,
           mouse: this.input.mouse,
           stallWarn: p.s.stalled && !p.s.onGround,
-          showLanding: m.tookOff && agl < 450 && (m.type === 'free' || m.objectiveDone || p.integrity < 0.5 || p.s.ammo === 0),
+          showLanding: m.tookOff && agl < 450,
         },
         dt,
       );
-      this.audio.update(
-        p.s.rpm,
-        p.s.airspeed,
-        !this.paused && !p.wrecked,
-        this.camera,
-        enemies.map((e) => ({ id: e.id, pos: e.s.pos, rpm: e.s.rpm, alive: !e.wrecked })),
-      );
+      this.audio.update(p.s.rpm, p.s.airspeed, !this.paused && !p.wrecked);
+    } else if (this.state === 'hangar' && this.preview) {
+      // the preview engine idles quietly in the hangar
+      this.audio.update(0.18, 0, true, 0.45);
     } else {
-      this.audio.update(0, 0, false, this.camera, []);
+      this.audio.update(0, 0, false);
     }
 
     // render
@@ -925,7 +900,7 @@ export class Game {
     const cpu = performance.now() - t0;
     this.frameAvg += (dt * 1000 - this.frameAvg) * 0.05;
     this.resTimer += dt;
-    if (this.resTimer > 2 && this.state !== 'title') {
+    if (this.resTimer > 2 && this.state !== 'title' && this.state !== 'hangar') {
       this.resTimer = 0;
       if (this.frameAvg > 22 && this.renderScale > 0.6) {
         this.renderScale = Math.max(0.6, this.renderScale - 0.1);

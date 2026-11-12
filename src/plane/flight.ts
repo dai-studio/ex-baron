@@ -44,8 +44,21 @@ export interface PlaneSpec {
   skidFriction: number;
   groundSteer: number;
   crashSpeed: number;
-  ammo: number;
+  /** engine RPM response rate (1/s): prop fast, jet slow to spool */
+  spoolRate: number;
+  /** wheel grip multipliers per surface (tyre choice, design §8.2) */
+  gripPaved: number;
+  gripGrass: number;
 }
+
+/**
+ * Landing forgiveness: touchdown crash limits and landing grades are this much
+ * more tolerant than the raw tyre crash speed (tuned to make landing ~15% easier).
+ */
+export const LANDING_FORGIVENESS = 1.15;
+
+/** Extra strut damping while the gear extends again after a touchdown (cuts bounce height ~30%). */
+export const REBOUND_DAMPING = 2;
 
 export const DEFAULT_SPEC: PlaneSpec = {
   mass: 650,
@@ -74,13 +87,15 @@ export const DEFAULT_SPEC: PlaneSpec = {
   inertiaYaw: 1500,
   inertiaRoll: 800,
   gearK: 70000,
-  gearC: 6000,
+  gearC: 6900, // +15% damping: firm touchdowns bounce less
   rollFriction: 0.03,
   brakeFriction: 0.45,
   skidFriction: 0.3,
   groundSteer: 1.6,
   crashSpeed: 6,
-  ammo: 600,
+  spoolRate: 1.6,
+  gripPaved: 1,
+  gripGrass: 1,
 };
 
 export interface ControlInput {
@@ -88,11 +103,10 @@ export interface ControlInput {
   roll: number;
   yaw: number;
   throttle: number;
-  fire: boolean;
   brake: boolean;
 }
 
-export const emptyInput = (): ControlInput => ({ pitch: 0, roll: 0, yaw: 0, throttle: 0, fire: false, brake: false });
+export const emptyInput = (): ControlInput => ({ pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: false });
 
 export interface Health {
   engine: number;
@@ -117,17 +131,18 @@ export class PlaneState {
   airspeed = 0;
   stalled = false;
   health: Health = { engine: 1, wings: 1, tail: 1, pilot: 1 };
-  ammo = 600;
-  gunHeat = 0;
-  overheated = false;
   t = 0;
   /** world-space vertical speed just before the latest wheel contact */
   lastSink = 0;
 }
 
+export type Surface = 'paved' | 'grass' | 'rough' | 'water';
+
 export interface Env {
   /** Terrain height at x/z (no sea). */
   groundHeight(x: number, z: number): number;
+  /** What the wheels roll on; grass when absent. */
+  surfaceAt?(x: number, z: number): Surface;
   wind: THREE.Vector3;
 }
 
@@ -139,10 +154,20 @@ export interface StepEvents {
   splash: boolean;
 }
 
-// contact geometry (body space)
+/** Contact geometry (body space) of one airframe + wheels + engine (design §8). */
+export interface Gear {
+  /** main wheel contact points */
+  wheels: THREE.Vector3[];
+  /** tail skid (taildragger) or nose wheel contact (tricycle) */
+  third: THREE.Vector3;
+  tricycle: boolean;
+  crash: { p: THREE.Vector3; kind: 'wing' | 'nose' | 'top' | 'prop' | 'tail' }[];
+}
+
+// default contact geometry: the original biplane with medium wheels
 export const WHEELS = [new THREE.Vector3(-0.92, -1.36, -0.6), new THREE.Vector3(0.92, -1.36, -0.6)];
 export const TAIL_SKID = new THREE.Vector3(0, -0.22, 3.85);
-const CRASH_POINTS: { p: THREE.Vector3; kind: 'wing' | 'nose' | 'top' | 'prop' }[] = [
+const CRASH_POINTS: Gear['crash'] = [
   { p: new THREE.Vector3(-4.0, -0.45, -0.55), kind: 'wing' },
   { p: new THREE.Vector3(4.0, -0.45, -0.55), kind: 'wing' },
   { p: new THREE.Vector3(-4.3, 1.5, -1.0), kind: 'wing' },
@@ -152,6 +177,7 @@ const CRASH_POINTS: { p: THREE.Vector3; kind: 'wing' | 'nose' | 'top' | 'prop' }
   { p: new THREE.Vector3(0, 1.65, -1.0), kind: 'top' },
   { p: new THREE.Vector3(0, 1.2, 4.1), kind: 'top' },
 ];
+export const DEFAULT_GEAR: Gear = { wheels: WHEELS, third: TAIL_SKID, tricycle: false, crash: CRASH_POINTS };
 
 const _fwd = new THREE.Vector3();
 const _up = new THREE.Vector3();
@@ -193,7 +219,7 @@ export function liftCoefficient(spec: PlaneSpec, a: number): number {
 }
 
 /** Advance one plane by dt. Mutates state, returns events. */
-export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, env: Env, dt: number): StepEvents {
+export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, env: Env, dt: number, gear: Gear = DEFAULT_GEAR): StepEvents {
   const ev: StepEvents = { crashed: null, touchdown: null, propStrike: false, scrape: false, splash: false };
   const h = s.health;
   s.t += dt;
@@ -207,7 +233,7 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
   s.throttle = THREE.MathUtils.clamp(input.throttle, 0, 1);
   let target = h.engine > 0 ? s.throttle : 0;
   if (h.engine > 0 && h.engine < 0.3) target *= 0.55 + 0.45 * Math.abs(Math.sin(s.t * 7.3) * Math.sin(s.t * 2.1));
-  s.rpm += (target - s.rpm) * Math.min(1, dt * 1.6);
+  s.rpm += (target - s.rpm) * Math.min(1, dt * spec.spoolRate);
 
   // air-relative velocity
   _air.copy(s.vel).sub(env.wind);
@@ -261,7 +287,15 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
     if (_hf.lengthSq() < 1e-6) _hf.set(0, 0, -1);
     _hf.normalize();
     _hl.set(-_hf.z, 0, _hf.x);
-    const contact = (local: THREE.Vector3, mu: number) => {
+    // friction coefficient for a rolling wheel at _pw (set by contact())
+    const wheelMu = (braking: boolean) => {
+      const surf = env.surfaceAt ? env.surfaceAt(_pw.x, _pw.z) : 'grass';
+      const grip = surf === 'paved' ? spec.gripPaved : spec.gripGrass * (surf === 'rough' ? 0.85 : 1);
+      if (braking) return spec.brakeFriction * grip;
+      const roll = surf === 'paved' ? 0.7 : surf === 'rough' ? 1.6 : 1;
+      return (spec.rollFriction * roll) / grip;
+    };
+    const contact = (local: THREE.Vector3, mu: number | 'wheel' | 'brake') => {
       _r.copy(local).applyQuaternion(s.quat);
       _pw.copy(s.pos).add(_r);
       const terrain = env.groundHeight(_pw.x, _pw.z);
@@ -269,8 +303,12 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
       const pen = surf - _pw.y;
       if (pen <= 0) return false;
       if (terrain < -0.3) splashed = true;
+      if (typeof mu !== 'number') mu = wheelMu(mu === 'brake');
       _vp.crossVectors(_wW, _r).add(s.vel);
-      const fn = Math.max(0, spec.gearK * pen - spec.gearC * _vp.y);
+      // oleo-style strut: rebound (extension, _vp.y > 0) is damped harder than
+      // compression, so a firm touchdown settles instead of bouncing back up
+      const damp = _vp.y > 0 ? spec.gearC * REBOUND_DAMPING : spec.gearC;
+      const fn = Math.max(0, spec.gearK * pen - damp * _vp.y);
       const vLong = _vp.dot(_hf);
       const vLat = _vp.dot(_hl);
       const fLong = -THREE.MathUtils.clamp(vLong * 3000, -mu * fn, mu * fn);
@@ -285,13 +323,15 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
       _tauW.add(_tmp.crossVectors(_rh, _Fc));
       return true;
     };
-    const mu = input.brake ? spec.brakeFriction : spec.rollFriction;
-    for (const w of WHEELS) if (contact(w, mu)) s.wheels++;
-    const tail = contact(TAIL_SKID, spec.skidFriction);
+    const mains = input.brake ? 'brake' : 'wheel';
+    for (const w of gear.wheels) if (contact(w, mains)) s.wheels++;
+    // a nose wheel rolls (no brake); a tail skid drags
+    const tail = contact(gear.third, gear.tricycle ? 'wheel' : spec.skidFriction);
     if (tail) s.wheels++;
 
     // crash / scrape points
-    for (const c of CRASH_POINTS) {
+    const tol = spec.crashSpeed * LANDING_FORGIVENESS;
+    for (const c of gear.crash) {
       _r.copy(c.p).applyQuaternion(s.quat);
       _pw.copy(s.pos).add(_r);
       const terrain = env.groundHeight(_pw.x, _pw.z);
@@ -302,7 +342,7 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
       const impact = _vp.length();
       if (c.kind === 'prop') {
         if (s.rpm > 0.15) ev.propStrike = true;
-        if (impact > spec.crashSpeed * 2) ev.crashed = 'Nosed over';
+        if (impact > tol * 2) ev.crashed = 'Nosed over';
         contact(c.p, 0.6);
         continue;
       }
@@ -310,8 +350,15 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
         ev.crashed = 'Flipped over';
         continue;
       }
-      if (c.kind === 'nose' && impact > spec.crashSpeed) ev.crashed = 'Nosed in';
-      else if (c.kind === 'wing' && (-_vp.y > spec.crashSpeed * 0.6 || impact > spec.crashSpeed * 3)) ev.crashed = 'Cartwheeled';
+      if (c.kind === 'tail') {
+        // tail strike on rotation or flare: scrape, crash only when slammed
+        if (-_vp.y > tol * 1.5) ev.crashed = 'Tail strike';
+        ev.scrape = true;
+        contact(c.p, 0.5);
+        continue;
+      }
+      if (c.kind === 'nose' && impact > tol) ev.crashed = 'Nosed in';
+      else if (c.kind === 'wing' && (-_vp.y > tol * 0.6 || impact > tol * 3)) ev.crashed = 'Cartwheeled';
       else {
         ev.scrape = true;
         contact(c.p, 0.7);
@@ -370,22 +417,22 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
 }
 
 /** Orientation for a plane sitting on its gear, nose along heading dir (xz). */
-export function groundAttitude(dirX: number, dirZ: number): THREE.Quaternion {
+export function groundAttitude(dirX: number, dirZ: number, gear: Gear = DEFAULT_GEAR): THREE.Quaternion {
   const fwd = new THREE.Vector3(dirX, 0, dirZ).normalize();
   const up = new THREE.Vector3(0, 1, 0);
   const right = new THREE.Vector3().crossVectors(fwd, up).normalize();
   const m = new THREE.Matrix4().makeBasis(right, up, fwd.clone().negate());
   const q = new THREE.Quaternion().setFromRotationMatrix(m);
-  // pitch nose-up so wheels and tail skid both touch
-  const dz = TAIL_SKID.z - WHEELS[0].z;
-  const dy = TAIL_SKID.y - WHEELS[0].y;
-  const pitch = Math.atan2(dy, dz);
+  // pitch so the main wheels and the tail skid / nose wheel all touch
+  const dz = gear.third.z - gear.wheels[0].z;
+  const dy = gear.third.y - gear.wheels[0].y;
+  const pitch = Math.atan(dy / dz);
   q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch));
   return q;
 }
 
 /** Height of the plane origin above ground when resting on its gear. */
-export function restHeight(q: THREE.Quaternion): number {
-  const w = WHEELS[0].clone().applyQuaternion(q);
+export function restHeight(q: THREE.Quaternion, gear: Gear = DEFAULT_GEAR): number {
+  const w = gear.wheels[0].clone().applyQuaternion(q);
   return -w.y - 0.02;
 }

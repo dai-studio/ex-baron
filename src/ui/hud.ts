@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import type { Plane } from '../plane/plane';
+import { LANDING_FORGIVENESS } from '../plane/flight';
+import { engineOf } from '../plane/loadout';
 import type { World } from '../world/world';
-import { BULLET_SPEED } from '../combat/weapons';
 
 /**
  * HUD & UI (design §3): hand-drawn style overlay on a 2D canvas —
- * airspeed, altitude, throttle, compass ribbon, ammo/heat, damage
- * silhouette, minimap, enemy markers with off-screen arrows, aim reticle,
- * lead indicator and a landing guide.
+ * airspeed, altitude, throttle, compass ribbon, damage silhouette,
+ * minimap, mouse-stick cursor and a landing guide.
  */
 const INK = '#2b1d1a';
 const PAPER = '#fff6dd';
@@ -21,7 +21,6 @@ const _fwd = new THREE.Vector3();
 
 export interface HudContext {
   player: Plane;
-  enemies: Plane[];
   world: World;
   camera: THREE.PerspectiveCamera;
   objective: string;
@@ -103,8 +102,7 @@ export class Hud {
     const sc = compact ? 0.8 : 1;
 
     // ---------- markers in the world
-    this.drawEnemyMarkers(c);
-    this.drawReticle(c);
+    this.drawMouseStick(c);
     if (c.showLanding) this.drawLandingGuide(c);
 
     // ---------- bottom-left gauges
@@ -148,37 +146,20 @@ export class Hud {
     g.fill();
     g.fillStyle = INK;
     g.font = `700 12px ${FONT}`;
-    g.fillText(`${Math.round(s.throttle * 100)}%   rpm ${Math.round(s.rpm * 1400)}`, 16, 142);
+    const eng = engineOf(c.player.loadout.style);
+    const turn = eng === 'jet' ? `spool ${Math.round(s.rpm * 100)}%` : `rpm ${Math.round(s.rpm * (eng === 'turbo' ? 2000 : 1400))}`;
+    g.fillText(`${Math.round(s.throttle * 100)}%   ${turn}`, 16, 142);
     g.restore();
 
-    // ---------- bottom-right: ammo + damage
+    // ---------- bottom-right: damage
     g.save();
-    g.translate(this.w - 16 - 200 * sc, this.h - 16 - 150 * sc);
+    g.translate(this.w - 16 - 120 * sc, this.h - 16 - 150 * sc);
     g.scale(sc, sc);
-    panel(g, 0, 0, 200, 150);
+    panel(g, 0, 0, 120, 150);
     g.fillStyle = INK;
     g.font = `800 14px ${FONT}`;
-    g.fillText('AMMO', 14, 24);
-    g.font = `800 26px ${FONT}`;
-    g.fillStyle = s.ammo < 60 ? RED : INK;
-    g.fillText(`${s.ammo}`, 14, 52);
-    g.fillStyle = INK;
-    g.font = `800 13px ${FONT}`;
-    g.fillText('GUN HEAT', 14, 74);
-    roundRect(g, 14, 80, 80, 12, 6);
-    g.fillStyle = '#fff';
-    g.fill();
-    g.lineWidth = 2;
-    g.stroke();
-    roundRect(g, 15, 81, Math.max(4, 78 * Math.min(s.gunHeat, 1)), 10, 5);
-    g.fillStyle = s.overheated ? RED : s.gunHeat > 0.7 ? '#ff9d3a' : ACCENT;
-    g.fill();
-    if (s.overheated) {
-      g.fillStyle = RED;
-      g.font = `800 12px ${FONT}`;
-      g.fillText('JAMMED', 14, 108);
-    }
-    this.drawDamage(g, 145, 76, s.health);
+    g.fillText('DAMAGE', 14, 24);
+    this.drawDamage(g, 60, 92, s.health);
     g.restore();
 
     // ---------- top: compass ribbon + objective
@@ -271,7 +252,6 @@ export class Hud {
     };
     const near = c.world.gen.nearestAirfield(c.player.s.pos.x, c.player.s.pos.z).af;
     mark(new THREE.Vector3(near.x, 0, near.z), ACCENT);
-    for (const e of c.enemies) if (e.alive) mark(e.s.pos, RED);
     g.restore();
     // centre caret
     g.fillStyle = INK;
@@ -284,129 +264,22 @@ export class Hud {
     g.textAlign = 'left';
   }
 
-  private drawEnemyMarkers(c: HudContext) {
+  private drawMouseStick(c: HudContext) {
+    if (!c.mouseStick) return;
     const g = this.g;
-    const cam = c.camera;
-    for (const e of c.enemies) {
-      if (!e.alive) continue;
-      const pr = this.project(e.s.pos, cam);
-      const dist = e.s.pos.distanceTo(c.player.s.pos);
-      const on = !pr.behind && pr.x > 20 && pr.x < this.w - 20 && pr.y > 60 && pr.y < this.h - 20;
-      g.lineWidth = 3;
-      g.strokeStyle = RED;
-      g.fillStyle = RED;
-      if (on) {
-        const r = THREE.MathUtils.clamp(900 / Math.max(dist, 1), 9, 26);
-        g.beginPath();
-        g.moveTo(pr.x - r, pr.y - r + 6);
-        g.lineTo(pr.x - r, pr.y - r);
-        g.lineTo(pr.x - r + 6, pr.y - r);
-        g.moveTo(pr.x + r - 6, pr.y - r);
-        g.lineTo(pr.x + r, pr.y - r);
-        g.lineTo(pr.x + r, pr.y - r + 6);
-        g.moveTo(pr.x + r, pr.y + r - 6);
-        g.lineTo(pr.x + r, pr.y + r);
-        g.lineTo(pr.x + r - 6, pr.y + r);
-        g.moveTo(pr.x - r + 6, pr.y + r);
-        g.lineTo(pr.x - r, pr.y + r);
-        g.lineTo(pr.x - r, pr.y + r - 6);
-        g.stroke();
-        g.font = `800 12px ${FONT}`;
-        g.textAlign = 'center';
-        g.lineWidth = 3;
-        g.strokeStyle = PAPER;
-        const label = dist > 1000 ? `${(dist / 1000).toFixed(1)} km` : `${Math.round(dist)} m`;
-        g.strokeText(label, pr.x, pr.y + r + 14);
-        g.fillText(label, pr.x, pr.y + r + 14);
-        g.textAlign = 'left';
-        // lead indicator when close
-        if (dist < 700) {
-          const tof = dist / BULLET_SPEED;
-          const lead = e.s.pos.clone().addScaledVector(e.s.vel, tof).addScaledVector(c.player.s.vel, -tof);
-          const lp = this.project(lead, cam);
-          if (!lp.behind) {
-            g.strokeStyle = RED;
-            g.lineWidth = 2.5;
-            g.beginPath();
-            g.moveTo(lp.x, lp.y - 7);
-            g.lineTo(lp.x + 7, lp.y);
-            g.lineTo(lp.x, lp.y + 7);
-            g.lineTo(lp.x - 7, lp.y);
-            g.closePath();
-            g.stroke();
-          }
-        }
-      } else {
-        // off-screen arrow at the edge
-        let dx = pr.x - this.w / 2;
-        let dy = pr.y - this.h / 2;
-        if (pr.behind) {
-          dx = -dx;
-          dy = -dy;
-        }
-        const a = Math.atan2(dy, dx);
-        const rx = this.w / 2 - 50;
-        const ry = this.h / 2 - 70;
-        const k = Math.min(rx / Math.abs(Math.cos(a) || 1e-6), ry / Math.abs(Math.sin(a) || 1e-6));
-        const x = this.w / 2 + Math.cos(a) * k;
-        const y = this.h / 2 + Math.sin(a) * k;
-        g.save();
-        g.translate(x, y);
-        g.rotate(a);
-        g.beginPath();
-        g.moveTo(16, 0);
-        g.lineTo(-8, -11);
-        g.lineTo(-3, 0);
-        g.lineTo(-8, 11);
-        g.closePath();
-        g.fill();
-        g.lineWidth = 2;
-        g.strokeStyle = INK;
-        g.stroke();
-        g.restore();
-      }
-    }
-  }
-
-  private drawReticle(c: HudContext) {
-    const g = this.g;
-    const p = c.player;
-    p.forward(_fwd);
-    const aim = p.s.pos.clone().addScaledVector(_fwd, 250);
-    aim.y += 0.68;
-    const pr = this.project(aim, c.camera);
-    if (pr.behind) return;
+    const mx = ((c.mouse.x + 1) / 2) * this.w;
+    const my = ((1 - c.mouse.y) / 2) * this.h;
+    g.strokeStyle = ACCENT;
     g.lineWidth = 2.5;
-    g.strokeStyle = PAPER;
     g.beginPath();
-    g.arc(pr.x, pr.y, 13, 0, Math.PI * 2);
+    g.arc(mx, my, 8, 0, Math.PI * 2);
     g.stroke();
-    g.lineWidth = 1.5;
-    g.strokeStyle = INK;
+    g.setLineDash([4, 6]);
     g.beginPath();
-    g.arc(pr.x, pr.y, 13, 0, Math.PI * 2);
-    g.moveTo(pr.x - 20, pr.y);
-    g.lineTo(pr.x - 7, pr.y);
-    g.moveTo(pr.x + 7, pr.y);
-    g.lineTo(pr.x + 20, pr.y);
-    g.moveTo(pr.x, pr.y + 7);
-    g.lineTo(pr.x, pr.y + 16);
+    g.moveTo(this.w / 2, this.h / 2);
+    g.lineTo(mx, my);
     g.stroke();
-    if (c.mouseStick) {
-      const mx = ((c.mouse.x + 1) / 2) * this.w;
-      const my = ((1 - c.mouse.y) / 2) * this.h;
-      g.strokeStyle = ACCENT;
-      g.lineWidth = 2.5;
-      g.beginPath();
-      g.arc(mx, my, 8, 0, Math.PI * 2);
-      g.stroke();
-      g.setLineDash([4, 6]);
-      g.beginPath();
-      g.moveTo(this.w / 2, this.h / 2);
-      g.lineTo(mx, my);
-      g.stroke();
-      g.setLineDash([]);
-    }
+    g.setLineDash([]);
   }
 
   private drawLandingGuide(c: HudContext) {
@@ -459,7 +332,7 @@ export class Hud {
       const text = `${msg}   sink ${sink.toFixed(1)} m/s`;
       const tw = g.measureText(text).width + 24;
       panel(g, this.w / 2 - tw / 2, this.h - 120, tw, 30);
-      g.fillStyle = sink > 3 ? RED : INK;
+      g.fillStyle = sink > 3 * LANDING_FORGIVENESS ? RED : INK;
       g.textAlign = 'center';
       g.fillText(text, this.w / 2, this.h - 99);
       g.textAlign = 'left';
@@ -532,17 +405,6 @@ export class Hud {
       g.fillRect(-7, -2.5, 14, 5);
       g.strokeRect(-7, -2.5, 14, 5);
       g.restore();
-    }
-    for (const e of c.enemies) {
-      if (!e.alive) continue;
-      const p = toMap(e.s.pos.x, e.s.pos.z);
-      g.fillStyle = RED;
-      g.strokeStyle = INK;
-      g.lineWidth = 1.5;
-      g.beginPath();
-      g.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      g.fill();
-      g.stroke();
     }
     g.restore();
     // player arrow

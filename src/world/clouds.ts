@@ -9,6 +9,11 @@ import { hash32, mulberry32 } from './rng';
  * Procedural clouds (design §4) rendered as toon clouds (design §5):
  * cumulus = clusters of puffy low-poly blobs placed per 1.6 km cell from the
  * seed, drifting with the wind. One InstancedMesh + one outline for all.
+ * Cloud bases sit 200-460 m above the local ground, low enough to fly through.
+ */
+const BASE_MIN = 200;
+const BASE_RANGE = 260;
+/*
  */
 const CELL = 1600;
 const MAX = 5000;
@@ -28,7 +33,12 @@ export class Clouds {
   private cover: number;
   radiusCells = 5;
 
-  constructor(private seed: number, cover: CloudCover) {
+  constructor(
+    private seed: number,
+    cover: CloudCover,
+    /** terrain height (m) under a point, so cloud bases follow the ground */
+    private ground: (x: number, z: number) => number = () => 0,
+  ) {
     this.noise = new Simplex2(hash32(seed, 555));
     this.cover = cover === 'clear' ? -0.45 : cover === 'overcast' ? 0.45 : 0;
     const geo = new THREE.IcosahedronGeometry(1, 1);
@@ -63,7 +73,7 @@ export class Clouds {
         for (let c = 0; c < clouds; c++) {
           const ox = (cx + r()) * CELL;
           const oz = (cz + r()) * CELL;
-          const base = 760 + r() * 480;
+          const base = Math.max(this.ground(ox, oz), 0) + BASE_MIN + r() * BASE_RANGE;
           const size = 110 + r() * 230;
           const puffs = 6 + Math.floor(r() * 9);
           const stretch = 1 + r() * 0.8;
@@ -78,7 +88,9 @@ export class Clouds {
             lx = rx;
             const falloff = 1 - (d / size) * 0.55;
             const rad = size * (0.32 + r() * 0.22) * falloff;
-            const y = base + rad * 0.45 + r() * size * 0.25 * falloff;
+            let y = base + rad * 0.45 + r() * size * 0.25 * falloff;
+            // on hillsides keep every puff's underside at least 120 m above the ground below it
+            y = Math.max(y, Math.max(this.ground(ox + lx, oz + rz), 0) + 120 + rad * 0.85);
             this.spheres[n * 4] = ox + lx;
             this.spheres[n * 4 + 1] = y;
             this.spheres[n * 4 + 2] = oz + rz;

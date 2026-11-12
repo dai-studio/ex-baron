@@ -5,8 +5,8 @@ import { toonMaterial } from '../render/toon';
 
 /**
  * Effects (design §5): GPU-instanced cartoon particles — toon-shaded smoke
- * puffs that grow and shrink away (no transparency), fire, dust, hit sparks,
- * muzzle flashes, and "POW!" bursts for explosions.
+ * puffs that grow and shrink away (no transparency), fire, dust, sparks,
+ * and "POW!" bursts for explosions.
  */
 const MAX_PUFFS = 1800;
 const MAX_SPARKS = 500;
@@ -214,18 +214,8 @@ export class Effects {
     }
   }
 
-  groundHit(pos: THREE.Vector3) {
-    const v = this.rv(2);
-    v.y = 3 + Math.random() * 3;
-    this.puffs.add(pos, v, 0.7, 0.6, 1.8, 0xc9b28a, 2, -4);
-  }
-
   sparksAt(pos: THREE.Vector3, n = 6) {
     for (let i = 0; i < n; i++) this.sparks.add(pos, this.rv(30), 0.25 + Math.random() * 0.2, 0.35, 0.05, Math.random() < 0.5 ? 0xffe066 : 0xffffff, 3, -10);
-  }
-
-  muzzle(pos: THREE.Vector3, vel: THREE.Vector3) {
-    this.sparks.add(pos, vel, 0.05, 0.45, 0.2, 0xfff2a0, 0, 0);
   }
 
   debris(pos: THREE.Vector3, vel: THREE.Vector3, color: number) {

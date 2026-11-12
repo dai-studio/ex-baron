@@ -96,7 +96,6 @@ export class Input {
     let pitch = this.axes.pitch;
     let roll = this.axes.roll;
     let yaw = this.axes.yaw;
-    let fire = k.has('Space');
     let brake = k.has('KeyB');
 
     // throttle
@@ -119,7 +118,6 @@ export class Input {
       }
       if (rx) yaw = rx;
       if (ry) this.throttle -= ry * THROTTLE_RATE * 1.5 * dt;
-      if ((pad.buttons[7]?.value ?? 0) > 0.3 || pad.buttons[0]?.pressed) fire = true;
       if (pad.buttons[1]?.pressed) brake = true;
     }
 
@@ -131,7 +129,6 @@ export class Input {
       roll = dz(this.mouse.x);
       pitch = dz(this.mouse.y); // cursor above centre = nose up
     }
-    if (this.mouseStick && this.mouse.down) fire = true;
 
     if (this.invertPitch) pitch = -pitch;
 
@@ -140,7 +137,6 @@ export class Input {
     out.roll = Math.max(-1, Math.min(1, roll));
     out.yaw = Math.max(-1, Math.min(1, yaw));
     out.throttle = this.throttle;
-    out.fire = fire;
     out.brake = brake;
   }
 }

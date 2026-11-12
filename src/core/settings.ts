@@ -1,14 +1,10 @@
 /** Settings & saves in localStorage (design §6 "Settings & saves"). */
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
 export type Assist = 'arcade' | 'normal' | 'expert';
-export type Difficulty = 'rookie' | 'veteran' | 'ace';
-export type MissionType = 'free' | 'dogfight';
 
 export interface Settings {
   quality: Quality;
   assist: Assist;
-  difficulty: Difficulty;
-  mission: MissionType;
   seed: number;
   volume: number;
   invertPitch: boolean;
@@ -17,7 +13,6 @@ export interface Settings {
 
 export interface BestRecord {
   medal: number; // 0 none, 1 bronze, 2 silver, 3 gold
-  kills: number;
   landing: string;
 }
 
@@ -32,8 +27,6 @@ export function defaultSettings(): Settings {
   return {
     quality: 'auto',
     assist: 'arcade',
-    difficulty: 'rookie',
-    mission: 'dogfight',
     seed: randomSeed(),
     volume: 0.7,
     invertPitch: false,
@@ -61,7 +54,9 @@ export function loadSettings(): Settings {
   const raw = safeGet(KEY);
   if (!raw) return d;
   try {
-    const s = JSON.parse(raw) as Partial<Settings>;
+    const s = JSON.parse(raw) as Partial<Settings> & { mission?: unknown; difficulty?: unknown };
+    delete s.mission; // removed with the Dogfight mission
+    delete s.difficulty;
     return { ...d, ...s };
   } catch {
     return d;
@@ -82,16 +77,16 @@ function loadBest(): Record<string, BestRecord> {
   }
 }
 
-export function getBest(seed: number, mission: MissionType): BestRecord | null {
-  return loadBest()[`${mission}:${seed}`] ?? null;
+export function getBest(seed: number): BestRecord | null {
+  return loadBest()[`free:${seed}`] ?? null;
 }
 
 /** Stores the record if it beats the previous best; returns true when it did. */
-export function submitBest(seed: number, mission: MissionType, rec: BestRecord): boolean {
+export function submitBest(seed: number, rec: BestRecord): boolean {
   const all = loadBest();
-  const key = `${mission}:${seed}`;
+  const key = `free:${seed}`;
   const prev = all[key];
-  if (prev && (prev.medal > rec.medal || (prev.medal === rec.medal && prev.kills >= rec.kills))) return false;
+  if (prev && prev.medal >= rec.medal) return false;
   all[key] = rec;
   safeSet(BEST_KEY, JSON.stringify(all));
   return true;

@@ -2,10 +2,9 @@ import * as THREE from 'three';
 
 /**
  * Camera rig (design §3): spring-lagged chase cam with FOV kick, cockpit
- * view, padlock view on the nearest enemy, cinematic orbit (title/crash),
- * and shake on hits and gunfire.
+ * view, cinematic orbit (title/crash), and shake on impacts.
  */
-export type CamMode = 'chase' | 'cockpit' | 'padlock';
+export type CamMode = 'chase' | 'cockpit';
 
 const _off = new THREE.Vector3();
 const _look = new THREE.Vector3();
@@ -25,8 +24,12 @@ export class CameraRig {
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
   cycle() {
-    this.mode = this.mode === 'chase' ? 'cockpit' : this.mode === 'cockpit' ? 'padlock' : 'chase';
+    this.mode = this.mode === 'chase' ? 'cockpit' : 'chase';
   }
+
+  /** pilot eye point and chase distance for the current airframe */
+  readonly cockpit = new THREE.Vector3(0, 0.98, 0.32);
+  chaseScale = 1;
 
   reset() {
     this.initialized = false;
@@ -42,7 +45,6 @@ export class CameraRig {
     quat: THREE.Quaternion,
     speed: number,
     ground: (x: number, z: number) => number,
-    padlock: THREE.Vector3 | null,
   ) {
     const cam = this.camera;
     if (!this.initialized) {
@@ -51,21 +53,12 @@ export class CameraRig {
     }
     this.q.slerp(quat, 1 - Math.exp(-dt * 5));
 
-    let mode = this.mode;
-    if (mode === 'padlock' && !padlock) mode = 'chase';
-
-    if (mode === 'cockpit') {
-      _off.set(0, 0.98, 0.32).applyQuaternion(quat);
+    if (this.mode === 'cockpit') {
+      _off.copy(this.cockpit).applyQuaternion(quat);
       cam.position.copy(pos).add(_off);
       cam.quaternion.copy(quat);
-    } else if (mode === 'padlock' && padlock) {
-      _look.copy(pos).sub(padlock).normalize();
-      _up.set(0, 1, 0).applyQuaternion(this.q);
-      cam.position.copy(pos).addScaledVector(_look, 15).addScaledVector(_up, 3.5);
-      cam.up.copy(_up);
-      cam.lookAt(padlock);
     } else {
-      _off.set(0, 3.4, 13.5).applyQuaternion(this.q);
+      _off.set(0, 3.4 * this.chaseScale, 13.5 * this.chaseScale).applyQuaternion(this.q);
       cam.position.copy(pos).add(_off);
       _fwd.set(0, 0, -1).applyQuaternion(this.q);
       _look.copy(pos).addScaledVector(_fwd, 25);

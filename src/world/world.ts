@@ -30,6 +30,7 @@ export class World {
   private propMat: THREE.MeshToonMaterial;
   private propOutline: THREE.ShaderMaterial;
   private stripMat: THREE.MeshToonMaterial;
+  private markMat: THREE.MeshToonMaterial;
 
   constructor(readonly seed: number, radius: number) {
     this.gen = new TerrainGen(seed);
@@ -49,14 +50,19 @@ export class World {
     this.stripMat.polygonOffset = true;
     this.stripMat.polygonOffsetFactor = -2;
     this.stripMat.polygonOffsetUnits = -4;
+    // runway paint sits on the asphalt: pull it further toward the camera than the strip
+    this.markMat = toonMaterial({ vertexColors: true, rim: 0 });
+    this.markMat.polygonOffset = true;
+    this.markMat.polygonOffsetFactor = -4;
+    this.markMat.polygonOffsetUnits = -16;
 
     this.chunks = new ChunkManager(seed, this.terrainMat, radius);
     this.props = new PropManager(this.propMat, this.propOutline);
-    this.clouds = new Clouds(seed, this.cover);
+    this.clouds = new Clouds(seed, this.cover, (x, z) => this.gen.height(x, z));
     this.group.add(this.chunks.group, this.props.group, this.clouds.group);
 
     for (const af of this.gen.airfields) {
-      const v = new AirfieldVisual(af, this.propMat, this.propOutline, this.stripMat);
+      const v = new AirfieldVisual(af, this.propMat, this.propOutline, this.stripMat, this.markMat);
       v.setWind(this.wind);
       this.fields.push(v);
       this.group.add(v.group);
@@ -100,6 +106,16 @@ export class World {
     return h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
   }
 
+  /** What the wheels roll on (asphalt, grass, rough ground, water). */
+  surfaceAt(x: number, z: number) {
+    return this.gen.surfaceAt(x, z);
+  }
+
+  /** Approach lights react to where the player is. */
+  updatePapi(pos: THREE.Vector3) {
+    for (const f of this.fields) f.updatePapi(pos);
+  }
+
   /** Surface the plane can touch: terrain or the sea surface. */
   surfaceHeight(x: number, z: number) {
     return Math.max(this.groundHeight(x, z), 0);
@@ -121,16 +137,18 @@ export class World {
   }
 
   materials(): THREE.Material[] {
-    return [this.terrainMat, this.propMat, this.stripMat];
+    return [this.terrainMat, this.propMat, this.stripMat, this.markMat];
   }
 
   dispose() {
     this.chunks.dispose();
     this.props.dispose();
     this.clouds.dispose();
+    for (const f of this.fields) f.dispose();
     this.terrainMat.dispose();
     this.propMat.dispose();
     this.propOutline.dispose();
     this.stripMat.dispose();
+    this.markMat.dispose();
   }
 }

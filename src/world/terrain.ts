@@ -1,3 +1,4 @@
+import type { Surface } from '../plane/flight';
 import { Simplex2 } from './noise';
 import { hash32, mulberry32, type Rng } from './rng';
 
@@ -18,11 +19,19 @@ export interface Airfield {
   heading: number;
   dirX: number;
   dirZ: number;
+  /** whole strip incl. grass overruns (m) */
   length: number;
+  /** asphalt + grass shoulders (m) */
   width: number;
+  /** asphalt runway length and width (design §8.3) */
+  paved: number;
+  pavedWidth: number;
   height: number;
   home: boolean;
 }
+
+/** Runway layout shared by every airfield (design §8.3). */
+export const RUNWAY = { paved: 900, pavedWidth: 30, overrun: 60, shoulder: 15 };
 
 export const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 export function smoothstep(a: number, b: number, x: number) {
@@ -62,8 +71,8 @@ export const PROP_HOUSE = 2;
 export const PROP_BARN = 3;
 export const PROP_WINDMILL = 4;
 
-const FLAT_A = 70; // flattened area extends this far past the strip ends
-const FLAT_B = 95; // half-width of the flattened area (room for hangars)
+const FLAT_A = 40; // flattened area extends this far past the strip ends
+const FLAT_B = 110; // half-width of the flattened area (room for hangars and apron)
 const FLAT_F = 260; // falloff distance
 
 export class TerrainGen {
@@ -264,8 +273,8 @@ export class TerrainGen {
     let mx = -Infinity;
     let sum = 0;
     let n = 0;
-    for (const u of [-300, -150, 0, 150, 300])
-      for (const v of [-70, 0, 70]) {
+    for (const u of [-510, -340, -170, 0, 170, 340, 510])
+      for (const v of [-90, 0, 90]) {
         const px = x + dx * u - dz * v;
         const pz = z + dz * u + dx * v;
         const h = this.rawHeight(px, pz);
@@ -300,8 +309,10 @@ export class TerrainGen {
       heading: best.heading,
       dirX: Math.cos(best.heading),
       dirZ: Math.sin(best.heading),
-      length: 480,
-      width: 36,
+      length: RUNWAY.paved + 2 * RUNWAY.overrun,
+      width: RUNWAY.pavedWidth + 2 * RUNWAY.shoulder,
+      paved: RUNWAY.paved,
+      pavedWidth: RUNWAY.pavedWidth,
       height: Math.max(best.mean, 9),
       home,
     };
@@ -332,6 +343,21 @@ export class TerrainGen {
       if (Math.abs(u) <= af.length / 2 + margin && Math.abs(v) <= af.width / 2 + margin) return af;
     }
     return null;
+  }
+
+  /** What a wheel rolls on at (x,z): asphalt, mowed grass, rough ground or water. */
+  surfaceAt(x: number, z: number): Surface {
+    for (const af of this.airfields) {
+      const dx = x - af.x;
+      const dz = z - af.z;
+      const u = Math.abs(dx * af.dirX + dz * af.dirZ);
+      const v = Math.abs(-dx * af.dirZ + dz * af.dirX);
+      if (u > af.length / 2 + FLAT_A + 200) continue;
+      if (u <= af.paved / 2 && v <= af.pavedWidth / 2) return 'paved';
+      if (u <= af.length / 2 && v <= af.width / 2) return 'grass';
+    }
+    if (this.fieldMask(x, z) > 0.45) return 'grass';
+    return this.height(x, z) < 0 ? 'water' : 'rough';
   }
 
   nearestAirfield(x: number, z: number): { af: Airfield; dist: number } {

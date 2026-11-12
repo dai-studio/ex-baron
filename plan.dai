@@ -61,13 +61,48 @@
     <bpmn:sequenceFlow id="flow_429kxt8o" sourceRef="task_ltt0d26a" targetRef="task_nzky8od5" />
     <bpmn:task id="task_44e737qz" name="11. Tests &#38; verification" dai:notes="Determinism unit test, typecheck, production build, run in a browser and check for console errors. (design §7)" dai:agentStatus="done">
       <bpmn:incoming>flow_koi4rn68</bpmn:incoming>
-      <bpmn:outgoing>flow_uh3stw6d</bpmn:outgoing>
+      <bpmn:outgoing>flow_ry7d50pd</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_uh3stw6d</bpmn:incoming>
+      <bpmn:incoming>flow_irgw7jip</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="flow_uh3stw6d" sourceRef="task_44e737qz" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
+      <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
+      <bpmn:outgoing>flow_kepafjor</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_0fp4papg" name="13. Airframe, engine &#38; wheel meshes" dai:notes="Generalise BiplaneVisual into buildPlane(loadout): Biplane, Turboprop, Jet airframes; 2-blade prop, 4-blade prop, jet nozzle + flame; 3 wheel sizes; 8 paint liveries. (design §8.2)" dai:agentStatus="done">
+      <bpmn:incoming>flow_kepafjor</bpmn:incoming>
+      <bpmn:outgoing>flow_qdjluo5x</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_kepafjor" sourceRef="task_dm9i0pir" targetRef="task_0fp4papg" />
+    <bpmn:task id="task_rpikw3qw" name="14. Upgraded runway &#38; surfaces" dai:notes="900 m paved runway with grass shoulders and overruns, markings, edge lights, PAPI, bigger hangars; longer site search and flattening; surfaceAt() and per-surface wheel grip. (design §8.3)" dai:agentStatus="done">
+      <bpmn:incoming>flow_qdjluo5x</bpmn:incoming>
+      <bpmn:outgoing>flow_oo0h2nz2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_qdjluo5x" sourceRef="task_0fp4papg" targetRef="task_rpikw3qw" />
+    <bpmn:task id="task_1zwngb8u" name="15. Hangar screen &#38; preview" dai:notes="Hangar UI with Plane / Paint / Engine / Wheels tabs, option cards, stat bars, keyboard &#38; gamepad navigation, 3D turntable preview in the main canvas. (design §8.1)" dai:agentStatus="done">
+      <bpmn:incoming>flow_oo0h2nz2</bpmn:incoming>
+      <bpmn:outgoing>flow_gev9los5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_oo0h2nz2" sourceRef="task_rpikw3qw" targetRef="task_1zwngb8u" />
+    <bpmn:task id="task_dvofzdw4" name="16. Engine audio &#38; HUD per type" dai:notes="Engine sound profiles for prop, turbo and jet; HUD throttle shows RPM or spool; debrief shows the loadout. (design §8.2)" dai:agentStatus="done">
+      <bpmn:incoming>flow_gev9los5</bpmn:incoming>
+      <bpmn:outgoing>flow_z6j6wkxu</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_gev9los5" sourceRef="task_1zwngb8u" targetRef="task_dvofzdw4" />
+    <bpmn:task id="task_07tcv09h" name="17. Loadout tests &#38; verification" dai:notes="Every-loadout takeoff/landing matrix test, runway-fits-terrain test, typecheck, build, browser check. (design §8.3 tests)" dai:agentStatus="done">
+      <bpmn:incoming>flow_z6j6wkxu</bpmn:incoming>
+      <bpmn:outgoing>flow_gzgfhhnp</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_z6j6wkxu" sourceRef="task_dvofzdw4" targetRef="task_07tcv09h" />
+    <bpmn:sequenceFlow id="flow_ry7d50pd" sourceRef="task_44e737qz" targetRef="task_dm9i0pir" />
+    <bpmn:task id="task_snxp38pz" name="18. Engine comes with the plane" dai:notes="Drop the Engine category: Biplane = prop, Turboprop = turbo, Jet = jet. Remove mixed-engine art (jet pods on prop planes, prop on the jet) and prop-size limits. Loadout = style + paint + wheels (72 combos); ?plane=style.paint.wheels, old 4-part links still work. (design §8)" dai:agentStatus="done">
+      <bpmn:incoming>flow_gzgfhhnp</bpmn:incoming>
+      <bpmn:outgoing>flow_irgw7jip</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_gzgfhhnp" sourceRef="task_07tcv09h" targetRef="task_snxp38pz" />
+    <bpmn:sequenceFlow id="flow_irgw7jip" sourceRef="task_snxp38pz" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -152,11 +187,62 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="2160" y="180" width="40" height="40" />
+        <dc:Bounds x="2163" y="340" width="40" height="40" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="flow_uh3stw6d_di" bpmnElement="flow_uh3stw6d">
-        <di:waypoint x="2080" y="200" />
-        <di:waypoint x="2160" y="200" />
+      <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
+        <dc:Bounds x="180" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_0fp4papg_di" bpmnElement="task_0fp4papg">
+        <dc:Bounds x="360" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_kepafjor_di" bpmnElement="flow_kepafjor">
+        <di:waypoint x="280" y="360" />
+        <di:waypoint x="360" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_rpikw3qw_di" bpmnElement="task_rpikw3qw">
+        <dc:Bounds x="540" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_qdjluo5x_di" bpmnElement="flow_qdjluo5x">
+        <di:waypoint x="460" y="360" />
+        <di:waypoint x="540" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_1zwngb8u_di" bpmnElement="task_1zwngb8u">
+        <dc:Bounds x="720" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_oo0h2nz2_di" bpmnElement="flow_oo0h2nz2">
+        <di:waypoint x="640" y="360" />
+        <di:waypoint x="720" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_dvofzdw4_di" bpmnElement="task_dvofzdw4">
+        <dc:Bounds x="900" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_gev9los5_di" bpmnElement="flow_gev9los5">
+        <di:waypoint x="820" y="360" />
+        <di:waypoint x="900" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_07tcv09h_di" bpmnElement="task_07tcv09h">
+        <dc:Bounds x="1080" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_z6j6wkxu_di" bpmnElement="flow_z6j6wkxu">
+        <di:waypoint x="1000" y="360" />
+        <di:waypoint x="1080" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_ry7d50pd_di" bpmnElement="flow_ry7d50pd">
+        <di:waypoint x="2030" y="240" />
+        <di:waypoint x="2030" y="282" />
+        <di:waypoint x="230" y="282" />
+        <di:waypoint x="230" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_snxp38pz_di" bpmnElement="task_snxp38pz">
+        <dc:Bounds x="1260" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_gzgfhhnp_di" bpmnElement="flow_gzgfhhnp">
+        <di:waypoint x="1180" y="360" />
+        <di:waypoint x="1260" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_irgw7jip_di" bpmnElement="flow_irgw7jip">
+        <di:waypoint x="1360" y="360" />
+        <di:waypoint x="2163" y="360" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

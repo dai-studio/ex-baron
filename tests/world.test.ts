@@ -68,6 +68,37 @@ describe('world generation', () => {
     }
   });
 
+  it('runway fits the terrain on 200 seeds (design §8.3)', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const g = new TerrainGen(seed);
+      const home = g.airfields[0];
+      expect(Math.hypot(home.x, home.z)).toBeLessThan(7000);
+      for (const af of g.airfields) {
+        expect(af.paved).toBe(900);
+        let mn = Infinity;
+        let mx = -Infinity;
+        for (let u = -af.paved / 2 + 1; u < af.paved / 2; u += 50)
+          for (const v of [1 - af.pavedWidth / 2, 0, af.pavedWidth / 2 - 1]) {
+            const x = af.x + af.dirX * u - af.dirZ * v;
+            const z = af.z + af.dirZ * u + af.dirX * v;
+            const h = g.height(x, z);
+            mn = Math.min(mn, h);
+            mx = Math.max(mx, h);
+            expect(g.surfaceAt(x, z)).toBe('paved');
+          }
+        expect(mx - mn).toBeLessThanOrEqual(1);
+        expect(mn).toBeGreaterThan(0); // never over water
+        // grass shoulders and overruns
+        const sx = af.x - af.dirZ * (af.pavedWidth / 2 + 5);
+        const sz = af.z + af.dirX * (af.pavedWidth / 2 + 5);
+        expect(g.surfaceAt(sx, sz)).toBe('grass');
+        const ox = af.x + af.dirX * (af.paved / 2 + 30);
+        const oz = af.z + af.dirZ * (af.paved / 2 + 30);
+        expect(g.surfaceAt(ox, oz)).toBe('grass');
+      }
+    }
+  });
+
   it('mostly land around the start, with sea and mountains somewhere', () => {
     const g = new TerrainGen(42);
     let land = 0;

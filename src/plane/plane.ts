@@ -1,50 +1,38 @@
 import * as THREE from 'three';
-import { BiplaneVisual, type Livery } from './biplaneMesh';
-import { DEFAULT_SPEC, PlaneState, emptyInput, type ControlInput, type PlaneSpec } from './flight';
-import type { AIPilot } from '../combat/ai';
+import { PlaneState, emptyInput, type ControlInput, type Gear, type PlaneSpec } from './flight';
+import { composeSpec, gearFor, type Livery, type Loadout } from './loadout';
+import { PlaneVisual } from './planeMesh';
 
-/** A plane entity: simulation state + visual + combat bookkeeping. */
-export type Team = 'player' | 'enemy';
-
-export const MUZZLES = [new THREE.Vector3(-0.22, 0.68, -1.95), new THREE.Vector3(0.22, 0.68, -1.95)];
-
-let nextId = 1;
-
+/** A plane entity: simulation state + visual, built from a hangar Loadout. */
 export class Plane {
-  readonly id = nextId++;
   readonly s = new PlaneState();
   readonly prevPos = new THREE.Vector3();
   readonly prevQuat = new THREE.Quaternion();
   readonly input: ControlInput = emptyInput();
-  readonly visual: BiplaneVisual;
+  readonly visual: PlaneVisual;
+  readonly gear: Gear;
   spec: PlaneSpec;
-  ai: AIPilot | null = null;
-  /** shot down / out of control (still falling) */
+  /** out of control (still falling) */
   downed = false;
   /** hit the ground / exploded; no longer simulated */
   wrecked = false;
-  wreckT = 0;
   downedSide = 1;
-  gunCooldown = 0;
-  gunSide = 0;
-  shots = 0;
-  hits = 0;
-  kills = 0;
-  damageTaken = 0;
   smokeT = 0;
   dustT = 0;
-  lastAttacker: Plane | null = null;
 
   constructor(
-    readonly team: Team,
-    livery: Livery,
+    readonly loadout: Loadout,
     toon: THREE.Material,
     outline: THREE.Material,
-    spec: PlaneSpec = DEFAULT_SPEC,
+    spec: PlaneSpec = composeSpec(loadout),
   ) {
     this.spec = spec;
-    this.s.ammo = spec.ammo;
-    this.visual = new BiplaneVisual(livery, toon, outline);
+    this.gear = gearFor(loadout);
+    this.visual = new PlaneVisual(loadout, toon, outline);
+  }
+
+  get livery(): Livery {
+    return this.visual.livery;
   }
 
   get alive() {
