@@ -214,7 +214,7 @@
       <bpmn:outgoing>flow_ugmkgi3a</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_avjtjh5f" sourceRef="task_yg0oghzt" targetRef="task_n1jnv9ip" />
-    <bpmn:task id="task_55qxiw53" name="Remove 3D cockpit gauges" dai:agentStatus="in_progress" dai:planRef="task_i1juquj8">
+    <bpmn:task id="task_55qxiw53" name="Remove 3D cockpit gauges" dai:notes="planeMesh.ts buildDash(): removed the three 3D gauge discs and the RPM needle (rpmNeedle group and its animate() update); the dashboard panel and its paint-coloured rim stay, so the lower view still shows the cockpit. The HUD instrument cluster (task 27) now does the job. Checked in Chrome with captures in cockpit view at ~400 m for biplane, turboprop and jet: plain dashboard, HUD cluster on top, no console errors. The same check showed the turboprop airspeed dial labelled every 50 km/h up to 450, crowding &#39;AIRSPEED&#39;: asiScale now allows at most 7 labels (biplane 40s to 240, turboprop 100s to 500, jet 100s to 600); test limit 8. Tests 65/65, tsc OK. Committed to PR #3." dai:agentStatus="done" dai:planRef="task_i1juquj8">
       <bpmn:incoming>flow_ugmkgi3a</bpmn:incoming>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_ugmkgi3a" sourceRef="task_n1jnv9ip" targetRef="task_55qxiw53" />

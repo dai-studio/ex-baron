@@ -147,7 +147,7 @@
       <bpmn:outgoing>flow_d2fb1enr</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_q44r7efh" sourceRef="task_qk7cb8m0" targetRef="task_obes8gsf" />
-    <bpmn:task id="task_i1juquj8" name="28. Remove 3D cockpit gauges" dai:notes="Cockpit view: drop the three 3D gauges and the RPM needle from the dashboard mesh; the HUD instrument cluster replaces them. Keep the dashboard panel so the lower view still shows the cockpit. Check in the browser for all three planes." dai:agentStatus="in_progress">
+    <bpmn:task id="task_i1juquj8" name="28. Remove 3D cockpit gauges" dai:notes="Cockpit view: drop the three 3D gauges and the RPM needle from the dashboard mesh; the HUD instrument cluster replaces them. Keep the dashboard panel so the lower view still shows the cockpit. Check in the browser for all three planes." dai:agentStatus="done">
       <bpmn:incoming>flow_d2fb1enr</bpmn:incoming>
       <bpmn:outgoing>flow_912m48sv</bpmn:outgoing>
     </bpmn:task>
