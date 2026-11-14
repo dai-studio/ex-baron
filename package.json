@@ -4,6 +4,10 @@
   "license": "BSD-2-Clause",
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
