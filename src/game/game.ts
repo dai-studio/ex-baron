@@ -4,7 +4,7 @@ import { Input } from '../core/input';
 import { Loop } from '../core/loop';
 import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
-import { DEFAULT_SPEC, LANDING_FORGIVENESS, groundAttitude, restHeight, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
+import { DEFAULT_SPEC, FLAP_LABELS, LANDING_FORGIVENESS, groundAttitude, restHeight, stallAlphaAt, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
 import { AIRFRAMES, composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
 import { Plane } from '../plane/plane';
 import { bankAngle } from '../plane/steer';
@@ -72,6 +72,8 @@ interface Mission {
   pathT: number;
   atDest: boolean;
   offPathHintT: number;
+  /** the 'full flaps for landing' tip has been shown */
+  flapHint: boolean;
 }
 
 /** pilot eye point per airframe (body space) */
@@ -567,6 +569,7 @@ export class Game {
     p.s.rpm = 0.15;
     p.teleport();
     this.input.resetThrottle(0);
+    this.input.flapNotch = 0;
     this.planes.push(p);
     this.player = p;
     this.scene.add(p.visual.root);
@@ -588,6 +591,7 @@ export class Game {
       pathT: 0,
       atDest: false,
       offPathHintT: 0,
+      flapHint: false,
     };
     this.rig.reset();
     this.rig.mode = 'chase';
@@ -604,7 +608,7 @@ export class Game {
     this.hud.visible = true;
     this.hud.invalidateMinimap();
     this.ui.show('none');
-    const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : '';
+    const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : ' Take-off flaps: F.';
     const follow = this.sortieRoute ? ` Follow the arrows to ${this.destName()}.` : '';
     this.ui.hint(`Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}${follow}`, 6000);
   }
@@ -742,7 +746,7 @@ export class Game {
         const level = bankAngle(s);
         if (Math.abs(level) < 1.4) inp.roll = THREE.MathUtils.clamp(level * 0.9 + s.angVel.z * 0.25, -0.6, 0.6);
       }
-      if (s.alpha > p.spec.stallAlpha * 0.85 && inp.pitch > 0) inp.pitch *= 0.35;
+      if (s.alpha > stallAlphaAt(p.spec, s.flaps) * 0.85 && inp.pitch > 0) inp.pitch *= 0.35;
     }
   }
 
@@ -851,6 +855,14 @@ export class Game {
         if (this.sortieRoute) this.ui.hint(`Follow the white arrows to ${this.destName()} and land there.`, 6000);
         else this.ui.hint('Enjoy the view! Land on any airfield strip to finish.', 6000);
       }
+      // on approach (descending low near the field, or the destination): suggest full flaps once
+      if (m.tookOff && !m.flapHint && !p.s.onGround && agl < 350 && p.s.vel.y < -1 && this.input.flapNotch < 2) {
+        const near = w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z);
+        if (near.dist < 2500 && (!this.sortieRoute || near.af === this.sortieRoute.to)) {
+          m.flapHint = true;
+          this.ui.hint('Landing? Full flaps (press F twice) let you come in slower and steeper.', 5000);
+        }
+      }
       // cross-country: progress along the path and how much of the flight stayed on it
       const tr = this.tracker;
       if (tr) {
@@ -888,6 +900,12 @@ export class Game {
       if (i.wasPressed('KeyR')) this.startSortie();
     }
     if (this.state === 'sortie') {
+      // flaps: F (d-pad down) one notch more, V (d-pad up) one notch less
+      const fd = (i.wasPressed('KeyF') || i.padWasPressed(13) ? 1 : 0) - (i.wasPressed('KeyV') || i.padWasPressed(12) ? 1 : 0);
+      if (fd && i.stepFlaps(fd)) {
+        this.ui.toast(`FLAPS ${FLAP_LABELS[i.flapNotch]}`, 700);
+        this.audio.click();
+      }
       if (i.wasPressed('KeyM')) {
         i.mouseStick = !i.mouseStick;
         this.ui.hint(i.mouseStick ? 'Mouse stick ON: move the cursor to fly.' : 'Mouse stick OFF', 3000);
@@ -1028,6 +1046,7 @@ export class Game {
           // cross-country: the landing guide is for the destination only
           showLanding: m.tookOff && agl < 450 && (!this.sortieRoute || w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af === this.sortieRoute.to),
           guide: this.hudGuide(),
+          flapNotch: this.input.flapNotch,
         },
         dt,
       );

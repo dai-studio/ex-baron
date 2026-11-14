@@ -6,7 +6,9 @@ import * as THREE from 'three';
  *  - forces: thrust, lift (with soft stall), drag (parasitic + induced +
  *    flat-plate), side force, gravity, gear spring-dampers + friction;
  *  - rotation: control-surface accelerations scaled by dynamic pressure,
- *    aerodynamic damping and weathervane stability, plus gear torques.
+ *    aerodynamic damping and weathervane stability, plus gear torques;
+ *  - flaps (plan step 24): more lift and drag for take-off and landing,
+ *    blown back by the airflow above the plane's flap speed.
  * Axes: body forward = -Z, up = +Y, right = +X. Positive angVel.x = nose up,
  * positive angVel.y = nose left, positive angVel.z = roll left.
  * All constants live in PlaneSpec (data, tunable live with ?debug).
@@ -49,7 +51,25 @@ export interface PlaneSpec {
   /** wheel grip multipliers per surface (tyre choice, design §8.2) */
   gripPaved: number;
   gripGrass: number;
+  /** flaps: extra lift coefficient at full flap */
+  flapCl: number;
+  /** flaps: extra drag coefficient at full flap (grows with the square of the deflection) */
+  flapCd: number;
+  /** flaps: the wing stalls this much earlier (rad) at full flap */
+  flapStall: number;
+  /** flaps: the trimmed angle of attack drops this much at full flap (less ballooning) */
+  flapTrim: number;
+  /** flaps: travel per second (0..1) */
+  flapRate: number;
+  /** flaps: full flap allowed up to this airspeed (m/s); blown back to none at 1.3× */
+  flapSpeed: number;
 }
+
+/** Flap notches: up, take-off, landing (fraction of full deflection). */
+export const FLAP_NOTCHES = [0, 0.5, 1];
+export const FLAP_LABELS = ['UP', 'T/O', 'LAND'];
+/** Visual deflection at full flap (rad). */
+export const FLAP_MAX_ANGLE = 0.61;
 
 /**
  * Landing forgiveness: touchdown crash limits and landing grades are this much
@@ -89,13 +109,19 @@ export const DEFAULT_SPEC: PlaneSpec = {
   gearK: 70000,
   gearC: 6900, // +15% damping: firm touchdowns bounce less
   rollFriction: 0.03,
-  brakeFriction: 0.45,
+  brakeFriction: 0.495, // +10% bite (was 0.45)
   skidFriction: 0.3,
   groundSteer: 1.6,
   crashSpeed: 6,
   spoolRate: 1.6,
   gripPaved: 1,
   gripGrass: 1,
+  flapCl: 0.6,
+  flapCd: 0.07,
+  flapStall: 0.02,
+  flapTrim: 0.03,
+  flapRate: 0.6,
+  flapSpeed: 30,
 };
 
 export interface ControlInput {
@@ -104,9 +130,11 @@ export interface ControlInput {
   yaw: number;
   throttle: number;
   brake: boolean;
+  /** flap lever 0..1 (see FLAP_NOTCHES) */
+  flaps: number;
 }
 
-export const emptyInput = (): ControlInput => ({ pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: false });
+export const emptyInput = (): ControlInput => ({ pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: false, flaps: 0 });
 
 export interface Health {
   engine: number;
@@ -134,6 +162,10 @@ export class PlaneState {
   t = 0;
   /** world-space vertical speed just before the latest wheel contact */
   lastSink = 0;
+  /** flap position 0..1 (moves toward the lever at flapRate) */
+  flaps = 0;
+  /** the airflow is holding the flaps short of the lever (too fast for flaps) */
+  flapsBlown = false;
 }
 
 export type Surface = 'paved' | 'grass' | 'rough' | 'water';
@@ -201,21 +233,27 @@ const _tmp = new THREE.Vector3();
 const _dq = new THREE.Quaternion();
 const _rh = new THREE.Vector3();
 
-export function liftCoefficient(spec: PlaneSpec, a: number): number {
-  const aS = spec.stallAlpha;
+/** Stall angle of attack with the flaps at `flaps` (0..1). */
+export function stallAlphaAt(spec: PlaneSpec, flaps: number): number {
+  return spec.stallAlpha - spec.flapStall * flaps;
+}
+
+export function liftCoefficient(spec: PlaneSpec, a: number, flaps = 0): number {
+  const aS = stallAlphaAt(spec, flaps);
+  const cl0 = spec.cl0 + spec.flapCl * flaps;
   const plate = 1.05 * Math.sin(2 * a);
   if (a > aS) {
-    const peak = spec.cl0 + spec.clSlope * aS;
+    const peak = cl0 + spec.clSlope * aS;
     const t = Math.min((a - aS) / 0.15, 1);
     return peak * (1 - t) + plate * t;
   }
-  const aN = -aS * 0.85;
+  const aN = -spec.stallAlpha * 0.85;
   if (a < aN) {
-    const peak = spec.cl0 + spec.clSlope * aN;
+    const peak = cl0 + spec.clSlope * aN;
     const t = Math.min((aN - a) / 0.15, 1);
     return peak * (1 - t) + plate * t;
   }
-  return spec.cl0 + spec.clSlope * a;
+  return cl0 + spec.clSlope * a;
 }
 
 /** Advance one plane by dt. Mutates state, returns events. */
@@ -243,15 +281,24 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
   s.airspeed = V;
   s.alpha = Math.atan2(-_loc.y, Math.max(Math.abs(u), 0.5) * Math.sign(u || 1));
   s.beta = Math.atan2(_loc.x, Math.max(Math.abs(u), 1));
-  s.stalled = s.alpha > spec.stallAlpha && V > 3;
+  // flaps follow the lever, but the airflow blows them back above the flap speed
+  const allowed = THREE.MathUtils.clamp(1 - (V - spec.flapSpeed) / (0.3 * spec.flapSpeed), 0, 1);
+  const flapTarget = Math.min(THREE.MathUtils.clamp(input.flaps, 0, 1), allowed);
+  s.flapsBlown = input.flaps > allowed + 0.01;
+  const fStep = spec.flapRate * dt;
+  s.flaps += THREE.MathUtils.clamp(flapTarget - s.flaps, -fStep, fStep);
+  // blow-back is quicker than the motor
+  if (s.flaps > allowed) s.flaps = Math.max(allowed, s.flaps - fStep * 2);
+  const fl = s.flaps;
+  s.stalled = s.alpha > stallAlphaAt(spec, fl) && V > 3;
   const qd = 0.5 * spec.rho * V * V;
 
   _F.set(0, 0, 0);
   if (V > 0.5) {
     _dir.copy(_air).divideScalar(V);
-    const cl = liftCoefficient(spec, s.alpha) * (0.45 + 0.55 * h.wings);
+    const cl = liftCoefficient(spec, s.alpha, fl) * (0.45 + 0.55 * h.wings);
     const sa = Math.sin(s.alpha);
-    const cd = spec.cd0 * (1 + (1 - h.wings) * 1.5) + spec.inducedK * cl * cl + 1.1 * sa * sa;
+    const cd = spec.cd0 * (1 + (1 - h.wings) * 1.5) + spec.flapCd * fl * fl + spec.inducedK * cl * cl + 1.1 * sa * sa;
     _lift.crossVectors(_right, _dir);
     const ll = _lift.length();
     if (ll > 1e-4) _F.addScaledVector(_lift.divideScalar(ll), qd * spec.wingArea * cl);
@@ -266,7 +313,7 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
   const e = Math.min(qd / spec.qRef, 1.6);
   const tailEff = 0.35 + 0.65 * h.tail;
   const av = s.angVel;
-  const aC = THREE.MathUtils.clamp(s.alpha - spec.alphaTrim, -0.6, 0.6);
+  const aC = THREE.MathUtils.clamp(s.alpha - (spec.alphaTrim - spec.flapTrim * fl), -0.6, 0.6);
   const bC = THREE.MathUtils.clamp(s.beta, -0.6, 0.6);
   _acc.set(
     input.pitch * spec.pitchAcc * e * tailEff - av.x * spec.pitchDamp * (0.3 + e) - aC * spec.pitchStab * e,

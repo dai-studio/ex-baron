@@ -59,7 +59,7 @@ export class Plane {
     const r = this.visual.root;
     r.position.lerpVectors(this.prevPos, this.s.pos, alpha);
     r.quaternion.slerpQuaternions(this.prevQuat, this.s.quat, alpha);
-    this.visual.animate(dt, this.input.pitch, this.input.roll, this.input.yaw, this.s.rpm);
+    this.visual.animate(dt, this.input.pitch, this.input.roll, this.input.yaw, this.s.rpm, this.s.flaps);
   }
 
   /** Overall health 0..1 for HUD / scoring. */

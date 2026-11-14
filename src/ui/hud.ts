@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Plane } from '../plane/plane';
-import { LANDING_FORGIVENESS } from '../plane/flight';
+import { FLAP_LABELS, FLAP_NOTCHES, LANDING_FORGIVENESS } from '../plane/flight';
 import { engineOf } from '../plane/loadout';
 import type { World } from '../world/world';
 import type { Route } from '../game/route';
@@ -30,6 +30,8 @@ export interface HudContext {
   mouse: { x: number; y: number };
   stallWarn: boolean;
   showLanding: boolean;
+  /** flap lever notch (index into FLAP_NOTCHES) */
+  flapNotch: number;
   /** cross-country flight: the route, destination and (when off the path) where to rejoin it */
   guide?: { route: Route; dest: Airfield; rejoin: THREE.Vector3 | null };
 }
@@ -112,9 +114,9 @@ export class Hud {
 
     // ---------- bottom-left gauges
     g.save();
-    g.translate(16, this.h - 16 - 150 * sc);
+    g.translate(16, this.h - 16 - 218 * sc);
     g.scale(sc, sc);
-    panel(g, 0, 0, 220, 150);
+    panel(g, 0, 0, 220, 218);
     const kmh = s.airspeed * 3.6;
     const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
     g.fillStyle = INK;
@@ -154,6 +156,7 @@ export class Hud {
     const eng = engineOf(c.player.loadout.style);
     const turn = eng === 'jet' ? `spool ${Math.round(s.rpm * 100)}%` : `rpm ${Math.round(s.rpm * (eng === 'turbo' ? 2000 : 1400))}`;
     g.fillText(`${Math.round(s.throttle * 100)}%   ${turn}`, 16, 142);
+    this.drawFlaps(g, c.flapNotch, s.flaps, s.flapsBlown);
     g.restore();
 
     // ---------- bottom-right: damage
@@ -180,6 +183,55 @@ export class Hud {
     // ---------- minimap (top-right)
     this.miniT -= dt;
     this.drawMinimap(c, compact ? 120 : 160);
+  }
+
+  /** FLAPS row: the three notches (lever highlighted), a bar for the actual position, a warning when blown back. */
+  private drawFlaps(g: CanvasRenderingContext2D, notch: number, pos: number, blown: boolean) {
+    // a dashed divider keeps the flaps apart from the throttle / rpm line above
+    g.save();
+    g.strokeStyle = 'rgba(43, 29, 26, 0.35)';
+    g.lineWidth = 1.5;
+    g.setLineDash([4, 4]);
+    g.beginPath();
+    g.moveTo(14, 156);
+    g.lineTo(206, 156);
+    g.stroke();
+    g.restore();
+    const y = 176;
+    g.font = `800 13px ${FONT}`;
+    g.fillStyle = blown ? RED : INK;
+    g.fillText('FLAPS', 14, y);
+    const lw = g.measureText('FLAPS').width;
+    // keys: V moves the lever left (less flap), F right (more), matching the UP → LAND row below
+    g.font = `700 12px ${FONT}`;
+    g.fillStyle = blown ? RED : '#6b4b2a';
+    g.fillText(blown ? 'TOO FAST — slow down!' : '(V ↔ F)', 14 + lw + 6, y);
+    const x0 = 14;
+    const w = 60;
+    for (let i = 0; i < FLAP_NOTCHES.length; i++) {
+      const x = x0 + i * (w + 6);
+      roundRect(g, x, y + 6, w, 18, 7);
+      g.fillStyle = i === notch ? (blown ? RED : ACCENT) : '#fff';
+      g.fill();
+      g.strokeStyle = INK;
+      g.lineWidth = 2;
+      g.stroke();
+      g.fillStyle = i === notch ? '#fff' : INK;
+      g.font = `800 11px ${FONT}`;
+      g.textAlign = 'center';
+      g.fillText(FLAP_LABELS[i], x + w / 2, y + 19);
+      g.textAlign = 'left';
+    }
+    // actual flap position (moves slowly, blown back when too fast)
+    const span = 2 * (w + 6);
+    g.fillStyle = INK;
+    g.beginPath();
+    const px = x0 + w / 2 + pos * span;
+    g.moveTo(px, y + 26);
+    g.lineTo(px - 5, y + 31);
+    g.lineTo(px + 5, y + 31);
+    g.closePath();
+    g.fill();
   }
 
   private drawDamage(g: CanvasRenderingContext2D, cx: number, cy: number, h: { engine: number; wings: number; tail: number; pilot: number }) {

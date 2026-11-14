@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_mmplzxh6</bpmn:incoming>
+      <bpmn:incoming>flow_9xwtpuce</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -124,10 +124,15 @@
     <bpmn:sequenceFlow id="flow_hwi12com" sourceRef="task_son5gpi7" targetRef="task_f7byx3za" />
     <bpmn:task id="task_no4tehb3" name="23. Cross-country mission logic &#38; verification" dai:notes="Sortie in route mode: arrows shown, objective with destination and distance, HUD marker toward the path when off it, route on the minimap. Success = landing at the destination; path-following accuracy shown in the debrief and part of the medal. Best record per seed + destination. Tests, tsc, build, browser check." dai:agentStatus="done">
       <bpmn:incoming>flow_bkp9s4s6</bpmn:incoming>
-      <bpmn:outgoing>flow_mmplzxh6</bpmn:outgoing>
+      <bpmn:outgoing>flow_7q5zronu</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_bkp9s4s6" sourceRef="task_f7byx3za" targetRef="task_no4tehb3" />
-    <bpmn:sequenceFlow id="flow_mmplzxh6" sourceRef="task_no4tehb3" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_5mr1icak" name="24. Flaps" dai:notes="Flaps for take-off and landing: lever with notches UP / T/O / LAND (F more, V less; gamepad d-pad). Flight model: extra lift (lower stall speed), extra drag at full flap, slightly earlier stall, trim change against ballooning, travel time, blow-back above each plane&#39;s flap speed. Animated flap surfaces on every airframe, FLAPS row on the HUD, tips at take-off and on approach. Tests: take-off run shorter with T/O flaps, slower touchdown with full flaps for every loadout; blow-back; steeper glide." dai:agentStatus="done">
+      <bpmn:incoming>flow_7q5zronu</bpmn:incoming>
+      <bpmn:outgoing>flow_9xwtpuce</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_7q5zronu" sourceRef="task_no4tehb3" targetRef="task_5mr1icak" />
+    <bpmn:sequenceFlow id="flow_9xwtpuce" sourceRef="task_5mr1icak" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -212,7 +217,7 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="2319" y="501" width="40" height="40" />
+        <dc:Bounds x="2499" y="501" width="40" height="40" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
         <dc:Bounds x="180" y="320" width="100" height="80" />
@@ -302,9 +307,20 @@
         <di:waypoint x="230" y="443" />
         <di:waypoint x="230" y="481" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_mmplzxh6_di" bpmnElement="flow_mmplzxh6">
+      <bpmndi:BPMNShape id="task_5mr1icak_di" bpmnElement="task_5mr1icak">
+        <dc:Bounds x="2340" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_7q5zronu_di" bpmnElement="flow_7q5zronu">
         <di:waypoint x="280" y="521" />
-        <di:waypoint x="2319" y="521" />
+        <di:waypoint x="1310" y="521" />
+        <di:waypoint x="1310" y="360" />
+        <di:waypoint x="2340" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_9xwtpuce_di" bpmnElement="flow_9xwtpuce">
+        <di:waypoint x="2440" y="360" />
+        <di:waypoint x="2470" y="360" />
+        <di:waypoint x="2470" y="521" />
+        <di:waypoint x="2499" y="521" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

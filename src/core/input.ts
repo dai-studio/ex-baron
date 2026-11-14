@@ -1,4 +1,4 @@
-import type { ControlInput } from '../plane/flight';
+import { FLAP_NOTCHES, type ControlInput } from '../plane/flight';
 
 /**
  * Controls & input (design §3): keyboard, mouse "virtual stick" and gamepad
@@ -13,6 +13,8 @@ export class Input {
   mouse = { x: 0, y: 0, down: false };
   mouseStick = false;
   throttle = 0;
+  /** flap lever notch: index into FLAP_NOTCHES (0 = up) */
+  flapNotch = 0;
   invertPitch = false;
   private axes = { pitch: 0, roll: 0, yaw: 0 };
   private padPressed = new Set<number>();
@@ -79,6 +81,14 @@ export class Input {
     this.throttle = v;
   }
 
+  /** Move the flap lever one notch (+1 = more flap). Returns true if it moved. */
+  stepFlaps(dir: number): boolean {
+    const n = Math.max(0, Math.min(FLAP_NOTCHES.length - 1, this.flapNotch + dir));
+    if (n === this.flapNotch) return false;
+    this.flapNotch = n;
+    return true;
+  }
+
   sample(dt: number, out: ControlInput) {
     const k = this.keys;
     const kPitch = (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) - (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0);
@@ -138,5 +148,6 @@ export class Input {
     out.yaw = Math.max(-1, Math.min(1, yaw));
     out.throttle = this.throttle;
     out.brake = brake;
+    out.flaps = FLAP_NOTCHES[this.flapNotch];
   }
 }

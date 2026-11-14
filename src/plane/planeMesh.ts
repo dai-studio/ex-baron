@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeParts, part, taperBox, toonMesh } from '../render/geo';
+import { FLAP_MAX_ANGLE } from './flight';
 import { AIRFRAMES, ENGINE_DEFS, WHEEL_DEFS, liveryFor, type Livery, type Loadout } from './loadout';
 
 /**
@@ -7,8 +8,8 @@ import { AIRFRAMES, ENGINE_DEFS, WHEEL_DEFS, liveryFor, type Livery, type Loadou
  * low-poly planes built procedurally (no external models). Three planes,
  * each with its own engine: Biplane (2-blade wooden prop), Turboprop (4-blade
  * steel prop) and Jet (nozzle with a flame), three tyre sizes and 8 paints.
- * Separate nodes for the propeller, ailerons, elevator and rudder so they
- * animate. Forward is -Z.
+ * Separate nodes for the propeller, ailerons, flaps, elevator and rudder so
+ * they animate. Forward is -Z.
  */
 const METAL = 0x5d636b;
 const STEEL = 0x8d939b;
@@ -34,6 +35,9 @@ interface Built {
   cockpit: G[];
   ailL: Surface;
   ailR: Surface;
+  /** flaps on the inner trailing edge (biplane: lower wing) */
+  flapL: Surface;
+  flapR: Surface;
   elev: Surface;
   rudder: Surface;
 }
@@ -110,6 +114,8 @@ function buildBiplane(l: Livery): Built {
     ],
     ailL: { at: [-3.0, 1.5, -0.25], geo: part(new THREE.BoxGeometry(2.2, 0.08, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     ailR: { at: [3.0, 1.5, -0.25], geo: part(new THREE.BoxGeometry(2.2, 0.08, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
+    flapL: { at: [-1.75, -0.45, 0.15], geo: part(new THREE.BoxGeometry(2.0, 0.08, 0.38), l.accent, { pos: [0, 0, 0.19] }) },
+    flapR: { at: [1.75, -0.45, 0.15], geo: part(new THREE.BoxGeometry(2.0, 0.08, 0.38), l.accent, { pos: [0, 0, 0.19] }) },
     elev: { at: [0, 0.32, 3.85], geo: part(new THREE.BoxGeometry(2.9, 0.07, 0.5), l.accent, { pos: [0, 0, 0.25] }) },
     rudder: { at: [0, 0.72, 3.92], geo: part(new THREE.BoxGeometry(0.07, 1.1, 0.5), l.body, { pos: [0, 0.05, 0.25] }) },
   };
@@ -150,6 +156,8 @@ function buildTurboprop(l: Livery): Built {
     ],
     ailL: { at: [-3.6, -0.42, 0.7], geo: part(new THREE.BoxGeometry(2.4, 0.09, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     ailR: { at: [3.6, -0.42, 0.7], geo: part(new THREE.BoxGeometry(2.4, 0.09, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
+    flapL: { at: [-1.6, -0.42, 0.7], geo: part(new THREE.BoxGeometry(1.6, 0.09, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
+    flapR: { at: [1.6, -0.42, 0.7], geo: part(new THREE.BoxGeometry(1.6, 0.09, 0.42), l.accent, { pos: [0, 0, 0.21] }) },
     elev: { at: [0, 0.3, 4.15], geo: part(new THREE.BoxGeometry(3.5, 0.07, 0.45), l.accent, { pos: [0, 0, 0.22] }) },
     rudder: { at: [0, 1.05, 4.6], rot: [0.37, 0, 0], geo: part(new THREE.BoxGeometry(0.09, 1.2, 0.4), l.body, { pos: [0, 0, 0.2] }) },
   };
@@ -197,6 +205,9 @@ function buildJet(l: Livery): Built {
     ],
     ailL: { at: [-3.1, -0.15, 1.95], rot: [0, sweep, 0], geo: part(new THREE.BoxGeometry(1.8, 0.08, 0.4), l.accent, { pos: [0, 0, 0.2] }) },
     ailR: { at: [3.1, -0.15, 1.95], rot: [0, -sweep, 0], geo: part(new THREE.BoxGeometry(1.8, 0.08, 0.4), l.accent, { pos: [0, 0, 0.2] }) },
+    // inboard of the ailerons on the swept trailing edge (wing-local x −1..0, hinge 0.6 m aft of mid-chord)
+    flapL: { at: [-1.68, -0.15, 1.43], rot: [0, sweep, 0], geo: part(new THREE.BoxGeometry(1.0, 0.08, 0.45), l.accent, { pos: [0, 0, 0.225] }) },
+    flapR: { at: [1.68, -0.15, 1.43], rot: [0, -sweep, 0], geo: part(new THREE.BoxGeometry(1.0, 0.08, 0.45), l.accent, { pos: [0, 0, 0.225] }) },
     elev: { at: [0, 0.1, 4.3], geo: part(new THREE.BoxGeometry(3.4, 0.07, 0.4), l.accent, { pos: [0, 0, 0.2] }) },
     rudder: { at: [0, 1.25, 4.55], rot: [0.52, 0, 0], geo: part(new THREE.BoxGeometry(0.1, 1.3, 0.4), l.body, { pos: [0, 0, 0.2] }) },
   };
@@ -215,6 +226,8 @@ export class PlaneVisual {
   private flameMat: THREE.MeshBasicMaterial | null = null;
   private ailL = new THREE.Group();
   private ailR = new THREE.Group();
+  private flapL = new THREE.Group();
+  private flapR = new THREE.Group();
   private elev = new THREE.Group();
   private rudder = new THREE.Group();
   private hasProp: boolean;
@@ -291,6 +304,8 @@ export class PlaneVisual {
     };
     surf(b.ailL, this.ailL);
     surf(b.ailR, this.ailR);
+    surf(b.flapL, this.flapL);
+    surf(b.flapR, this.flapR);
     surf(b.elev, this.elev);
     surf(b.rudder, this.rudder);
   }
@@ -355,7 +370,7 @@ export class PlaneVisual {
     this.root.add(this.dash);
   }
 
-  animate(dt: number, pitch: number, roll: number, yaw: number, rpm: number) {
+  animate(dt: number, pitch: number, roll: number, yaw: number, rpm: number, flaps = 0) {
     if (this.dash.visible) this.rpmNeedle.rotation.z = 2.2 - rpm * 4.4;
     if (this.hasProp) {
       this.prop.rotation.z += rpm * 95 * dt + (rpm > 0.02 ? 6 * dt : 0);
@@ -373,6 +388,8 @@ export class PlaneVisual {
     }
     this.ailL.rotation.x = roll * 0.4;
     this.ailR.rotation.x = -roll * 0.4;
+    // trailing edge down
+    this.flapL.rotation.x = this.flapR.rotation.x = flaps * FLAP_MAX_ANGLE;
     this.elev.rotation.x = -pitch * 0.4;
     this.rudder.rotation.y = yaw * 0.45;
   }

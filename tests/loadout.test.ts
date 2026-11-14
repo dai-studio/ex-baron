@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SPEC, PlaneState, emptyInput, groundAttitude, restHeight, stepFlight, type Env } from '../src/plane/flight';
+import { DEFAULT_SPEC, PlaneState, emptyInput, groundAttitude, restHeight, stallAlphaAt, stepFlight, type Env } from '../src/plane/flight';
 import {
   DEFAULT_LOADOUT,
   PAINTS,
@@ -27,10 +27,17 @@ interface Run {
   touchdownSink: number;
   landingRoll: number;
   stall: number;
+  touchdownSpeed: number;
+}
+
+/** Flap lever for take-off (until 60 m up) and for the approach and landing. */
+interface Flaps {
+  takeoff: number;
+  landing: number;
 }
 
 /** Headless pilot: full-throttle takeoff, climb, straight-in 3° approach, flare, brake. */
-function flySortie(l: Loadout, trace?: (phase: string, s: PlaneState, crashed: string | null) => void): Run {
+function flySortie(l: Loadout, trace?: (phase: string, s: PlaneState, crashed: string | null) => void, flaps: Flaps = { takeoff: 0, landing: 0 }): Run {
   const spec = composeSpec(l);
   const gear = gearFor(l);
   const env: Env = { groundHeight: () => GROUND, surfaceAt: () => 'paved', wind: new THREE.Vector3() };
@@ -39,8 +46,10 @@ function flySortie(l: Loadout, trace?: (phase: string, s: PlaneState, crashed: s
   s.pos.set(0, GROUND + restHeight(s.quat, gear), 0);
   const inp = emptyInput();
   const vs = stallSpeed(spec);
-  const vr = vs * 1.15;
-  const out: Run = { takeoffRun: Infinity, crashed: null, touchdownSink: 0, landingRoll: Infinity, stall: vs };
+  const vsTo = stallSpeed(spec, flaps.takeoff);
+  const vsLand = stallSpeed(spec, flaps.landing);
+  const vr = vsTo * 1.15;
+  const out: Run = { takeoffRun: Infinity, crashed: null, touchdownSink: 0, landingRoll: Infinity, stall: vs, touchdownSpeed: 0 };
   let phase: 'roll' | 'climb' | 'cruise' | 'approach' | 'flare' | 'rollout' = 'roll';
   let touchX = 0;
   let wheelsOffX = 0;
@@ -48,18 +57,19 @@ function flySortie(l: Loadout, trace?: (phase: string, s: PlaneState, crashed: s
     inp.roll = THREE.MathUtils.clamp(bankAngle(s) * 0.9 + s.angVel.z * 0.25, -1, 1);
     inp.yaw = 0;
   };
-  const aMax = spec.stallAlpha * 0.8;
   const holdVy = (target: number) => {
+    const aMax = stallAlphaAt(spec, s.flaps) * 0.8;
     inp.pitch = THREE.MathUtils.clamp((target - s.vel.y) * 0.25 - s.angVel.x * 0.8, -1, 1);
     // stall protection, like the Arcade assist
     if (s.alpha > aMax) inp.pitch = Math.min(inp.pitch, (aMax - s.alpha) * 4);
   };
   const rotate = () => {
-    inp.pitch = THREE.MathUtils.clamp((spec.stallAlpha * 0.85 - s.alpha) * 4 - s.angVel.x * 0.8, -1, 1);
+    inp.pitch = THREE.MathUtils.clamp((stallAlphaAt(spec, s.flaps) * 0.85 - s.alpha) * 4 - s.angVel.x * 0.8, -1, 1);
   };
   for (let i = 0; i < 120 * 240; i++) {
     const agl = s.pos.y - GROUND;
     const v = s.airspeed;
+    inp.flaps = phase === 'roll' || (phase === 'climb' && agl < 60) ? flaps.takeoff : phase === 'cruise' || phase === 'climb' ? 0 : flaps.landing;
     switch (phase) {
       case 'roll':
         inp.throttle = 1;
@@ -88,7 +98,7 @@ function flySortie(l: Loadout, trace?: (phase: string, s: PlaneState, crashed: s
       case 'approach':
         levelWings();
         holdVy(-Math.tan((3 * Math.PI) / 180) * v);
-        inp.throttle = THREE.MathUtils.clamp(0.35 + (vs * 1.3 - v) * 0.08, 0, 1);
+        inp.throttle = THREE.MathUtils.clamp(0.35 + (vsLand * 1.3 - v) * 0.08, 0, 1);
         if (agl < 6) phase = 'flare';
         break;
       case 'flare':
@@ -97,6 +107,7 @@ function flySortie(l: Loadout, trace?: (phase: string, s: PlaneState, crashed: s
         inp.throttle = 0;
         if (s.onGround) {
           touchX = -s.pos.z;
+          out.touchdownSpeed = s.airspeed;
           phase = 'rollout';
         }
         break;
@@ -158,6 +169,16 @@ describe('loadouts (design §8)', () => {
     expect(r.stall).toBeLessThanOrEqual(45);
     expect(r.takeoffRun).toBeLessThanOrEqual(RUNWAY * 0.7);
     expect(r.landingRoll).toBeLessThan(RUNWAY - 150);
+  });
+
+  // flaps (plan step 24): take-off flaps shorten the run, full flaps land slower
+  it.each(ALL.map((l) => [loadoutToString(l), l] as const))('%s: flaps shorten the take-off and slow the landing', (_name, l) => {
+    const clean = flySortie(l);
+    const flapped = flySortie(l, undefined, { takeoff: 0.5, landing: 1 });
+    expect(flapped.crashed).toBeNull();
+    expect(flapped.takeoffRun).toBeLessThan(clean.takeoffRun);
+    expect(flapped.touchdownSpeed).toBeLessThan(clean.touchdownSpeed * 0.95);
+    expect(flapped.landingRoll).toBeLessThan(RUNWAY - 150);
   });
 
   it('stat bars rank the styles sensibly', () => {

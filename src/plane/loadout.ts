@@ -142,6 +142,7 @@ export const AIRFRAMES: Record<PlaneStyle, AirframeDef> = {
     spec: {
       mass: 1300,
       wingArea: 16,
+      flapSpeed: 52, // ≈1.6× its clean stall speed, like the biplane's 30
       cl0: 0.15,
       clSlope: 5.0,
       stallAlpha: 0.24,
@@ -176,6 +177,7 @@ export const AIRFRAMES: Record<PlaneStyle, AirframeDef> = {
     spec: {
       mass: 2500,
       wingArea: 22,
+      flapSpeed: 65,
       cl0: 0.1,
       clSlope: 3.8,
       stallAlpha: 0.32,
@@ -245,9 +247,9 @@ export interface WheelDef {
 }
 
 export const WHEEL_DEFS: Record<WheelId, WheelDef> = {
-  hard: { radius: 0.3, width: 0.14, gearKMul: 1.4, gearCMul: 0.9, rollFriction: 0.02, brakeFriction: 0.55, crashSpeed: 5, cd0Add: 0, gripPaved: 1.0, gripGrass: 0.75 },
-  medium: { radius: 0.36, width: 0.17, gearKMul: 1, gearCMul: 1, rollFriction: 0.03, brakeFriction: 0.45, crashSpeed: 6, cd0Add: 0, gripPaved: 1.0, gripGrass: 1.0 },
-  soft: { radius: 0.48, width: 0.3, gearKMul: 0.65, gearCMul: 1.35, rollFriction: 0.045, brakeFriction: 0.38, crashSpeed: 8, cd0Add: 0.002, gripPaved: 0.85, gripGrass: 1.0 },
+  hard: { radius: 0.3, width: 0.14, gearKMul: 1.4, gearCMul: 0.9, rollFriction: 0.02, brakeFriction: 0.605, crashSpeed: 5, cd0Add: 0, gripPaved: 1.0, gripGrass: 0.75 },
+  medium: { radius: 0.36, width: 0.17, gearKMul: 1, gearCMul: 1, rollFriction: 0.03, brakeFriction: 0.495, crashSpeed: 6, cd0Add: 0, gripPaved: 1.0, gripGrass: 1.0 },
+  soft: { radius: 0.48, width: 0.3, gearKMul: 0.65, gearCMul: 1.35, rollFriction: 0.045, brakeFriction: 0.418, crashSpeed: 8, cd0Add: 0.002, gripPaved: 0.85, gripGrass: 1.0 },
 };
 
 // --------------------------------------------------------------- compose
@@ -300,9 +302,9 @@ export function gearFor(l: Loadout): Gear {
   return { wheels, third, tricycle: af.gear === 'tricycle', crash };
 }
 
-/** Lowest speed the wing can hold the plane up (m/s, clean, sea level). */
-export function stallSpeed(s: PlaneSpec): number {
-  const clMax = s.cl0 + s.clSlope * s.stallAlpha;
+/** Lowest speed the wing can hold the plane up (m/s, sea level; clean unless `flaps` is given). */
+export function stallSpeed(s: PlaneSpec, flaps = 0): number {
+  const clMax = s.cl0 + s.flapCl * flaps + s.clSlope * (s.stallAlpha - s.flapStall * flaps);
   return Math.sqrt((2 * s.mass * 9.81) / (s.rho * s.wingArea * clMax));
 }
 
