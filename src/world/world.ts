@@ -23,7 +23,8 @@ export class World {
   readonly time: TimeOfDay;
   readonly cover: CloudCover;
   readonly wind = new THREE.Vector3();
-  private baseWind = new THREE.Vector3();
+  /** steady wind (gusts scale it in `wind`); the route planner uses it so plans do not flicker */
+  readonly baseWind = new THREE.Vector3();
   private t = 0;
   private hCache = new Map<number, number>();
   private terrainMat: THREE.MeshToonMaterial;

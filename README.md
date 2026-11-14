@@ -21,6 +21,12 @@ Add `?debug` to the URL to get a live flight-model tuning panel (lil-gui) and a 
 
 The game opens on a main menu over a flyover of the world. Press **Hangar** (or H) to build your plane: **Plane** (Biplane with a wooden prop, Turboprop with a turbo prop, or Jet), **Paint** (8 colours) and **Wheels** (Hard, Medium, Soft). The plane and wheels change how it flies; the stat bars show the trade-offs. Use ← → to pick a category, ↑ ↓ to choose, then go back to the main menu (Esc) and press FLY! Your choice is saved, and `?plane=jet.scarlet.soft` (style.paint.wheels) picks one from the URL. Every airfield has a 900 m asphalt runway with grass shoulders, so every combination can take off and land.
 
+## Cross-country
+
+Pick **Mission → Cross-country** on the main menu to fly from your home field to another airfield. A **Flight plan** panel appears beside the menu with the destination (◀ ▶, or ← → on the keyboard) and a map of the route, its length, rough flight time and highest altitude. The route is planned for your plane's turning circle: a climb-out from the home runway, a smooth curve that clears the hills, and a straight-in final on a 4° glide slope, landing into the wind unless that means a long detour or the terrain blocks the approach.
+
+In the air, transparent white arrows mark the path ahead. If you stray more than about 150 m from it, a **PATH** marker (or an arrow at the screen edge) shows where to rejoin. The destination is the gold caret on the compass and the gold strip on the minimap. Land at the destination to finish. Your medal depends on the landing grade and how much of the flight you spent on the path (75% for gold, 50% for silver), and records are kept per world and destination.
+
 ## Controls
 
 | Action | Keys |
@@ -34,6 +40,7 @@ The game opens on a main menu over a flyover of the world. Press **Hangar** (or 
 | Mouse stick | M toggles |
 | Bail out | X |
 | Hangar (main menu) | H |
+| Cross-country destination (main menu) | ← / → |
 | Pause / restart | Esc or P / R |
 | Gamepad | Left stick to fly, right stick X for rudder and Y for throttle |
 

@@ -72,7 +72,7 @@ export const DEFAULT_SPEC: PlaneSpec = {
   inducedK: 0.075,
   sideArea: 6,
   cyBeta: 1.2,
-  maxThrust: 2600,
+  maxThrust: 3250, // +25% over the original 2600 N
   propVmax: 95,
   pitchAcc: 5.5,
   rollAcc: 9,

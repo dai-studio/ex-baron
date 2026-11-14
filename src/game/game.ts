@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { AudioEngine } from '../audio/audio';
 import { Input } from '../core/input';
 import { Loop } from '../core/loop';
-import { loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
+import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
 import { DEFAULT_SPEC, LANDING_FORGIVENESS, groundAttitude, restHeight, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
 import { AIRFRAMES, composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
 import { Plane } from '../plane/plane';
 import { bankAngle } from '../plane/steer';
 import { outlineMaterial } from '../render/outline';
+import { GuideArrows } from '../render/guide';
 import { PostFX } from '../render/post';
 import { Sky, sunDirection } from '../render/sky';
 import { toonMaterial } from '../render/toon';
@@ -16,9 +17,11 @@ import { Water } from '../render/water';
 import { Hangar } from '../ui/hangar';
 import { Hud } from '../ui/hud';
 import { Menus } from '../ui/menus';
+import { drawRouteMap } from '../ui/routeMap';
 import { CHUNK_SIZE } from '../world/terrain';
 import { World } from '../world/world';
 import { CameraRig } from './camera';
+import { CRUISE_SPEED, TURN_RADIUS, RouteTracker, airfieldNames, bearing, planRoute, pointAt, runwayDir, type Route } from './route';
 
 /**
  * GameStateMachine (design §6) implementing the Core Gameplay Loop (§2):
@@ -64,6 +67,11 @@ interface Mission {
   endT: number;
   wreckAt: THREE.Vector3 | null;
   hintStage: number;
+  /** cross-country: seconds airborne, seconds of that on the path, landed at the destination */
+  airT: number;
+  pathT: number;
+  atDest: boolean;
+  offPathHintT: number;
 }
 
 /** pilot eye point per airframe (body space) */
@@ -119,6 +127,14 @@ export class Game {
   private frameAvg = 16;
   private resTimer = 0;
   private mission!: Mission;
+  /** cross-country flight plan for the menu's destination (null in free flight) */
+  private route: Route | null = null;
+  /** the route the current sortie flies, its arrows and progress along it */
+  private sortieRoute: Route | null = null;
+  private guide: GuideArrows | null = null;
+  private tracker: RouteTracker | null = null;
+  private names: string[] = [];
+  private readonly rejoin = new THREE.Vector3();
   private contextLost = false;
   private stats: HTMLDivElement | null = null;
 
@@ -151,8 +167,21 @@ export class Game {
       seedChanged: (s) => this.newWorld(s),
       qualityChanged: () => this.applyTier(),
       volumeChanged: (v) => this.audio.setVolume(v),
+      modeChanged: () => this.refreshRoute(),
+      destStep: (d) => this.stepDest(d),
       click: () => this.uiClick(),
     });
+    // redraw the flight-plan map when its size changes (window resize, controls list opened)
+    let mapTimer = 0;
+    let mapSize = '';
+    new ResizeObserver(() => {
+      const c = this.ui.routeCanvas;
+      const size = `${c.clientWidth}x${c.clientHeight}`;
+      if (size === mapSize) return;
+      mapSize = size;
+      clearTimeout(mapTimer);
+      mapTimer = window.setTimeout(() => this.drawMap(), 80);
+    }).observe(this.ui.routeCanvas);
     this.hangar = new Hangar(
       this.loadout,
       () => this.buildPreview(),
@@ -295,6 +324,64 @@ export class Game {
     this.hud.invalidateMinimap();
     this.previewCamReady = false;
     if (this.state === 'hangar') this.buildPreview();
+    this.clearGuide();
+    this.refreshRoute();
+  }
+
+  // ------------------------------------------------------- cross-country
+
+  /** Re-plan the menu's cross-country route (mode, destination, world or plane changed). */
+  private refreshRoute() {
+    const w = this.world;
+    if (!w) return;
+    const st = this.settings;
+    const fields = w.gen.airfields;
+    this.names = airfieldNames(fields);
+    if (st.dest < 1 || st.dest >= fields.length) st.dest = 1;
+    this.ui.setRoutePanel(st.mode === 'route');
+    this.ui.refreshBest();
+    if (st.mode !== 'route') {
+      this.route = null;
+      return;
+    }
+    const to = fields[st.dest];
+    const r = planRoute(w.gen, w.home, to, w.baseWind, TURN_RADIUS[this.loadout.style]);
+    this.route = r;
+    this.drawMap();
+    const km = (r.sAim / 1000).toFixed(1);
+    const min = Math.max(1, Math.round(r.sAim / CRUISE_SPEED[this.loadout.style] / 60));
+    const dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(bearing(w.home.x, w.home.z, to.x, to.z) / 45) % 8];
+    const downwind = r.land.dx * w.baseWind.x + r.land.dz * w.baseWind.z > 0 ? ' · downwind landing' : '';
+    this.ui.setRouteInfo(this.names[st.dest], `${km} km ${dir} · about ${min} min · up to ${Math.round(r.maxAlt / 10) * 10} m${downwind}`);
+  }
+
+  /** Draw the flight-plan map at the canvas's on-screen size (it stretches to the menu's height). */
+  private drawMap() {
+    const c = this.ui.routeCanvas;
+    if (!this.route || !this.world || !c.clientWidth || !c.clientHeight) return;
+    const k = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(c.clientWidth * k);
+    c.height = Math.round(c.clientHeight * k);
+    drawRouteMap(c, this.world.gen, this.route, this.names);
+  }
+
+  private stepDest(d: number) {
+    const w = this.world;
+    if (!w || this.settings.mode !== 'route') return;
+    const n = w.gen.airfields.length - 1;
+    this.settings.dest = ((this.settings.dest - 1 + d + n) % n) + 1;
+    saveSettings(this.settings);
+    this.refreshRoute();
+  }
+
+  private clearGuide() {
+    if (this.guide) {
+      this.scene.remove(this.guide.mesh);
+      this.guide.dispose();
+    }
+    this.guide = null;
+    this.tracker = null;
+    this.sortieRoute = null;
   }
 
   // ------------------------------------------------------------ hangar
@@ -318,6 +405,7 @@ export class Game {
     this.camera.fov = 70;
     this.camera.updateProjectionMatrix();
     this.ui.setAircraft(describeLoadout(this.loadout));
+    this.refreshRoute();
     this.ui.show('title');
   }
 
@@ -415,6 +503,7 @@ export class Game {
   private toTitle() {
     this.setPaused(false);
     this.clearPlanes();
+    this.clearGuide();
     this.state = 'title';
     this.hud.visible = false;
     this.hud.clear();
@@ -458,13 +547,17 @@ export class Game {
     this.camera.fov = 70;
     this.camera.updateProjectionMatrix();
     const af = w.home;
-    // take off into the wind
-    let dx = af.dirX;
-    let dz = af.dirZ;
-    if (w.wind.x * dx + w.wind.z * dz > 0) {
-      dx = -dx;
-      dz = -dz;
+    // cross-country: fly the planned route (its take-off direction); free flight: into the wind
+    this.clearGuide();
+    if (this.settings.mode === 'route') {
+      if (!this.route) this.refreshRoute();
+      const r = this.route!;
+      this.sortieRoute = r;
+      this.guide = new GuideArrows(r);
+      this.scene.add(this.guide.mesh);
+      this.tracker = new RouteTracker(r);
     }
+    const { dx, dz } = this.sortieRoute ? this.sortieRoute.depart : runwayDir(af, w.wind);
     // line up just inside the asphalt threshold
     const back = af.paved / 2 - 20;
     const x = af.x - dx * back;
@@ -491,6 +584,10 @@ export class Game {
       endT: 0,
       wreckAt: null,
       hintStage: 0,
+      airT: 0,
+      pathT: 0,
+      atDest: false,
+      offPathHintT: 0,
     };
     this.rig.reset();
     this.rig.mode = 'chase';
@@ -508,7 +605,8 @@ export class Game {
     this.hud.invalidateMinimap();
     this.ui.show('none');
     const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : '';
-    this.ui.hint(`Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}`, 6000);
+    const follow = this.sortieRoute ? ` Follow the arrows to ${this.destName()}.` : '';
+    this.ui.hint(`Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}${follow}`, 6000);
   }
 
   // ------------------------------------------------------------- outcomes
@@ -577,7 +675,13 @@ export class Game {
     if (!onField) score = Math.min(score, 2);
     m.grade = score >= 5 ? 'A+' : score === 4 ? 'A' : score === 3 ? 'B' : score === 2 ? 'C' : 'D';
     const words: Record<string, string> = { 'A+': 'GREASER!', A: 'SMOOTH!', B: 'NOT BAD!', C: 'FIRM...', D: 'OOF!' };
-    m.resultText = onField ? `Landed at ${w.home === w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af ? 'home field' : 'an airfield'}` : 'Landed in a field';
+    const at = w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af;
+    m.resultText = onField ? `Landed at ${at === w.home ? 'home field' : 'an airfield'}` : 'Landed in a field';
+    if (this.sortieRoute) {
+      m.atDest = onField && at === this.sortieRoute.to;
+      const atName = this.names[w.gen.airfields.indexOf(at)];
+      m.resultText = m.atDest ? `Landed at ${atName}` : onField ? `Landed at ${atName}, not ${this.destName()}` : 'Landed in a field';
+    }
     this.ui.toast(`${words[m.grade]}  ${m.grade}`);
     this.audio.fanfare(true);
     this.endSortie(2.5, null);
@@ -596,18 +700,31 @@ export class Game {
     if (landedOk && gradeA) medal = 3;
     else if (landedOk && m.grade === 'B') medal = 2;
     else if (landedOk) medal = 1;
+    // cross-country: land at the destination; the medal is also capped by how well the path was followed
+    const route = this.sortieRoute;
+    const pathPct = m.airT > 0 ? Math.round((100 * m.pathT) / m.airT) : 0;
+    if (route) {
+      const pathMedal = pathPct >= 75 ? 3 : pathPct >= 50 ? 2 : 1;
+      medal = m.atDest ? Math.min(medal, pathMedal) : 0;
+    }
     const flight = m.tookOff ? this.simTime - m.takeoffT : 0;
     const mmss = `${Math.floor(flight / 60)}:${String(Math.floor(flight % 60)).padStart(2, '0')}`;
     const rows: [string, string][] = [['Result', `${m.result ?? '—'}${m.resultText ? ` (${m.resultText})` : ''}`]];
+    if (route) {
+      rows.push(['Route', `Home Field → ${this.destName()}`]);
+      rows.push(['On the path', m.tookOff ? `${pathPct}%` : '—']);
+    }
     rows.push(['Damage taken', `${Math.round(damage * 100)}%`]);
     if (m.touch) rows.push(['Touchdown', `${m.touch.sink.toFixed(1)} m/s sink, ${Math.round((m.touch.bank * 180) / Math.PI)}° bank`]);
     rows.push(['Landing grade', landedOk ? m.grade : '—']);
     rows.push(['Flight time', mmss]);
     rows.push(['Aircraft', describeLoadout(p.loadout)]);
     rows.push(['World seed', String(this.settings.seed)]);
-    const newBest = submitBest(this.settings.seed, { medal, landing: landedOk ? m.grade : '—' });
-    const title = landedOk ? (medal >= 2 ? 'Nicely done!' : 'Back on the ground') : m.result === 'bailed out' ? 'Hit the silk!' : 'Better luck next time';
-    this.ui.showDebrief({ title, medal, rows, newBest });
+    const key = route ? bestKey(this.settings.seed, 'route', this.settings.dest) : bestKey(this.settings.seed);
+    const newBest = submitBest(key, { medal, landing: landedOk ? m.grade : '—', ...(route ? { path: pathPct } : {}) });
+    let title = landedOk ? (medal >= 2 ? 'Nicely done!' : 'Back on the ground') : m.result === 'bailed out' ? 'Hit the silk!' : 'Better luck next time';
+    if (route && landedOk) title = !m.atDest ? 'Wrong airfield!' : medal >= 2 ? `Welcome to ${this.destName()}!` : 'Made it!';
+    this.ui.showDebrief({ title, medal, rows, newBest, bestOf: route ? 'route' : 'world' });
     this.audio.fanfare(medal >= 2);
   }
 
@@ -731,7 +848,22 @@ export class Game {
         m.takeoffT = this.simTime;
         m.touch = null;
         this.ui.toast('AIRBORNE!');
-        this.ui.hint('Enjoy the view! Land on any airfield strip to finish.', 6000);
+        if (this.sortieRoute) this.ui.hint(`Follow the white arrows to ${this.destName()} and land there.`, 6000);
+        else this.ui.hint('Enjoy the view! Land on any airfield strip to finish.', 6000);
+      }
+      // cross-country: progress along the path and how much of the flight stayed on it
+      const tr = this.tracker;
+      if (tr) {
+        tr.update(p.s.pos.x, p.s.pos.y, p.s.pos.z);
+        if (m.tookOff && !p.s.onGround) {
+          m.airT += dt;
+          if (tr.onPath()) m.pathT += dt;
+        }
+        m.offPathHintT -= dt;
+        if (m.tookOff && tr.lateral > 400 && m.offPathHintT <= 0) {
+          m.offPathHintT = 20;
+          this.ui.hint('Off the path! Turn toward the PATH marker and pick up the arrows again.', 5000);
+        }
       }
       if (m.tookOff && p.s.onGround && p.s.vel.length() < 2.5) {
         m.stoppedT += dt;
@@ -772,6 +904,8 @@ export class Game {
     if (this.state === 'title') {
       if (i.wasPressed('Enter') || i.padWasPressed(0)) this.fly();
       if (i.wasPressed('KeyH') || i.padWasPressed(3)) this.openHangar();
+      if (i.wasPressed('ArrowLeft') || i.padWasPressed(14)) this.stepDest(-1);
+      if (i.wasPressed('ArrowRight') || i.padWasPressed(15)) this.stepDest(1);
     } else if (this.state === 'hangar') {
       // to fly, go back to the main menu first
       if (i.wasPressed('Escape') || i.wasPressed('Enter') || i.wasPressed('Backspace') || i.padWasPressed(1)) this.closeHangar();
@@ -785,8 +919,20 @@ export class Game {
 
   private objectiveText(): string {
     const m = this.mission;
+    const tr = this.tracker;
+    if (this.sortieRoute && tr) {
+      const name = this.destName();
+      if (!m.tookOff) return `Take off — follow the arrows to ${name}`;
+      const km = Math.max(0, (this.sortieRoute.sAim - tr.progress) / 1000).toFixed(1);
+      return tr.onPath() ? `Fly to ${name} — ${km} km` : `Back to the path! ${name} ${km} km`;
+    }
     if (!m.tookOff) return 'Take off!';
     return 'Free flight — land on any strip to finish';
+  }
+
+  private destName(): string {
+    const r = this.sortieRoute;
+    return r && this.world ? this.names[this.world.gen.airfields.indexOf(r.to)] : '';
   }
 
   private frame(dt: number, alpha: number) {
@@ -835,6 +981,7 @@ export class Game {
         }
         w.update(this.camera.position, p ? p.s.vel : null, this.paused ? 0 : dt);
         if (p) w.updatePapi(p.s.pos);
+        if (this.guide && this.tracker) this.guide.update(this.tracker.progress, this.time);
         if (this.state === 'ending' && !this.paused) {
           m.endT -= dt;
           if (m.endT <= 0) this.showDebrief();
@@ -878,7 +1025,9 @@ export class Game {
           mouseStick: this.input.mouseStick,
           mouse: this.input.mouse,
           stallWarn: p.s.stalled && !p.s.onGround,
-          showLanding: m.tookOff && agl < 450,
+          // cross-country: the landing guide is for the destination only
+          showLanding: m.tookOff && agl < 450 && (!this.sortieRoute || w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af === this.sortieRoute.to),
+          guide: this.hudGuide(),
         },
         dt,
       );
@@ -915,6 +1064,16 @@ export class Game {
       this.stats.textContent = `${(1000 / this.frameAvg).toFixed(0)} fps  cpu ${cpu.toFixed(1)}ms  calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k  chunks ${w.chunks.chunkCount}  props ${w.props.instanceTotal}  tier ${this.tierName} x${this.renderScale.toFixed(1)}`;
     }
     this.input.endFrame();
+  }
+
+  private hudGuide() {
+    const r = this.sortieRoute;
+    const tr = this.tracker;
+    if (!r || !tr) return undefined;
+    // off the path: point at it a little ahead of the nearest point
+    const off = this.state === 'sortie' && this.mission.tookOff && !tr.onPath();
+    const rejoin = off ? (pointAt(r, tr.progress + 500, this.rejoin), this.rejoin) : null;
+    return { route: r, dest: r.to, rejoin };
   }
 
   // ---------------------------------------------------------------- debug
