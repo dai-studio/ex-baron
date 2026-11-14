@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_irgw7jip</bpmn:incoming>
+      <bpmn:incoming>flow_mmplzxh6</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -99,10 +99,35 @@
     <bpmn:sequenceFlow id="flow_ry7d50pd" sourceRef="task_44e737qz" targetRef="task_dm9i0pir" />
     <bpmn:task id="task_snxp38pz" name="18. Engine comes with the plane" dai:notes="Drop the Engine category: Biplane = prop, Turboprop = turbo, Jet = jet. Remove mixed-engine art (jet pods on prop planes, prop on the jet) and prop-size limits. Loadout = style + paint + wheels (72 combos); ?plane=style.paint.wheels, old 4-part links still work. (design §8)" dai:agentStatus="done">
       <bpmn:incoming>flow_gzgfhhnp</bpmn:incoming>
-      <bpmn:outgoing>flow_irgw7jip</bpmn:outgoing>
+      <bpmn:outgoing>flow_smw80fx5</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_gzgfhhnp" sourceRef="task_07tcv09h" targetRef="task_snxp38pz" />
-    <bpmn:sequenceFlow id="flow_irgw7jip" sourceRef="task_snxp38pz" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_9q2fvc4u" name="19. Biplane +25% engine power" dai:notes="The biplane felt underpowered: raise its engine thrust by 25% (DEFAULT_SPEC.maxThrust 2600 → 3250 N; the prop engine&#39;s thrust-to-weight derives from it). Turboprop and jet unchanged. Keep composeSpec(default) === DEFAULT_SPEC. (design §8.2)" dai:agentStatus="done">
+      <bpmn:incoming>flow_smw80fx5</bpmn:incoming>
+      <bpmn:outgoing>flow_r9z9st55</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_smw80fx5" sourceRef="task_snxp38pz" targetRef="task_9q2fvc4u" />
+    <bpmn:task id="task_occljhoy" name="20. Route planner" dai:notes="Pure, testable game/route.ts: build the flight path from the home runway (take off into the wind) to a chosen destination airfield (land into the wind). Departure climb straight out, smooth curved cruise leg (no turns tighter than a gentle bank), straight-in final on a 4° glide slope to the threshold. Cruise altitude clears the terrain along the way with climb/descent rate limits. Airfield names from their bearing from home. Tests: every destination on many seeds, terrain clearance, turn radius, glide slope, ends on the runway." dai:agentStatus="done">
+      <bpmn:incoming>flow_r9z9st55</bpmn:incoming>
+      <bpmn:outgoing>flow_3im13sxj</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_r9z9st55" sourceRef="task_9q2fvc4u" targetRef="task_occljhoy" />
+    <bpmn:task id="task_son5gpi7" name="21. 3D guide arrows" dai:notes="Transparent white chevron arrows placed along the route in 3D space, pointing along the path; only the stretch ahead of the plane is shown, fading in with distance; progress along the path tracked from the plane position. Visible from behind and above." dai:agentStatus="done">
+      <bpmn:incoming>flow_3im13sxj</bpmn:incoming>
+      <bpmn:outgoing>flow_hwi12com</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_3im13sxj" sourceRef="task_occljhoy" targetRef="task_son5gpi7" />
+    <bpmn:task id="task_f7byx3za" name="22. Mission select &#38; route map" dai:notes="Main menu Mission choice: Free flight / Cross-country. Cross-country shows a destination picker (◀ name ▶, also ← → keys) and a map of the terrain with both airfields and the flight path, distance and estimated time. Saved in settings." dai:agentStatus="done">
+      <bpmn:incoming>flow_hwi12com</bpmn:incoming>
+      <bpmn:outgoing>flow_bkp9s4s6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_hwi12com" sourceRef="task_son5gpi7" targetRef="task_f7byx3za" />
+    <bpmn:task id="task_no4tehb3" name="23. Cross-country mission logic &#38; verification" dai:notes="Sortie in route mode: arrows shown, objective with destination and distance, HUD marker toward the path when off it, route on the minimap. Success = landing at the destination; path-following accuracy shown in the debrief and part of the medal. Best record per seed + destination. Tests, tsc, build, browser check." dai:agentStatus="done">
+      <bpmn:incoming>flow_bkp9s4s6</bpmn:incoming>
+      <bpmn:outgoing>flow_mmplzxh6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_bkp9s4s6" sourceRef="task_f7byx3za" targetRef="task_no4tehb3" />
+    <bpmn:sequenceFlow id="flow_mmplzxh6" sourceRef="task_no4tehb3" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -187,7 +212,7 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="2163" y="340" width="40" height="40" />
+        <dc:Bounds x="2319" y="501" width="40" height="40" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
         <dc:Bounds x="180" y="320" width="100" height="80" />
@@ -240,9 +265,46 @@
         <di:waypoint x="1180" y="360" />
         <di:waypoint x="1260" y="360" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_irgw7jip_di" bpmnElement="flow_irgw7jip">
+      <bpmndi:BPMNShape id="task_9q2fvc4u_di" bpmnElement="task_9q2fvc4u">
+        <dc:Bounds x="1440" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_smw80fx5_di" bpmnElement="flow_smw80fx5">
         <di:waypoint x="1360" y="360" />
-        <di:waypoint x="2163" y="360" />
+        <di:waypoint x="1440" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_occljhoy_di" bpmnElement="task_occljhoy">
+        <dc:Bounds x="1620" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_r9z9st55_di" bpmnElement="flow_r9z9st55">
+        <di:waypoint x="1540" y="360" />
+        <di:waypoint x="1620" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_son5gpi7_di" bpmnElement="task_son5gpi7">
+        <dc:Bounds x="1800" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_3im13sxj_di" bpmnElement="flow_3im13sxj">
+        <di:waypoint x="1720" y="360" />
+        <di:waypoint x="1800" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_f7byx3za_di" bpmnElement="task_f7byx3za">
+        <dc:Bounds x="1980" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_hwi12com_di" bpmnElement="flow_hwi12com">
+        <di:waypoint x="1900" y="360" />
+        <di:waypoint x="1980" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_no4tehb3_di" bpmnElement="task_no4tehb3">
+        <dc:Bounds x="180" y="481" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_bkp9s4s6_di" bpmnElement="flow_bkp9s4s6">
+        <di:waypoint x="2030" y="400" />
+        <di:waypoint x="2030" y="443" />
+        <di:waypoint x="230" y="443" />
+        <di:waypoint x="230" y="481" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_mmplzxh6_di" bpmnElement="flow_mmplzxh6">
+        <di:waypoint x="280" y="521" />
+        <di:waypoint x="2319" y="521" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

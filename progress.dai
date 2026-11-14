@@ -151,8 +151,48 @@
     <bpmn:sequenceFlow id="flow_lrgd2601" sourceRef="task_90h01vcy" targetRef="task_ninoqfv1" />
     <bpmn:task id="task_pi4xelr0" name="Smaller DAI Studio badge" dai:notes="Badge shrunk from 188×36 to 147×26 px (12 px text, 5×12 px padding, 12 px from the corner; 11 px text on phones). Minimap moved up to y 46 to stay just below it. Checked in Chrome: badge 1281,12 147×26; HUD empty under it, minimap starts below." dai:agentStatus="done">
       <bpmn:incoming>flow_a8shfvpr</bpmn:incoming>
+      <bpmn:outgoing>flow_lab9ajwq</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_a8shfvpr" sourceRef="task_ninoqfv1" targetRef="task_pi4xelr0" />
+    <bpmn:task id="task_mdz5p7cu" name="Biplane +25% engine power" dai:notes="flight.ts: DEFAULT_SPEC.maxThrust 2600 → 3250 N (+25%). This is the biplane&#39;s base spec; ENGINE_DEFS.prop.thrustToWeight is derived from it, so the prop engine (biplane only) gets the boost and composeSpec(default) === DEFAULT_SPEC still holds. A first try scaling ENGINE_DEFS.prop directly broke that test, so the change went into the base spec instead. Turboprop and jet unchanged. Thrust still falls to zero at propVmax 95 m/s, so the gain is mostly acceleration, climb and shorter takeoff rather than top speed. Tests 43/43 (incl. every-loadout takeoff/landing matrix), tsc clean. Not hand-flown." dai:agentStatus="done" dai:planRef="task_9q2fvc4u">
+      <bpmn:incoming>flow_lab9ajwq</bpmn:incoming>
+      <bpmn:outgoing>flow_9m4xrbal</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_lab9ajwq" sourceRef="task_pi4xelr0" targetRef="task_mdz5p7cu" />
+    <bpmn:task id="task_vcz2a243" name="Route planner" dai:notes="game/route.ts (pure): planRoute(gen, from, to, wind, turnRadius) builds: take-off roll from the sortie line-up spot → straight climb-out past the runway end → Dubins curve (CSC words, each checked by walking it) to a final approach fix 3 km out → straight-in final to an aiming point 150 m past the threshold → 350 m rollout; sampled every 20 m. Height: hard floor = terrain under the path + safety margin (60 m, ramped near the runways), soft floor = max(terrain within ±200 m + 120 m, higher airfield + 200 m). The hard floor sets the climb-out / final gradient (4.6° / 4° unless the terrain forces steeper); the soft one is followed within those gradients and smoothed. Candidates: both runway directions at each end × climb-out 800 / 300 m; score = length + 1.8 km per m/s of tailwind for a downwind end + steepness cost. Found while testing: hills right past some runways (190 m in 300 m) and airfields in bowls, so a fixed into-wind straight-in was not always flyable; the candidate search fixes most, and the rest get a steeper final (worst 14°). Also airfieldNames() (Home Field, then compass bearing, &#39;Far …&#39; on clashes), TURN_RADIUS (biplane 700, turboprop 1000, jet 1500 m), CRUISE_SPEED, pointAt(), RouteTracker (nearest point searched forward, lateral / vertical offset, onPath = within 150 m and 70 m). tests/route.test.ts: Dubins end poses, names, 80 routes × biplane and jet radius (start/end on the runways, gradients within the plan, ≥55 m clearance away from the runways, turn radius, straight lined-up final, length bounds; ~88% under 6°), tracker. ~18 ms per route." dai:agentStatus="done" dai:planRef="task_occljhoy">
+      <bpmn:incoming>flow_9m4xrbal</bpmn:incoming>
+      <bpmn:outgoing>flow_hwd4xdxq</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_9m4xrbal" sourceRef="task_mdz5p7cu" targetRef="task_vcz2a243" />
+    <bpmn:task id="task_r7tkemex" name="3D guide arrows" dai:notes="render/guide.ts GuideArrows(route): a chevron (14 m wide) every 120 m from the line-up spot to the touchdown point, oriented along the path (direction averaged over ±40 m) and tilted 55° tip-up so it reads as a &#39;^&#39; from behind and still shows from above. Two instanced meshes sharing the matrices: a 14% larger ink outline at 30% and the white arrow at 80% (the first all-white 62% version was too faint against a pale sky, seen in a capture). ShaderMaterial, transparent, no depth write (so no ink edges from the post pass). Shader fades: arrows already passed go out, the 3.6 km ahead fades in at its far end, arrows within ~12-55 m of the camera fade so flying through them doesn&#39;t white out the screen, and a soft brightness wave runs forward along them (uTime). Progress comes from RouteTracker each frame. Checked with canvas captures (/__shot) in Chrome: the runway roll, a straight leg and a turn (a curving line of chevrons). 2 draw calls." dai:agentStatus="done" dai:planRef="task_son5gpi7">
+      <bpmn:incoming>flow_hwd4xdxq</bpmn:incoming>
+      <bpmn:outgoing>flow_ffg2yue0</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_hwd4xdxq" sourceRef="task_vcz2a243" targetRef="task_r7tkemex" />
+    <bpmn:task id="task_v1zv1wlx" name="Mission select &#38; route map" dai:notes="index.html/style.css: Mission row (Free flight / Cross-country) on the main menu; a &#39;Flight plan&#39; panel beside the menu (wraps below on narrow screens) shown in Cross-country: ◀ Home Field → &#60;destination&#62; ▶, a 720×540 map canvas, info line (km and compass direction, about N min at the plane&#39;s cruise speed, highest altitude, &#39;downwind landing&#39; when it is one) and a note to follow the arrows. ui/routeMap.ts drawRouteMap(): terrain sampled every 4 px with NW hillshade, framed on the route + 1.4 km, other airfields white, home teal, destination gold with name labels, route as white line with ink casing and teal direction chevrons, north arrow, scale bar. Settings gain mode (&#39;free&#39;|&#39;route&#39;) and dest (1-4), validated on load; ← / → (gamepad d-pad) step the destination on the menu. Best records: bestKey() = free:&#60;seed&#62; or route:&#60;seed&#62;:&#60;dest&#62;, with path % stored; the menu best line follows the mode. game.ts refreshRoute() re-plans on mode, destination, world and plane change (turn radius depends on the plane) using World.baseWind (now public) so the gusts don&#39;t change the plan. Checked in Chrome: panel, info and map render (map captured: Home → West Field, curve, chevrons)." dai:agentStatus="done" dai:planRef="task_f7byx3za">
+      <bpmn:incoming>flow_ffg2yue0</bpmn:incoming>
+      <bpmn:outgoing>flow_75a3obhi</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_ffg2yue0" sourceRef="task_r7tkemex" targetRef="task_v1zv1wlx" />
+    <bpmn:task id="task_cbtrus4w" name="Cross-country mission logic &#38; verification" dai:notes="game.ts: in Cross-country the sortie lines up on the route&#39;s take-off direction (free flight keeps into-the-wind via runwayDir), adds the arrows and a RouteTracker; hints name the destination; objective &#39;Take off — follow the arrows to X&#39; / &#39;Fly to X — n km&#39; / &#39;Back to the path! X n km&#39;; off the path by &#62;400 m a hint (every 20 s). Path accuracy = time on the path ÷ time airborne. finishLanding: atDest when on the field of the destination; debrief rows Route and On the path; medal = min(landing medal, path medal: ≥75% gold, ≥50% silver, else bronze), 0 at a wrong airfield (&#39;Wrong airfield!&#39;). hud.ts: gold destination caret on the compass, route line and gold destination strip on the minimap, a PATH marker on the path 500 m ahead of the nearest point when off it (edge arrow when off-screen); landing guide only near the destination in this mode (it showed for a field being passed). README: Cross-country section and controls. Verified: vitest 48/48, tsc, vite build OK (645 KB, 178 KB gzip). Chrome (captures): sortie starts on the route&#39;s first point, tracker progress/lateral right, off-path objective and PATH marker, minimap route. NOT verified: the landing → debrief flow in the browser (the Chrome extension disconnected before that test), and a hand-flown route.&#10;Update: Chrome reconnected; landing → debrief checked by placing the plane at rest on a runway after a simulated 82%-on-path flight: at the destination → &#39;Welcome to North Field!&#39;, gold, rows Route / On the path 82% / A+; at another field → &#39;Wrong airfield!&#39;, no medal, &#39;Landed at East Field, not North Field&#39;. The new-best line now says &#39;route&#39; in this mode. The test&#39;s fake record was replaced with the earlier one (bronze, D, 79%). Still not done: a hand-flown route start to finish." dai:agentStatus="done" dai:planRef="task_no4tehb3">
+      <bpmn:incoming>flow_75a3obhi</bpmn:incoming>
+      <bpmn:outgoing>flow_57n8bxpq</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_75a3obhi" sourceRef="task_v1zv1wlx" targetRef="task_cbtrus4w" />
+    <bpmn:task id="task_cd5tq5ya" name="Steady menu &#38; flight plan layout" dai:notes="Text changes were resizing the menu. style.css: main menu and flight plan are both a fixed 480 px wide (flex: none, was 420 / 460); #title stretches them to equal height (align-items: stretch; align-content: safe center so a tall menu still scrolls from the top). One-line labels (best record, aircraft name, destination, route info) never wrap: nowrap + ellipsis, fixed 24 px line height (the emoji in the best line had added 5 px). Flight plan is a flex column; the map canvas fills the space left (min 240 px), so it matches the menu&#39;s height. game.ts drawMap() sizes the canvas to its on-screen size × devicePixelRatio (max 2) before drawing; a ResizeObserver (80 ms debounce) redraws it on window resize or when the Controls list opens. routeMap.ts UI scale = canvas px per CSS px. Checked in Chrome at 1440×760: menu and plan 480×592 for all four destinations, with and without a best record, and the menu stays 480×592 in Free flight; map 432×399 drawn at 852×790; opening Controls stretches both to 896 and the map follows. Tests 48/48, tsc OK." dai:agentStatus="done">
+      <bpmn:incoming>flow_57n8bxpq</bpmn:incoming>
+      <bpmn:outgoing>flow_gxexzhkg</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_57n8bxpq" sourceRef="task_cbtrus4w" targetRef="task_cd5tq5ya" />
+    <bpmn:task id="task_we4ynvso" name="Center the menu &#38; flight plan" dai:notes="style.css #title: justify-content center (was flex-start with a left padding), 28 px gap. Checked in Chrome at 1440 px: Cross-country → menu 226-706, plan 734-1214 (pair centred on 720); Free flight → menu alone centred, 480-960." dai:agentStatus="done">
+      <bpmn:incoming>flow_gxexzhkg</bpmn:incoming>
+      <bpmn:outgoing>flow_pq6dy1dp</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_gxexzhkg" sourceRef="task_cd5tq5ya" targetRef="task_we4ynvso" />
+    <bpmn:task id="task_4ihayk5l" name="Menu stays put in Free flight" dai:notes="style.css: in Free flight the flight plan is visibility: hidden instead of display: none, so it keeps its place and the menu stays where it is in Cross-country. Under 1040 px wide (where the two panels stack) it is still display: none, so phones don&#39;t get an empty block. Checked in Chrome at 1440 px: menu at 226,112 (480×592) in both modes; the hidden plan doesn&#39;t catch clicks." dai:agentStatus="done">
+      <bpmn:incoming>flow_pq6dy1dp</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_pq6dy1dp" sourceRef="task_we4ynvso" targetRef="task_4ihayk5l" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -367,6 +407,64 @@
       <bpmndi:BPMNEdge id="flow_a8shfvpr_di" bpmnElement="flow_a8shfvpr">
         <di:waypoint x="908" y="520" />
         <di:waypoint x="988" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_mdz5p7cu_di" bpmnElement="task_mdz5p7cu">
+        <dc:Bounds x="1168" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_lab9ajwq_di" bpmnElement="flow_lab9ajwq">
+        <di:waypoint x="1088" y="520" />
+        <di:waypoint x="1168" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_vcz2a243_di" bpmnElement="task_vcz2a243">
+        <dc:Bounds x="1348" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_9m4xrbal_di" bpmnElement="flow_9m4xrbal">
+        <di:waypoint x="1268" y="520" />
+        <di:waypoint x="1348" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_r7tkemex_di" bpmnElement="task_r7tkemex">
+        <dc:Bounds x="1528" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_hwd4xdxq_di" bpmnElement="flow_hwd4xdxq">
+        <di:waypoint x="1448" y="520" />
+        <di:waypoint x="1528" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_v1zv1wlx_di" bpmnElement="task_v1zv1wlx">
+        <dc:Bounds x="268" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ffg2yue0_di" bpmnElement="flow_ffg2yue0">
+        <di:waypoint x="1578" y="560" />
+        <di:waypoint x="1578" y="590" />
+        <di:waypoint x="318" y="590" />
+        <di:waypoint x="318" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_cbtrus4w_di" bpmnElement="task_cbtrus4w">
+        <dc:Bounds x="448" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_75a3obhi_di" bpmnElement="flow_75a3obhi">
+        <di:waypoint x="368" y="660" />
+        <di:waypoint x="448" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_cd5tq5ya_di" bpmnElement="task_cd5tq5ya">
+        <dc:Bounds x="628" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_57n8bxpq_di" bpmnElement="flow_57n8bxpq">
+        <di:waypoint x="548" y="660" />
+        <di:waypoint x="628" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_we4ynvso_di" bpmnElement="task_we4ynvso">
+        <dc:Bounds x="808" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_gxexzhkg_di" bpmnElement="flow_gxexzhkg">
+        <di:waypoint x="728" y="660" />
+        <di:waypoint x="808" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_4ihayk5l_di" bpmnElement="task_4ihayk5l">
+        <dc:Bounds x="988" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_pq6dy1dp_di" bpmnElement="flow_pq6dy1dp">
+        <di:waypoint x="908" y="660" />
+        <di:waypoint x="988" y="660" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

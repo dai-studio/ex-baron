@@ -56,6 +56,13 @@
         <p class="tagline">Take off. Explore. Land it in one piece.</p>
 
         <div class="row">
+          <label>Mission</label>
+          <div class="seg" id="mode-seg">
+            <button data-v="free">Free flight</button>
+            <button data-v="route">Cross-country</button>
+          </div>
+        </div>
+        <div class="row">
           <label>Flying</label>
           <div class="seg" id="assist-seg">
             <button data-v="arcade">Arcade</button>
@@ -97,10 +104,24 @@
             <tr><td>Camera</td><td>C (chase / cockpit)</td></tr>
             <tr><td>Mouse stick</td><td>M toggles</td></tr>
             <tr><td>Bail out</td><td>X</td></tr>
+            <tr><td>Destination</td><td>← / → on the menu (Cross-country)</td></tr>
             <tr><td>Pause / Restart</td><td>Esc or P / R</td></tr>
             <tr><td>Gamepad</td><td>L-stick fly, R-stick X rudder / Y throttle</td></tr>
           </table>
         </details>
+      </div>
+
+      <!-- Cross-country flight plan: destination picker and route map (plan step 22) -->
+      <div class="panel route-panel hidden" id="route-panel">
+        <h2>Flight plan</h2>
+        <div class="dest-pick">
+          <button id="dest-prev" title="Previous destination (←)">◀</button>
+          <div class="dest-name"><span id="dest-from">Home Field</span> → <b id="dest-name"></b></div>
+          <button id="dest-next" title="Next destination (→)">▶</button>
+        </div>
+        <canvas id="route-map" width="720" height="540"></canvas>
+        <div class="route-info" id="route-info"></div>
+        <p class="route-note">Follow the white arrows from take-off to touchdown.</p>
       </div>
     </section>
 

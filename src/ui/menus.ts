@@ -1,4 +1,4 @@
-import { getBest, randomSeed, saveSettings, type Settings } from '../core/settings';
+import { bestKey, getBest, randomSeed, saveSettings, type Settings } from '../core/settings';
 
 /** Title/hangar, loading, pause and debrief screens (design §2, §3 HUD & UI). */
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -15,6 +15,8 @@ export interface MenuHandlers {
   seedChanged(seed: number): void;
   qualityChanged(): void;
   volumeChanged(v: number): void;
+  modeChanged(): void;
+  destStep(dir: number): void;
   click(): void;
 }
 
@@ -23,6 +25,8 @@ export interface DebriefData {
   medal: number;
   rows: [string, string][];
   newBest: boolean;
+  /** 'world' or 'route', for the new-best line */
+  bestOf?: string;
 }
 
 const MEDALS = ['🎈', '🥉', '🥈', '🥇'];
@@ -35,6 +39,18 @@ export class Menus {
     private settings: Settings,
     private h: MenuHandlers,
   ) {
+    this.bindSeg('mode-seg', () => settings.mode, (v) => {
+      settings.mode = v as Settings['mode'];
+      h.modeChanged();
+    });
+    $('dest-prev').addEventListener('click', () => {
+      h.click();
+      h.destStep(-1);
+    });
+    $('dest-next').addEventListener('click', () => {
+      h.click();
+      h.destStep(1);
+    });
     this.bindSeg('assist-seg', () => settings.assist, (v) => (settings.assist = v as Settings['assist']));
     this.bindSeg('quality-seg', () => settings.quality, (v) => {
       settings.quality = v as Settings['quality'];
@@ -110,8 +126,25 @@ export class Menus {
   }
 
   refreshBest() {
-    const b = getBest(this.settings.seed);
-    $('best-line').textContent = b ? `Best on this world: ${MEDALS[b.medal]} landing ${b.landing}` : '';
+    const st = this.settings;
+    const b = getBest(bestKey(st.seed, st.mode, st.dest));
+    const where = st.mode === 'route' ? 'Best on this route' : 'Best on this world';
+    const path = b?.path !== undefined ? `, ${b.path}% on the path` : '';
+    $('best-line').textContent = b ? `${where}: ${MEDALS[b.medal]} landing ${b.landing}${path}` : '';
+  }
+
+  /** Cross-country flight plan panel beside the main menu. */
+  setRoutePanel(visible: boolean) {
+    $('route-panel').classList.toggle('hidden', !visible);
+  }
+
+  setRouteInfo(dest: string, info: string) {
+    $('dest-name').textContent = dest;
+    $('route-info').textContent = info;
+  }
+
+  get routeCanvas(): HTMLCanvasElement {
+    return $<HTMLCanvasElement>('route-map');
   }
 
   setSeed(seed: number) {
@@ -150,7 +183,7 @@ export class Menus {
       const a = document.createElement('td');
       a.colSpan = 2;
       a.style.textAlign = 'center';
-      a.textContent = '★ New best for this world! ★';
+      a.textContent = `★ New best for this ${d.bestOf ?? 'world'}! ★`;
       tr.append(a);
       t.append(tr);
     }

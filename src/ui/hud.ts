@@ -3,6 +3,8 @@ import type { Plane } from '../plane/plane';
 import { LANDING_FORGIVENESS } from '../plane/flight';
 import { engineOf } from '../plane/loadout';
 import type { World } from '../world/world';
+import type { Route } from '../game/route';
+import type { Airfield } from '../world/terrain';
 
 /**
  * HUD & UI (design §3): hand-drawn style overlay on a 2D canvas —
@@ -28,6 +30,8 @@ export interface HudContext {
   mouse: { x: number; y: number };
   stallWarn: boolean;
   showLanding: boolean;
+  /** cross-country flight: the route, destination and (when off the path) where to rejoin it */
+  guide?: { route: Route; dest: Airfield; rejoin: THREE.Vector3 | null };
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -104,6 +108,7 @@ export class Hud {
     // ---------- markers in the world
     this.drawMouseStick(c);
     if (c.showLanding) this.drawLandingGuide(c);
+    if (c.guide?.rejoin) this.drawRejoin(c.guide.rejoin, c.camera);
 
     // ---------- bottom-left gauges
     g.save();
@@ -252,6 +257,7 @@ export class Hud {
     };
     const near = c.world.gen.nearestAirfield(c.player.s.pos.x, c.player.s.pos.z).af;
     mark(new THREE.Vector3(near.x, 0, near.z), ACCENT);
+    if (c.guide) mark(new THREE.Vector3(c.guide.dest.x, 0, c.guide.dest.z), GOLD);
     g.restore();
     // centre caret
     g.fillStyle = INK;
@@ -262,6 +268,56 @@ export class Hud {
     g.closePath();
     g.fill();
     g.textAlign = 'left';
+  }
+
+  /** Off the path: a marker on the path ahead to fly back to (an edge arrow when off-screen). */
+  private drawRejoin(p: THREE.Vector3, cam: THREE.PerspectiveCamera) {
+    const g = this.g;
+    _v.copy(p).applyMatrix4(cam.matrixWorldInverse);
+    const behind = _v.z > 0;
+    const q = this.project(p, cam);
+    const m = 60;
+    const onScreen = !behind && q.x > m && q.x < this.w - m && q.y > m && q.y < this.h - m;
+    g.save();
+    g.lineWidth = 3;
+    g.strokeStyle = INK;
+    g.fillStyle = '#ffffff';
+    if (onScreen) {
+      g.beginPath();
+      g.arc(q.x, q.y, 13, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+      g.beginPath();
+      g.arc(q.x, q.y, 4, 0, Math.PI * 2);
+      g.fillStyle = INK;
+      g.fill();
+      g.font = `800 13px ${FONT}`;
+      g.textAlign = 'center';
+      g.lineWidth = 4;
+      g.strokeStyle = '#ffffff';
+      g.strokeText('PATH', q.x, q.y - 20);
+      g.fillText('PATH', q.x, q.y - 20);
+    } else {
+      // direction in screen space from the view-space position
+      let dx = _v.x;
+      let dy = -_v.y;
+      if (behind && Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3) dy = 1;
+      const a = Math.atan2(dy, dx);
+      const cx = this.w / 2;
+      const cy = this.h / 2;
+      const k = Math.min((this.w / 2 - m) / Math.abs(Math.cos(a) || 1e-6), (this.h / 2 - m) / Math.abs(Math.sin(a) || 1e-6));
+      g.translate(cx + Math.cos(a) * k, cy + Math.sin(a) * k);
+      g.rotate(a);
+      g.beginPath();
+      g.moveTo(18, 0);
+      g.lineTo(-10, -13);
+      g.lineTo(-4, 0);
+      g.lineTo(-10, 13);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
   }
 
   private drawMouseStick(c: HudContext) {
@@ -393,13 +449,30 @@ export class Hud {
     g.imageSmoothingEnabled = true;
     g.drawImage(this.mini, x0 + ox, y0 + oz, size, size);
     const toMap = (wx: number, wz: number) => ({ x: x0 + size / 2 + (wx - s.pos.x) * k, y: y0 + size / 2 + (wz - s.pos.z) * k });
+    // cross-country route
+    if (c.guide) {
+      const pts = c.guide.route.pts;
+      g.beginPath();
+      for (let i = 0; i < pts.length; i += 4) {
+        const p = toMap(pts[i].x, pts[i].z);
+        if (i === 0) g.moveTo(p.x, p.y);
+        else g.lineTo(p.x, p.y);
+      }
+      g.lineJoin = 'round';
+      g.strokeStyle = INK;
+      g.lineWidth = 4;
+      g.stroke();
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 2;
+      g.stroke();
+    }
     // airfields
     for (const af of c.world.gen.airfields) {
       const p = toMap(af.x, af.z);
       g.save();
       g.translate(p.x, p.y);
       g.rotate(af.heading);
-      g.fillStyle = af.home ? ACCENT : '#ffffff';
+      g.fillStyle = c.guide?.dest === af ? GOLD : af.home ? ACCENT : '#ffffff';
       g.strokeStyle = INK;
       g.lineWidth = 1.5;
       g.fillRect(-7, -2.5, 14, 5);
