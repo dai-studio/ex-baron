@@ -962,6 +962,7 @@ export class Game {
 
     const t0 = performance.now();
     const p = this.player;
+    this.dynamicResolution(dt);
 
     switch (this.state) {
       case 'hangar': {
@@ -1064,25 +1065,30 @@ export class Game {
       else this.renderer.render(this.scene, this.camera);
     }
 
-    // dynamic resolution
     const cpu = performance.now() - t0;
-    this.frameAvg += (dt * 1000 - this.frameAvg) * 0.05;
-    this.resTimer += dt;
-    if (this.resTimer > 2 && this.state !== 'title' && this.state !== 'hangar') {
-      this.resTimer = 0;
-      if (this.frameAvg > 22 && this.renderScale > 0.6) {
-        this.renderScale = Math.max(0.6, this.renderScale - 0.1);
-        this.resize();
-      } else if (this.frameAvg < 14 && this.renderScale < 1) {
-        this.renderScale = Math.min(1, this.renderScale + 0.1);
-        this.resize();
-      }
-    }
     if (this.stats) {
       const info = this.renderer.info.render;
       this.stats.textContent = `${(1000 / this.frameAvg).toFixed(0)} fps  cpu ${cpu.toFixed(1)}ms  calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k  chunks ${w.chunks.chunkCount}  props ${w.props.instanceTotal}  tier ${this.tierName} x${this.renderScale.toFixed(1)}`;
     }
     this.input.endFrame();
+  }
+
+  /**
+   * Dynamic resolution: step the render scale by 0.1 (0.6..1) every 2 s from the average frame time.
+   * Runs at the start of a frame, before anything is drawn: resizing a canvas clears it, and a
+   * resize after rendering left one empty frame (a full-screen flash of the page background).
+   */
+  private dynamicResolution(dt: number) {
+    this.frameAvg += (dt * 1000 - this.frameAvg) * 0.05;
+    this.resTimer += dt;
+    if (this.resTimer <= 2 || this.state === 'title' || this.state === 'hangar') return;
+    this.resTimer = 0;
+    // whole tenths, so float drift can't make an extra no-op resize at the limits
+    const tenths = Math.round(this.renderScale * 10);
+    const next = this.frameAvg > 22 ? Math.max(6, tenths - 1) : this.frameAvg < 14 ? Math.min(10, tenths + 1) : tenths;
+    if (next === tenths) return;
+    this.renderScale = next / 10;
+    this.resize();
   }
 
   private hudGuide() {
