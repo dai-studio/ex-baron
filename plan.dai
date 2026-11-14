@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_9xwtpuce</bpmn:incoming>
+      <bpmn:incoming>flow_wdqk7evw</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -129,10 +129,20 @@
     <bpmn:sequenceFlow id="flow_bkp9s4s6" sourceRef="task_f7byx3za" targetRef="task_no4tehb3" />
     <bpmn:task id="task_5mr1icak" name="24. Flaps" dai:notes="Flaps for take-off and landing: lever with notches UP / T/O / LAND (F more, V less; gamepad d-pad). Flight model: extra lift (lower stall speed), extra drag at full flap, slightly earlier stall, trim change against ballooning, travel time, blow-back above each plane&#39;s flap speed. Animated flap surfaces on every airframe, FLAPS row on the HUD, tips at take-off and on approach. Tests: take-off run shorter with T/O flaps, slower touchdown with full flaps for every loadout; blow-back; steeper glide." dai:agentStatus="done">
       <bpmn:incoming>flow_7q5zronu</bpmn:incoming>
-      <bpmn:outgoing>flow_9xwtpuce</bpmn:outgoing>
+      <bpmn:outgoing>flow_quz8qbgw</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_7q5zronu" sourceRef="task_no4tehb3" targetRef="task_5mr1icak" />
-    <bpmn:sequenceFlow id="flow_9xwtpuce" sourceRef="task_5mr1icak" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_8231a39k" name="25. Brakes +10% bite" dai:notes="Brake friction ×1.1 on every tyre (hard 0.605, medium 0.495, soft 0.418); DEFAULT_SPEC.brakeFriction 0.45 → 0.495 so composeSpec(default) === DEFAULT_SPEC. Every flight loadout still lands and stops without nosing over, with and without flaps. (design §8.2)" dai:agentStatus="done">
+      <bpmn:incoming>flow_quz8qbgw</bpmn:incoming>
+      <bpmn:outgoing>flow_li2t6iv8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_quz8qbgw" sourceRef="task_5mr1icak" targetRef="task_8231a39k" />
+    <bpmn:task id="task_qk7cb8m0" name="26. Clearer FLAPS row on the HUD" dai:notes="Taller gauge panel with a divider between the throttle/rpm line and the flaps; &#39;(V ↔ F)&#39; key hint next to FLAPS; notches UP → T/O → LAND left to right; red &#39;TOO FAST — slow down!&#39; when blown back. Check in the browser." dai:agentStatus="done">
+      <bpmn:incoming>flow_li2t6iv8</bpmn:incoming>
+      <bpmn:outgoing>flow_wdqk7evw</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_li2t6iv8" sourceRef="task_8231a39k" targetRef="task_qk7cb8m0" />
+    <bpmn:sequenceFlow id="flow_wdqk7evw" sourceRef="task_qk7cb8m0" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -308,18 +318,28 @@
         <di:waypoint x="230" y="481" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="task_5mr1icak_di" bpmnElement="task_5mr1icak">
-        <dc:Bounds x="2340" y="320" width="100" height="80" />
+        <dc:Bounds x="334" y="481" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="flow_7q5zronu_di" bpmnElement="flow_7q5zronu">
         <di:waypoint x="280" y="521" />
-        <di:waypoint x="1310" y="521" />
-        <di:waypoint x="1310" y="360" />
-        <di:waypoint x="2340" y="360" />
+        <di:waypoint x="334" y="521" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_9xwtpuce_di" bpmnElement="flow_9xwtpuce">
-        <di:waypoint x="2440" y="360" />
-        <di:waypoint x="2470" y="360" />
-        <di:waypoint x="2470" y="521" />
+      <bpmndi:BPMNShape id="task_8231a39k_di" bpmnElement="task_8231a39k">
+        <dc:Bounds x="514" y="481" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_quz8qbgw_di" bpmnElement="flow_quz8qbgw">
+        <di:waypoint x="434" y="521" />
+        <di:waypoint x="514" y="521" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_qk7cb8m0_di" bpmnElement="task_qk7cb8m0">
+        <dc:Bounds x="694" y="481" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_li2t6iv8_di" bpmnElement="flow_li2t6iv8">
+        <di:waypoint x="614" y="521" />
+        <di:waypoint x="694" y="521" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_wdqk7evw_di" bpmnElement="flow_wdqk7evw">
+        <di:waypoint x="794" y="521" />
         <di:waypoint x="2499" y="521" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
