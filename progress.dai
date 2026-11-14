@@ -211,8 +211,13 @@
     <bpmn:sequenceFlow id="flow_8tj5iymd" sourceRef="task_lr8p0ppi" targetRef="task_yg0oghzt" />
     <bpmn:task id="task_n1jnv9ip" name="Six-pack instrument cluster" dai:notes="New ui/instruments.ts: three round gauges on a grey backing plate (ink outline + shadow in the HUD style), centre-bottom in flight. ASI (left): km/h dial from 0 at 12 o&#39;clock over 330°, labels every 40 (biplane, up to 240) or more for faster planes, from asiScale(spec): white arc full-flap stall → flap speed, green clean stall → 0.92× top speed, yellow up to 1.12× top, red line there. Attitude (centre): outer ring sky/ground with bank ticks (10/20/30/45/60) rolling with bank; inner ball slides with pitch (±30° ladder) and rolls; fixed yellow aeroplane, yellow bank index, dark case bottom with knob. Altimeter (right): 0–9 dial, long hand 100 m per digit (one turn per 1000 m), short hand 1000 m per digit, &#39;×100 METRES&#39;, hatched low-altitude window under 3000 m. Static faces are cached in offscreen canvases (rebuilt on resize or plane change). hud.ts: pitch = asin(forward.y), bank = atan2(-right.y, up.y); cluster scales to fit between the left gauge panel and the damage panel (0.45–1); the landing glide-slope panel now sits just above the cluster. The old text speed/alt panel stays. tests/instruments.test.ts (4): ASI markings in the right order for all 3 planes, 5–12 labels, needle angles. Checked in Chrome at 1920 px with HUD captures: 104 km/h / 1450 m / pitch +10° bank 30° right and 177 km/h / 350 m / pitch −5° bank 20° left all read correctly; a first pass had dial labels overlapping (AIRSPEED vs 40, &#39;100 M&#39; vs 9): fixed. No console errors. Tests 65/65, tsc, build OK. Not checked: the jet/turboprop dials and phone widths in the browser." dai:agentStatus="done" dai:planRef="task_obes8gsf">
       <bpmn:incoming>flow_avjtjh5f</bpmn:incoming>
+      <bpmn:outgoing>flow_ugmkgi3a</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_avjtjh5f" sourceRef="task_yg0oghzt" targetRef="task_n1jnv9ip" />
+    <bpmn:task id="task_55qxiw53" name="Remove 3D cockpit gauges" dai:agentStatus="in_progress" dai:planRef="task_i1juquj8">
+      <bpmn:incoming>flow_ugmkgi3a</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_ugmkgi3a" sourceRef="task_n1jnv9ip" targetRef="task_55qxiw53" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -515,6 +520,13 @@
         <di:waypoint x="1578" y="730" />
         <di:waypoint x="318" y="730" />
         <di:waypoint x="318" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_55qxiw53_di" bpmnElement="task_55qxiw53">
+        <dc:Bounds x="448" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ugmkgi3a_di" bpmnElement="flow_ugmkgi3a">
+        <di:waypoint x="368" y="800" />
+        <di:waypoint x="448" y="800" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
