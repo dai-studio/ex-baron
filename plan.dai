@@ -152,7 +152,7 @@
       <bpmn:outgoing>flow_v31d9nac</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_d2fb1enr" sourceRef="task_obes8gsf" targetRef="task_i1juquj8" />
-    <bpmn:task id="task_v3nk7q0a" name="29. Modern Node &#38; npm for builds" dai:notes="Deploy build failed after the Vite 8 / Vitest 5 update: the lock file written by npm 11 leaves out optional @emnapi/* peers, and the host&#39;s npm 10 &#39;npm ci&#39; rejects it as out of sync. Pin Node 24 (ships npm 11) with .nvmrc / .node-version and package.json engines; README requirement. Verify npm ci, tests and build on a clean checkout." dai:agentStatus="done">
+    <bpmn:task id="task_v3nk7q0a" name="29. Modern Node &#38; npm for builds" dai:notes="Deploy build failed after the Vite 8 / Vitest 5 update: the lock file written by npm 11.6 left out optional @emnapi/* peers, and the host&#39;s npm 10 &#39;npm ci&#39; rejected it as out of sync. Pin Node 26.13.1 (npm 11) with .nvmrc / .node-version and package.json engines; regenerate the lock with npm 11.20 (includes the @emnapi entries); README requirement. Verify npm ci (npm 11 and 10), tests and build on a clean checkout." dai:agentStatus="done">
       <bpmn:incoming>flow_v31d9nac</bpmn:incoming>
       <bpmn:outgoing>flow_sk33sk8d</bpmn:outgoing>
     </bpmn:task>
