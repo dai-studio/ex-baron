@@ -10,6 +10,8 @@ https://baron.by.dai.studio
 
 ## Run
 
+Needs Node 26 or newer (with npm 11); `.node-version` / `.nvmrc` pin it for nvm, fnm and Cloudflare Workers Builds.
+
 ```sh
 npm install
 npm run dev      # http://localhost:5288

@@ -216,8 +216,13 @@
     <bpmn:sequenceFlow id="flow_avjtjh5f" sourceRef="task_yg0oghzt" targetRef="task_n1jnv9ip" />
     <bpmn:task id="task_55qxiw53" name="Remove 3D cockpit gauges" dai:notes="planeMesh.ts buildDash(): removed the three 3D gauge discs and the RPM needle (rpmNeedle group and its animate() update); the dashboard panel and its paint-coloured rim stay, so the lower view still shows the cockpit. The HUD instrument cluster (task 27) now does the job. Checked in Chrome with captures in cockpit view at ~400 m for biplane, turboprop and jet: plain dashboard, HUD cluster on top, no console errors. The same check showed the turboprop airspeed dial labelled every 50 km/h up to 450, crowding &#39;AIRSPEED&#39;: asiScale now allows at most 7 labels (biplane 40s to 240, turboprop 100s to 500, jet 100s to 600); test limit 8. Tests 65/65, tsc OK. Committed to PR #3." dai:agentStatus="done" dai:planRef="task_i1juquj8">
       <bpmn:incoming>flow_ugmkgi3a</bpmn:incoming>
+      <bpmn:outgoing>flow_of524yj9</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_ugmkgi3a" sourceRef="task_n1jnv9ip" targetRef="task_55qxiw53" />
+    <bpmn:task id="task_07kcl9d9" name="Modern Node &#38; npm for builds" dai:notes="Cause: after merging PR #3 (which carried the &#39;update deps&#39; commit: vite 5 → 8.3.8, vitest 2 → 5.1.0) the Workers Builds &#39;npm ci&#39; failed with EUSAGE. Reproduced on a clean checkout of main: npm 11.6 (local, Node 24) installs fine, npm 10 says the lock is out of sync (&#39;Missing: @emnapi/runtime@1.11.3, @emnapi/core@2.0.0-beta.2 from lock file&#39;): npm 11 leaves those optional peers out, npm 10 wants them. Fix (user chose modernising over regenerating the lock with npm 10): .node-version and .nvmrc = 24 (Node 24 ships npm 11), package.json engines node &#62;=24 / npm &#62;=11 (lock root synced), README &#39;Needs Node 24 or newer&#39;. Verified on the clean checkout with Node 24.13 / npm 11.6.2: npm ci OK (83 packages), vitest 5.1.0 65/65, vite 8.3.8 build OK (662 KB, 182 KB gzip). Not verifiable from here: that Workers Builds picks up .node-version; if it doesn&#39;t, set NODE_VERSION=24 in the Workers Builds settings.&#10;Update: the user installed Node v26.13.1 with nvm (npm 11.20.0), so the pins are now .node-version / .nvmrc = 26.13.1 and engines node &#62;=26 / npm &#62;=11; README says Node 26. npm 11.20 rewrote the lock with the @emnapi/core and @emnapi/runtime entries (npm 11.6 had left them out), so the lock now also passes &#39;npm ci&#39; on npm 10 (checked: 83 packages, only an engine warning) — the deploy works even if the host stays on npm 10. On Node 26.13.1: npm ci, vitest 65/65 and vite build OK. npm 11.20 warns that esbuild and workerd postinstall scripts are not in an allowScripts list (warning only; install, tests and build fine); left for the user to decide." dai:agentStatus="done" dai:planRef="task_v3nk7q0a">
+      <bpmn:incoming>flow_of524yj9</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_of524yj9" sourceRef="task_55qxiw53" targetRef="task_07kcl9d9" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -527,6 +532,13 @@
       <bpmndi:BPMNEdge id="flow_ugmkgi3a_di" bpmnElement="flow_ugmkgi3a">
         <di:waypoint x="368" y="800" />
         <di:waypoint x="448" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_07kcl9d9_di" bpmnElement="task_07kcl9d9">
+        <dc:Bounds x="628" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_of524yj9_di" bpmnElement="flow_of524yj9">
+        <di:waypoint x="548" y="800" />
+        <di:waypoint x="628" y="800" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

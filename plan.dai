@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_912m48sv</bpmn:incoming>
+      <bpmn:incoming>flow_sk33sk8d</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -149,10 +149,15 @@
     <bpmn:sequenceFlow id="flow_q44r7efh" sourceRef="task_qk7cb8m0" targetRef="task_obes8gsf" />
     <bpmn:task id="task_i1juquj8" name="28. Remove 3D cockpit gauges" dai:notes="Cockpit view: drop the three 3D gauges and the RPM needle from the dashboard mesh; the HUD instrument cluster replaces them. Keep the dashboard panel so the lower view still shows the cockpit. Check in the browser for all three planes." dai:agentStatus="done">
       <bpmn:incoming>flow_d2fb1enr</bpmn:incoming>
-      <bpmn:outgoing>flow_912m48sv</bpmn:outgoing>
+      <bpmn:outgoing>flow_v31d9nac</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_d2fb1enr" sourceRef="task_obes8gsf" targetRef="task_i1juquj8" />
-    <bpmn:sequenceFlow id="flow_912m48sv" sourceRef="task_i1juquj8" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_v3nk7q0a" name="29. Modern Node &#38; npm for builds" dai:notes="Deploy build failed after the Vite 8 / Vitest 5 update: the lock file written by npm 11.6 left out optional @emnapi/* peers, and the host&#39;s npm 10 &#39;npm ci&#39; rejected it as out of sync. Pin Node 26.13.1 (npm 11) with .nvmrc / .node-version and package.json engines; regenerate the lock with npm 11.20 (includes the @emnapi entries); README requirement. Verify npm ci (npm 11 and 10), tests and build on a clean checkout." dai:agentStatus="done">
+      <bpmn:incoming>flow_v31d9nac</bpmn:incoming>
+      <bpmn:outgoing>flow_sk33sk8d</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_v31d9nac" sourceRef="task_i1juquj8" targetRef="task_v3nk7q0a" />
+    <bpmn:sequenceFlow id="flow_sk33sk8d" sourceRef="task_v3nk7q0a" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -362,8 +367,15 @@
         <di:waypoint x="974" y="521" />
         <di:waypoint x="1054" y="521" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_912m48sv_di" bpmnElement="flow_912m48sv">
+      <bpmndi:BPMNShape id="task_v3nk7q0a_di" bpmnElement="task_v3nk7q0a">
+        <dc:Bounds x="1234" y="481" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_v31d9nac_di" bpmnElement="flow_v31d9nac">
         <di:waypoint x="1154" y="521" />
+        <di:waypoint x="1234" y="521" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_sk33sk8d_di" bpmnElement="flow_sk33sk8d">
+        <di:waypoint x="1334" y="521" />
         <di:waypoint x="2499" y="521" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
