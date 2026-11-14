@@ -1,3 +1,5 @@
+![A red biplane flying over green hills toward a runway, with mountains and the coast behind](docs/flight.jpg)
+
 # Baron
 
 A cartoon biplane game for the browser: take off, fly and land over a procedurally generated world. It is built with TypeScript, three.js (WebGL 2) and Vite.
