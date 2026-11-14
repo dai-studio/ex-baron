@@ -206,8 +206,18 @@
     <bpmn:sequenceFlow id="flow_q1khgvd1" sourceRef="task_d7qgj71h" targetRef="task_lr8p0ppi" />
     <bpmn:task id="task_yg0oghzt" name="Clearer FLAPS row on the HUD" dai:notes="hud.ts: gauge panel 182 → 218 px. A dashed divider at y 156 separates the throttle / rpm line (y 142) from the flaps; the FLAPS label moved from y 152 to 176. Next to it &#39;(V ↔ F)&#39; in the muted brown; the notch row runs UP → T/O → LAND left to right, so V moves the lever left (less flap) and F right (more). When blown back the label and the selected notch turn red and the hint reads &#39;TOO FAST — slow down!&#39; while the position marker stays under the real flap position. Checked in Chrome with HUD captures: on the runway with LAND set (marker under LAND), and at 193 km/h with LAND set (red, marker under UP). The same session also showed the biplane&#39;s flaps drooping from the lower wing (first visual check of the flap surfaces; turboprop and jet still not seen). tsc OK." dai:agentStatus="done" dai:planRef="task_qk7cb8m0">
       <bpmn:incoming>flow_8tj5iymd</bpmn:incoming>
+      <bpmn:outgoing>flow_avjtjh5f</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_8tj5iymd" sourceRef="task_lr8p0ppi" targetRef="task_yg0oghzt" />
+    <bpmn:task id="task_n1jnv9ip" name="Six-pack instrument cluster" dai:notes="New ui/instruments.ts: three round gauges on a grey backing plate (ink outline + shadow in the HUD style), centre-bottom in flight. ASI (left): km/h dial from 0 at 12 o&#39;clock over 330°, labels every 40 (biplane, up to 240) or more for faster planes, from asiScale(spec): white arc full-flap stall → flap speed, green clean stall → 0.92× top speed, yellow up to 1.12× top, red line there. Attitude (centre): outer ring sky/ground with bank ticks (10/20/30/45/60) rolling with bank; inner ball slides with pitch (±30° ladder) and rolls; fixed yellow aeroplane, yellow bank index, dark case bottom with knob. Altimeter (right): 0–9 dial, long hand 100 m per digit (one turn per 1000 m), short hand 1000 m per digit, &#39;×100 METRES&#39;, hatched low-altitude window under 3000 m. Static faces are cached in offscreen canvases (rebuilt on resize or plane change). hud.ts: pitch = asin(forward.y), bank = atan2(-right.y, up.y); cluster scales to fit between the left gauge panel and the damage panel (0.45–1); the landing glide-slope panel now sits just above the cluster. The old text speed/alt panel stays. tests/instruments.test.ts (4): ASI markings in the right order for all 3 planes, 5–12 labels, needle angles. Checked in Chrome at 1920 px with HUD captures: 104 km/h / 1450 m / pitch +10° bank 30° right and 177 km/h / 350 m / pitch −5° bank 20° left all read correctly; a first pass had dial labels overlapping (AIRSPEED vs 40, &#39;100 M&#39; vs 9): fixed. No console errors. Tests 65/65, tsc, build OK. Not checked: the jet/turboprop dials and phone widths in the browser." dai:agentStatus="done" dai:planRef="task_obes8gsf">
+      <bpmn:incoming>flow_avjtjh5f</bpmn:incoming>
+      <bpmn:outgoing>flow_ugmkgi3a</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_avjtjh5f" sourceRef="task_yg0oghzt" targetRef="task_n1jnv9ip" />
+    <bpmn:task id="task_55qxiw53" name="Remove 3D cockpit gauges" dai:notes="planeMesh.ts buildDash(): removed the three 3D gauge discs and the RPM needle (rpmNeedle group and its animate() update); the dashboard panel and its paint-coloured rim stay, so the lower view still shows the cockpit. The HUD instrument cluster (task 27) now does the job. Checked in Chrome with captures in cockpit view at ~400 m for biplane, turboprop and jet: plain dashboard, HUD cluster on top, no console errors. The same check showed the turboprop airspeed dial labelled every 50 km/h up to 450, crowding &#39;AIRSPEED&#39;: asiScale now allows at most 7 labels (biplane 40s to 240, turboprop 100s to 500, jet 100s to 600); test limit 8. Tests 65/65, tsc OK. Committed to PR #3." dai:agentStatus="done" dai:planRef="task_i1juquj8">
+      <bpmn:incoming>flow_ugmkgi3a</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_ugmkgi3a" sourceRef="task_n1jnv9ip" targetRef="task_55qxiw53" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -501,6 +511,22 @@
       <bpmndi:BPMNEdge id="flow_8tj5iymd_di" bpmnElement="flow_8tj5iymd">
         <di:waypoint x="1448" y="660" />
         <di:waypoint x="1528" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_n1jnv9ip_di" bpmnElement="task_n1jnv9ip">
+        <dc:Bounds x="268" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_avjtjh5f_di" bpmnElement="flow_avjtjh5f">
+        <di:waypoint x="1578" y="700" />
+        <di:waypoint x="1578" y="730" />
+        <di:waypoint x="318" y="730" />
+        <di:waypoint x="318" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_55qxiw53_di" bpmnElement="task_55qxiw53">
+        <dc:Bounds x="448" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ugmkgi3a_di" bpmnElement="flow_ugmkgi3a">
+        <di:waypoint x="368" y="800" />
+        <di:waypoint x="448" y="800" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

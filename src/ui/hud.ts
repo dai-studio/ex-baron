@@ -5,6 +5,7 @@ import { engineOf } from '../plane/loadout';
 import type { World } from '../world/world';
 import type { Route } from '../game/route';
 import type { Airfield } from '../world/terrain';
+import { CLUSTER_H, CLUSTER_W, Instruments } from './instruments';
 
 /**
  * HUD & UI (design §3): hand-drawn style overlay on a 2D canvas —
@@ -20,6 +21,8 @@ const FONT = '"Baloo 2", "Trebuchet MS", sans-serif';
 
 const _v = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
+const _up = new THREE.Vector3();
+const _right = new THREE.Vector3();
 
 export interface HudContext {
   player: Plane;
@@ -67,6 +70,9 @@ export class Hud {
   private miniAt = new THREE.Vector2(1e9, 1e9);
   private miniT = 0;
   private readonly miniSpan = 7000;
+  private instruments = new Instruments();
+  /** top of the instrument cluster (CSS px), so the landing guide sits above it */
+  private clusterTop = 0;
   visible = false;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -109,6 +115,7 @@ export class Hud {
 
     // ---------- markers in the world
     this.drawMouseStick(c);
+    this.clusterTop = this.h - 16 - CLUSTER_H * this.clusterScale(sc);
     if (c.showLanding) this.drawLandingGuide(c);
     if (c.guide?.rejoin) this.drawRejoin(c.guide.rejoin, c.camera);
 
@@ -170,6 +177,9 @@ export class Hud {
     this.drawDamage(g, 60, 92, s.health);
     g.restore();
 
+    // ---------- bottom-centre: airspeed, attitude, altimeter
+    this.drawInstruments(c, sc);
+
     // ---------- top: compass ribbon + objective
     this.drawCompass(c);
     g.font = `800 ${compact ? 14 : 16}px ${FONT}`;
@@ -183,6 +193,29 @@ export class Hud {
     // ---------- minimap (top-right)
     this.miniT -= dt;
     this.drawMinimap(c, compact ? 120 : 160);
+  }
+
+  /** Cluster scale: fits between the gauge panel (left) and the damage panel (right). */
+  private clusterScale(sc: number): number {
+    const side = Math.max(16 + 220 * sc, 16 + 120 * sc) + 12;
+    const avail = this.w - 2 * side;
+    return THREE.MathUtils.clamp(avail / CLUSTER_W, 0.45, 1);
+  }
+
+  private drawInstruments(c: HudContext, sc: number) {
+    const g = this.g;
+    const p = c.player;
+    p.forward(_fwd);
+    p.up(_up);
+    _right.set(1, 0, 0).applyQuaternion(p.s.quat);
+    const pitch = Math.asin(THREE.MathUtils.clamp(_fwd.y, -1, 1));
+    const bank = Math.atan2(-_right.y, _up.y);
+    const k = this.clusterScale(sc);
+    g.save();
+    g.translate(this.w / 2 - (CLUSTER_W * k) / 2, this.h - 16 - CLUSTER_H * k);
+    g.scale(k, k);
+    this.instruments.draw(g, 0, 0, k * this.dpr, { airspeed: p.s.airspeed, altitude: p.s.pos.y, pitch, bank, spec: p.spec });
+    g.restore();
   }
 
   /** FLAPS row: the three notches (lever highlighted), a bar for the actual position, a warning when blown back. */
@@ -439,10 +472,11 @@ export class Hud {
       g.font = `800 15px ${FONT}`;
       const text = `${msg}   sink ${sink.toFixed(1)} m/s`;
       const tw = g.measureText(text).width + 24;
-      panel(g, this.w / 2 - tw / 2, this.h - 120, tw, 30);
+      const y = this.clusterTop - 44;
+      panel(g, this.w / 2 - tw / 2, y, tw, 30);
       g.fillStyle = sink > 3 * LANDING_FORGIVENESS ? RED : INK;
       g.textAlign = 'center';
-      g.fillText(text, this.w / 2, this.h - 99);
+      g.fillText(text, this.w / 2, y + 21);
       g.textAlign = 'left';
     }
   }
