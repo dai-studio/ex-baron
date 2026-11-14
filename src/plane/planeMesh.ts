@@ -234,7 +234,6 @@ export class PlaneVisual {
   private cockpit: THREE.Mesh;
   /** instrument panel across the bottom of the cockpit view (only shown in cockpit view) */
   private dash = new THREE.Group();
-  private rpmNeedle = new THREE.Group();
   private dashMat: THREE.MeshToonMaterial | null = null;
 
   constructor(readonly loadout: Loadout, toon: THREE.Material, outline: THREE.Material) {
@@ -339,15 +338,7 @@ export class PlaneVisual {
       // padded rim in the paint colour
       part(new THREE.BoxGeometry(W + 0.04, 0.07, 0.14), l.body, { pos: [0, H / 2, 0.01] }),
     ];
-    const gauges: [number, number][] = [
-      [-0.3, 0.1],
-      [0, 0.12],
-      [0.3, 0.1],
-    ];
-    for (const [x, y] of gauges) {
-      parts.push(part(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 20), 0x1e1814, { pos: [x, y, 0.05], rot: [Math.PI / 2, 0, 0] }));
-      parts.push(part(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 20), 0xfdf3d6, { pos: [x, y, 0.056], rot: [Math.PI / 2, 0, 0] }));
-    }
+    // no gauges on it: the HUD instrument cluster (ui/instruments.ts) shows them
     const tilt = new THREE.Group();
     tilt.position.set(eye[0], eye[1] - 0.6, eye[2] - 0.8);
     tilt.rotation.x = -0.2; // top leans away from the pilot
@@ -359,19 +350,12 @@ export class PlaneVisual {
     const panel = new THREE.Mesh(mergeParts(parts), this.dashMat);
     panel.renderOrder = 10;
     tilt.add(panel);
-    // the middle gauge shows engine RPM
-    this.rpmNeedle.position.set(0, 0.12, 0.07);
-    const needle = new THREE.Mesh(mergeParts([part(new THREE.BoxGeometry(0.012, 0.06, 0.006), 0xd94a3d, { pos: [0, 0.03, 0] })]), this.dashMat);
-    needle.renderOrder = 11;
-    this.rpmNeedle.add(needle);
-    tilt.add(this.rpmNeedle);
     this.dash.add(tilt);
     this.dash.visible = false;
     this.root.add(this.dash);
   }
 
   animate(dt: number, pitch: number, roll: number, yaw: number, rpm: number, flaps = 0) {
-    if (this.dash.visible) this.rpmNeedle.rotation.z = 2.2 - rpm * 4.4;
     if (this.hasProp) {
       this.prop.rotation.z += rpm * 95 * dt + (rpm > 0.02 ? 6 * dt : 0);
       (this.disc!.material as THREE.MeshBasicMaterial).opacity = THREE.MathUtils.clamp((rpm - 0.25) * 0.5, 0, 0.3);

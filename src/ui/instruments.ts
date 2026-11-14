@@ -55,7 +55,7 @@ export function asiScale(spec: PlaneSpec): AsiScale {
   let step = 20;
   for (const s of [20, 40, 50, 100]) {
     step = s;
-    if ((vne * 1.12) / s <= 10) break;
+    if ((vne * 1.12) / s <= 7) break;
   }
   const max = Math.ceil((vne * 1.08) / step) * step;
   return { max, step, white: [vs0, vfe], green: [vs1, vno], yellow: [vno, vne], vne };

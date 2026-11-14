@@ -15,7 +15,7 @@ describe('instrument scales', () => {
       expect(sc.vne).toBeLessThan(sc.max);
       const labels = sc.max / sc.step;
       expect(labels).toBeGreaterThanOrEqual(5);
-      expect(labels).toBeLessThanOrEqual(12);
+      expect(labels).toBeLessThanOrEqual(8);
       expect(Number.isInteger(labels)).toBe(true);
     });
   }
