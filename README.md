@@ -27,6 +27,10 @@ Pick **Mission → Cross-country** on the main menu to fly from your home field 
 
 In the air, transparent white arrows mark the path ahead. If you stray more than about 150 m from it, a **PATH** marker (or an arrow at the screen edge) shows where to rejoin. The destination is the gold caret on the compass and the gold strip on the minimap. Land at the destination to finish. Your medal depends on the landing grade and how much of the flight you spent on the path (75% for gold, 50% for silver), and records are kept per world and destination.
 
+## Flaps
+
+Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, and **LAND** (full) lowers the stall speed by about 15% and adds drag, so the approach is slower and steeper and the landing roll shorter. Press F for more flap and V for less. The flaps take a second or two to move, and above the plane's flap speed (about 1.6× its clean stall speed) the airflow blows them back; the HUD shows **FLAPS — TOO FAST!** until you slow down.
+
 ## Controls
 
 | Action | Keys |
@@ -35,6 +39,7 @@ In the air, transparent white arrows mark the path ahead. If you stray more than
 | Roll | A / D or ← / → |
 | Rudder | Q / E |
 | Throttle | Shift / Ctrl, or 1–9 and 0 (full) |
+| Flaps | F more / V less (UP, T/O, LAND); gamepad d-pad ↓ / ↑ |
 | Brakes | B |
 | Camera | C (chase / cockpit) |
 | Mouse stick | M toggles |
