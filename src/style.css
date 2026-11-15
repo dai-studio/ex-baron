@@ -251,16 +251,6 @@ body.touch .card { min-height: 52px; }
 body.touch .seed input { min-height: 44px; }
 .tilt-row .note { font-size: 13px; font-weight: 700; color: #6b4b2a; }
 
-/* rotate card: above everything while a touch sortie is held upright */
-#rotate {
-  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
-  padding: 16px; background: rgba(30, 50, 70, 0.8); touch-action: none;
-}
-#rotate.hidden { display: none; }
-#rotate p { font-weight: 700; margin: 0; }
-.rotate-icon { font-size: 54px; line-height: 1; margin-bottom: 6px; animation: rotate-tip 1.8s ease-in-out infinite; display: inline-block; }
-@keyframes rotate-tip { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
-
 /* short landscape screens (phones on their side): panels side by side, scrolling inside themselves */
 @media (max-height: 560px) {
   .panel { padding: 12px 16px; border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); border-width: 3px; }

@@ -145,9 +145,6 @@ export class Game {
   private stats: HTMLDivElement | null = null;
   private wakeLock = new WakeLock();
   private pwa = new Pwa();
-  /** touch, flying, held upright: paused behind the 'turn sideways' card */
-  private rotateShown = false;
-  private portraitPaused = false;
 
   constructor(canvas: HTMLCanvasElement, hudCanvas: HTMLCanvasElement) {
     this.settings = loadSettings();
@@ -244,7 +241,6 @@ export class Game {
     // coming back always lands on the Pause screen
     const away = () => {
       if (this.state === 'sortie' || this.state === 'ending') this.setPaused(true);
-      this.portraitPaused = false;
       this.audio.suspend();
     };
     document.addEventListener('visibilitychange', () => {
@@ -1182,7 +1178,7 @@ export class Game {
     this.resize();
   }
 
-  /** Per-frame touch bookkeeping: enable, BAIL, tilt filter, the portrait card, the frame cap. */
+  /** Per-frame touch bookkeeping: enable, BAIL, tilt filter, the frame cap. */
   private updateTouch(dt: number) {
     const t = this.input.touch;
     const flying = this.state === 'sortie' || this.state === 'ending';
@@ -1191,20 +1187,6 @@ export class Game {
     if (document.body.classList.contains('flying') !== flying) document.body.classList.toggle('flying', flying);
     t.model.bailShown = this.state === 'sortie' && !!p && !p.wrecked && !p.downed && !p.s.onGround && !!this.mission?.tookOff;
     t.update(dt);
-    // held upright while flying on a phone: pause behind the card, resume when turned back
-    const portrait = this.input.lastInput === 'touch' && window.innerHeight > window.innerWidth * 1.05;
-    const block = flying && portrait;
-    if (block !== this.rotateShown) {
-      this.rotateShown = block;
-      document.getElementById('rotate')!.classList.toggle('hidden', !block);
-    }
-    if (block && !this.paused) {
-      this.setPaused(true);
-      this.portraitPaused = true;
-    } else if (!block && this.portraitPaused) {
-      this.portraitPaused = false;
-      if (this.paused && !document.hidden) this.setPaused(false);
-    }
     // phones: 60 fps in flight, 30 behind the menus (heat and battery, design §9.3)
     this.loop.maxFps = this.tierName === 'mobile' ? (flying && !this.paused ? 60 : 30) : 0;
   }

@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_4ievh1ei</bpmn:incoming>
+      <bpmn:incoming>flow_omjlvn2n</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -218,11 +218,16 @@
     <bpmn:sequenceFlow id="flow_5ze4eqgf" sourceRef="task_arp2kyhm" targetRef="task_4b0hq1pa" />
     <bpmn:task id="task_l2mzu38v" name="42. PWA tests &#38; verification" dai:notes="tsc, tests, build. Production preview in the browser: service worker active, caches filled, manifest/icons valid; offline reload starts the game and flies; desktop and touch unchanged; no console errors. README note. (design §10 PWA install &#38; offline test)" dai:agentStatus="done">
       <bpmn:incoming>flow_a3lko4tl</bpmn:incoming>
-      <bpmn:outgoing>flow_4ievh1ei</bpmn:outgoing>
+      <bpmn:outgoing>flow_rqrd8zn1</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_a3lko4tl" sourceRef="task_4b0hq1pa" targetRef="task_l2mzu38v" />
-    <bpmn:sequenceFlow id="flow_4ievh1ei" sourceRef="task_l2mzu38v" targetRef="event_blqfau9s" />
     <bpmn:sequenceFlow id="flow_nf5v4hnl" sourceRef="task_55o4fsch" targetRef="task_wrzm9l4q" />
+    <bpmn:task id="task_6gx8cq89" name="43. Remove the rotate card" dai:notes="Owner request: drop the &#39;Turn your phone sideways&#39; card and the portrait pause that came with it (a pause with no card would look frozen). Portrait mid-flight now just keeps flying. Removed the #rotate section, its CSS and the portrait check in Game.updateTouch. (design §9.2 Mobile page, orientation &#38; fullscreen)" dai:agentStatus="done">
+      <bpmn:incoming>flow_rqrd8zn1</bpmn:incoming>
+      <bpmn:outgoing>flow_omjlvn2n</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_rqrd8zn1" sourceRef="task_l2mzu38v" targetRef="task_6gx8cq89" />
+    <bpmn:sequenceFlow id="flow_omjlvn2n" sourceRef="task_6gx8cq89" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -307,7 +312,7 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="889" y="871" width="40" height="40" />
+        <dc:Bounds x="1069" y="871" width="40" height="40" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
         <dc:Bounds x="180" y="320" width="100" height="80" />
@@ -530,17 +535,24 @@
         <di:waypoint x="640" y="961" />
         <di:waypoint x="720" y="961" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_4ievh1ei_di" bpmnElement="flow_4ievh1ei">
-        <di:waypoint x="820" y="961" />
-        <di:waypoint x="855" y="961" />
-        <di:waypoint x="855" y="891" />
-        <di:waypoint x="889" y="891" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="flow_nf5v4hnl_di" bpmnElement="flow_nf5v4hnl">
         <di:waypoint x="1440" y="791" />
         <di:waypoint x="860" y="791" />
         <di:waypoint x="860" y="961" />
         <di:waypoint x="280" y="961" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_6gx8cq89_di" bpmnElement="task_6gx8cq89">
+        <dc:Bounds x="900" y="921" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_rqrd8zn1_di" bpmnElement="flow_rqrd8zn1">
+        <di:waypoint x="820" y="961" />
+        <di:waypoint x="900" y="961" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_omjlvn2n_di" bpmnElement="flow_omjlvn2n">
+        <di:waypoint x="1000" y="961" />
+        <di:waypoint x="1035" y="961" />
+        <di:waypoint x="1035" y="891" />
+        <di:waypoint x="1069" y="891" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
