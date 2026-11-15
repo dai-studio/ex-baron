@@ -138,7 +138,8 @@ export class Hud {
     if (c.guide?.rejoin) this.drawRejoin(c.guide.rejoin, c.camera);
 
     if (tv) {
-      this.drawInstruments(c, cl);
+      // no instrument cluster on touch: on a phone it filled half the screen and hid the plane;
+      // speed and altitude are in the status card instead
       this.drawTouchStatus(c, tv);
       this.drawCompass(c, Math.min(300, this.w * 0.36), tv.layout.safe.t);
       this.drawObjective(c.objective, 14, tv.layout.safe.t);
@@ -235,10 +236,9 @@ export class Hud {
    */
   private cluster(sc: number, tv: TouchView | null): { k: number; cx: number; y: number } {
     if (tv) {
+      // touch draws no cluster: the landing guide sits low, between the thumbs
       const l = tv.layout;
-      const gap = l.rightEdge - l.leftEdge - 24;
-      const k = THREE.MathUtils.clamp(gap / CLUSTER_W, 0.4, 0.8);
-      return { k, cx: (l.leftEdge + l.rightEdge) / 2, y: this.h - l.safe.b - 10 - CLUSTER_H * k };
+      return { k: 0, cx: (l.leftEdge + l.rightEdge) / 2, y: this.h - l.safe.b - 12 };
     }
     const side = Math.max(16 + 220 * sc, 16 + 120 * sc) + 12;
     const k = THREE.MathUtils.clamp((this.w - 2 * side) / CLUSTER_W, 0.45, 1);
@@ -634,7 +634,7 @@ export class Hud {
 
   // ------------------------------------------------------------ touch (design §9.1, §9.2)
 
-  /** Small status card under the pause button: height above ground, stall / flap warnings, damage. */
+  /** Status card under the pause button: speed, altitude, flaps / stall warnings and damage (touch has no cluster). */
   private drawTouchStatus(c: HudContext, tv: TouchView) {
     const g = this.g;
     const l = tv.layout;
@@ -642,29 +642,39 @@ export class Hud {
     const p = l.buttons.pause;
     const x = l.safe.l + 12 * l.u;
     const y = p.y + p.r + 10 * l.u;
-    const w = 132;
-    const h = 58;
+    // narrow enough to clear the objective banner on a 667 px phone
+    const w = 158;
+    const h = 84;
     panel(g, x, y, w, h);
     const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
-    g.fillStyle = INK;
-    g.font = `800 12px ${FONT}`;
-    g.fillText('AGL', x + 10, y + 20);
-    g.font = `800 18px ${FONT}`;
-    g.fillText(`${Math.round(agl)} m`, x + 40, y + 21);
+    const row = (label: string, value: string, unit: string, yy: number, color = INK) => {
+      g.fillStyle = INK;
+      g.font = `800 12px ${FONT}`;
+      g.fillText(label, x + 10, yy);
+      g.fillStyle = color;
+      g.font = `800 18px ${FONT}`;
+      g.fillText(value, x + 42, yy + 1);
+      const vw = g.measureText(value).width;
+      g.fillStyle = INK;
+      g.font = `700 11px ${FONT}`;
+      g.fillText(unit, x + 42 + vw + 4, yy + 1);
+    };
+    row('SPD', `${Math.round(s.airspeed * 3.6)}`, 'km/h', y + 22, c.stallWarn ? RED : INK);
+    row('ALT', `${Math.round(s.pos.y)}`, `m · ${Math.round(agl)} AGL`, y + 45);
     g.font = `800 12px ${FONT}`;
     if (c.stallWarn) {
       g.fillStyle = RED;
-      g.fillText('STALL!', x + 10, y + 44);
+      g.fillText('STALL!', x + 10, y + 70);
     } else if (s.flapsBlown) {
       g.fillStyle = RED;
-      g.fillText('TOO FAST!', x + 10, y + 44);
+      g.fillText('TOO FAST for flaps!', x + 10, y + 70);
     } else {
       g.fillStyle = '#6b4b2a';
-      g.fillText(`FLAPS ${FLAP_LABELS[c.flapNotch]}`, x + 10, y + 44);
+      g.fillText(`FLAPS ${FLAP_LABELS[c.flapNotch]}`, x + 10, y + 70);
     }
     g.save();
-    g.translate(x + w - 26, y + h / 2 + 2);
-    g.scale(0.42, 0.42);
+    g.translate(x + w - 20, y + h - 22);
+    g.scale(0.3, 0.3);
     this.drawDamage(g, 0, 0, s.health);
     g.restore();
   }

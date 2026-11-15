@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_wm2ibgum</bpmn:incoming>
+      <bpmn:incoming>flow_1qsgo5ed</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -193,11 +193,16 @@
     <bpmn:sequenceFlow id="flow_9jk5y5kf" sourceRef="task_3axh0qdj" targetRef="task_di6k95w8" />
     <bpmn:task id="task_tp1g3er9" name="37. Mobile tests &#38; verification" dai:notes="Touch mapping unit tests pass; all existing tests unchanged and green; tsc; production build. Mobile emulation smoke test in the browser (iPhone + Pixel viewports): tap FLY!, take off with lever + stick, fly 20 s, pause button, portrait card, no scroll/zoom, no console errors, Mobile tier chosen. Desktop regression: keyboard, mouse stick and gamepad unchanged, no touch controls shown. Real-device playtest checklist handed to the user (iPhone Safari + Home Screen, Android Chrome). (design §9.3 tests)" dai:agentStatus="done">
       <bpmn:incoming>flow_z9b8wmai</bpmn:incoming>
-      <bpmn:outgoing>flow_wm2ibgum</bpmn:outgoing>
+      <bpmn:outgoing>flow_4odqxe8m</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_z9b8wmai" sourceRef="task_di6k95w8" targetRef="task_tp1g3er9" />
-    <bpmn:sequenceFlow id="flow_wm2ibgum" sourceRef="task_tp1g3er9" targetRef="event_blqfau9s" />
     <bpmn:sequenceFlow id="flow_cl5edggv" sourceRef="task_550ytawb" targetRef="task_ffytomoq" />
+    <bpmn:task id="task_55o4fsch" name="38. Hide instrument cluster on mobile" dai:notes="On a phone the six-pack took ~50% of the screen height and hid the plane. Touch HUD: don&#39;t draw the instrument cluster; the status card under the pause button shows SPEED (km/h, red when stalled) and ALT/AGL instead, plus flaps and damage. Landing glide-slope panel sits low between the thumbs. Desktop unchanged. Check the frame at 667×375 and 844×390. (design §9.2 Responsive HUD &#38; instruments)" dai:agentStatus="done">
+      <bpmn:incoming>flow_4odqxe8m</bpmn:incoming>
+      <bpmn:outgoing>flow_1qsgo5ed</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_4odqxe8m" sourceRef="task_tp1g3er9" targetRef="task_55o4fsch" />
+    <bpmn:sequenceFlow id="flow_1qsgo5ed" sourceRef="task_55o4fsch" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -282,7 +287,7 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="1469" y="661" width="40" height="40" />
+        <dc:Bounds x="1589" y="661" width="40" height="40" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
         <dc:Bounds x="180" y="320" width="100" height="80" />
@@ -466,15 +471,26 @@
         <di:waypoint x="1180" y="681" />
         <di:waypoint x="1260" y="681" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_wm2ibgum_di" bpmnElement="flow_wm2ibgum">
-        <di:waypoint x="1360" y="681" />
-        <di:waypoint x="1469" y="681" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="flow_cl5edggv_di" bpmnElement="flow_cl5edggv">
         <di:waypoint x="1464" y="561" />
         <di:waypoint x="1464" y="601" />
         <di:waypoint x="230" y="601" />
         <di:waypoint x="230" y="641" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_55o4fsch_di" bpmnElement="task_55o4fsch">
+        <dc:Bounds x="1440" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_4odqxe8m_di" bpmnElement="flow_4odqxe8m">
+        <di:waypoint x="1360" y="681" />
+        <di:waypoint x="1400" y="681" />
+        <di:waypoint x="1400" y="791" />
+        <di:waypoint x="1440" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_1qsgo5ed_di" bpmnElement="flow_1qsgo5ed">
+        <di:waypoint x="1540" y="791" />
+        <di:waypoint x="1565" y="791" />
+        <di:waypoint x="1565" y="681" />
+        <di:waypoint x="1589" y="681" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

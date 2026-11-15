@@ -266,8 +266,13 @@
     <bpmn:sequenceFlow id="flow_nsqnxo4d" sourceRef="task_m2kk8h61" targetRef="task_ubjpq32t" />
     <bpmn:task id="task_gyv6aya1" name="37. Mobile tests &#38; verification" dai:notes="81/81 tests (16 new touch tests), tsc clean, production build OK (manifest in dist). Browser (Chrome, synthetic touch Pointer Events, phone-sized iframes): touch switch, stick → pitch/roll, lever → throttle, FLAP + → T/O, pause button → Pause screen, portrait card pause/resume, hidden tab → pause; no console errors. Desktop regression: Enter/0/F work, no touch controls, keyboard tips. Real-device playtest (iPhone Safari + Home Screen, Android Chrome, tilt, frame rate) still to do by the user." dai:agentStatus="done" dai:planRef="task_tp1g3er9">
       <bpmn:incoming>flow_nyzysayc</bpmn:incoming>
+      <bpmn:outgoing>flow_44vi5bml</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_nyzysayc" sourceRef="task_ubjpq32t" targetRef="task_gyv6aya1" />
+    <bpmn:task id="task_425pmp5m" name="38. Hide instrument cluster on mobile" dai:notes="Touch HUD no longer draws the instrument cluster. Status card under the pause button now shows SPD (km/h, red when stalled), ALT with AGL, flaps / STALL / TOO FAST, and a mini damage silhouette; 158 px wide so it clears the objective banner at 667 px. Landing glide-slope panel moves low between the thumbs. Desktop HUD unchanged. tsc + 81 tests pass; frames checked at 667×375 and 844×390." dai:agentStatus="done" dai:planRef="task_55o4fsch">
+      <bpmn:incoming>flow_44vi5bml</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_44vi5bml" sourceRef="task_gyv6aya1" targetRef="task_425pmp5m" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -649,6 +654,13 @@
       <bpmndi:BPMNEdge id="flow_nyzysayc_di" bpmnElement="flow_nyzysayc">
         <di:waypoint x="728" y="940" />
         <di:waypoint x="808" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_425pmp5m_di" bpmnElement="task_425pmp5m">
+        <dc:Bounds x="988" y="900" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_44vi5bml_di" bpmnElement="flow_44vi5bml">
+        <di:waypoint x="908" y="940" />
+        <di:waypoint x="988" y="940" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
