@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_1qsgo5ed</bpmn:incoming>
+      <bpmn:incoming>flow_4ievh1ei</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -199,10 +199,30 @@
     <bpmn:sequenceFlow id="flow_cl5edggv" sourceRef="task_550ytawb" targetRef="task_ffytomoq" />
     <bpmn:task id="task_55o4fsch" name="38. Hide instrument cluster on mobile" dai:notes="On a phone the six-pack took ~50% of the screen height and hid the plane. Touch HUD: don&#39;t draw the instrument cluster; the status card under the pause button shows SPEED (km/h, red when stalled) and ALT/AGL instead, plus flaps and damage. Landing glide-slope panel sits low between the thumbs. Desktop unchanged. Check the frame at 667×375 and 844×390. (design §9.2 Responsive HUD &#38; instruments)" dai:agentStatus="done">
       <bpmn:incoming>flow_4odqxe8m</bpmn:incoming>
-      <bpmn:outgoing>flow_1qsgo5ed</bpmn:outgoing>
+      <bpmn:outgoing>flow_nf5v4hnl</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_4odqxe8m" sourceRef="task_tp1g3er9" targetRef="task_55o4fsch" />
-    <bpmn:sequenceFlow id="flow_1qsgo5ed" sourceRef="task_55o4fsch" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_wrzm9l4q" name="39. Manifest &#38; app icons" dai:notes="Render 192, 512 and maskable 512 PNG icons from favicon.svg (maskable: full-bleed sky background, plane inside the safe zone). Manifest: id, display fullscreen with display_override, icons any + maskable, wide screenshot, categories. public/_headers: sw.js no-cache. (design §10 Install Baron as an app)" dai:agentStatus="done">
+      <bpmn:incoming>flow_nf5v4hnl</bpmn:incoming>
+      <bpmn:outgoing>flow_1k3vnb9r</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_arp2kyhm" name="40. Service worker &#38; offline" dai:notes="public-less build plugin in vite.config.ts emits sw.js with the precache list (all bundle files + public files) and a version hash. sw.js: precache on install, cache-first for precached, network-first navigation with cached fallback, stale-while-revalidate for Google Fonts, delete old caches, skipWaiting on message. src/core/pwa.ts registers it in production only. Unit test for the precache list. (design §10 Works offline, Service worker, ADR)" dai:agentStatus="done">
+      <bpmn:incoming>flow_1k3vnb9r</bpmn:incoming>
+      <bpmn:outgoing>flow_5ze4eqgf</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_1k3vnb9r" sourceRef="task_wrzm9l4q" targetRef="task_arp2kyhm" />
+    <bpmn:task id="task_4b0hq1pa" name="41. Install button &#38; update prompt" dai:notes="Main menu: &#39;Install app&#39; button from beforeinstallprompt; iOS Safari tip &#39;Share → Add to Home Screen&#39;; hidden when running installed (display-mode / navigator.standalone). &#39;New version ready — Restart&#39; when a new service worker is waiting; restart = skipWaiting + reload on controllerchange, only from menus. (design §10 Install Baron as an app, App updates)" dai:agentStatus="done">
+      <bpmn:incoming>flow_5ze4eqgf</bpmn:incoming>
+      <bpmn:outgoing>flow_a3lko4tl</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_5ze4eqgf" sourceRef="task_arp2kyhm" targetRef="task_4b0hq1pa" />
+    <bpmn:task id="task_l2mzu38v" name="42. PWA tests &#38; verification" dai:notes="tsc, tests, build. Production preview in the browser: service worker active, caches filled, manifest/icons valid; offline reload starts the game and flies; desktop and touch unchanged; no console errors. README note. (design §10 PWA install &#38; offline test)" dai:agentStatus="done">
+      <bpmn:incoming>flow_a3lko4tl</bpmn:incoming>
+      <bpmn:outgoing>flow_4ievh1ei</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_a3lko4tl" sourceRef="task_4b0hq1pa" targetRef="task_l2mzu38v" />
+    <bpmn:sequenceFlow id="flow_4ievh1ei" sourceRef="task_l2mzu38v" targetRef="event_blqfau9s" />
+    <bpmn:sequenceFlow id="flow_nf5v4hnl" sourceRef="task_55o4fsch" targetRef="task_wrzm9l4q" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -287,7 +307,7 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="1589" y="661" width="40" height="40" />
+        <dc:Bounds x="889" y="871" width="40" height="40" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
         <dc:Bounds x="180" y="320" width="100" height="80" />
@@ -486,11 +506,41 @@
         <di:waypoint x="1400" y="791" />
         <di:waypoint x="1440" y="791" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_1qsgo5ed_di" bpmnElement="flow_1qsgo5ed">
-        <di:waypoint x="1540" y="791" />
-        <di:waypoint x="1565" y="791" />
-        <di:waypoint x="1565" y="681" />
-        <di:waypoint x="1589" y="681" />
+      <bpmndi:BPMNShape id="task_wrzm9l4q_di" bpmnElement="task_wrzm9l4q">
+        <dc:Bounds x="180" y="921" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_arp2kyhm_di" bpmnElement="task_arp2kyhm">
+        <dc:Bounds x="360" y="921" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_1k3vnb9r_di" bpmnElement="flow_1k3vnb9r">
+        <di:waypoint x="280" y="961" />
+        <di:waypoint x="360" y="961" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_4b0hq1pa_di" bpmnElement="task_4b0hq1pa">
+        <dc:Bounds x="540" y="921" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_5ze4eqgf_di" bpmnElement="flow_5ze4eqgf">
+        <di:waypoint x="460" y="961" />
+        <di:waypoint x="540" y="961" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_l2mzu38v_di" bpmnElement="task_l2mzu38v">
+        <dc:Bounds x="720" y="921" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_a3lko4tl_di" bpmnElement="flow_a3lko4tl">
+        <di:waypoint x="640" y="961" />
+        <di:waypoint x="720" y="961" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_4ievh1ei_di" bpmnElement="flow_4ievh1ei">
+        <di:waypoint x="820" y="961" />
+        <di:waypoint x="855" y="961" />
+        <di:waypoint x="855" y="891" />
+        <di:waypoint x="889" y="891" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_nf5v4hnl_di" bpmnElement="flow_nf5v4hnl">
+        <di:waypoint x="1440" y="791" />
+        <di:waypoint x="860" y="791" />
+        <di:waypoint x="860" y="961" />
+        <di:waypoint x="280" y="961" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

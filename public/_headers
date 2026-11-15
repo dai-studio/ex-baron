@@ -1,0 +1,5 @@
+# The service worker must never be cached, or installed players keep an old app after a deploy (design §10).
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache

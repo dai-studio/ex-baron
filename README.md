@@ -53,6 +53,14 @@ Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, 
 | Pause / restart | Esc or P / R |
 | Gamepad | Left stick to fly, right stick X for rudder and Y for throttle |
 
+## Phones, tablets and the app
+
+On a phone or tablet, hold it sideways and fly with your thumbs: drag anywhere on the left half to steer (drag down to climb), move the throttle lever on the right edge, and use the FLAP, BRAKE and CAM buttons. Rudder is automatic. **Steer by tilting** is in the Pause menu.
+
+Baron is also an installable app (PWA) that runs in its own window and works offline after the first visit. In Chrome or Edge, press **📲 Install app** on the main menu (or the install icon in the address bar); on iPhone or iPad, tap **Share → Add to Home Screen**. When a new version is deployed, the main menu shows **New version ready — Restart**.
+
+The service worker is only built by `npm run build` (from `src/pwa/sw.template.js`, with the precache list filled in by a plugin in `vite.config.ts`), so `npm run dev` never caches anything. To try it locally: `npm run build && npx vite preview`.
+
 ## Code map
 
 | Folder | Contents | Design section |

@@ -96,6 +96,12 @@
         </div>
         <div class="row aircraft-name" id="aircraft-name"></div>
         <div class="row best" id="best-line"></div>
+        <!-- installable app (design §10): shown only when there is something to offer -->
+        <div class="app-row hidden" id="app-row">
+          <button id="update-btn" class="hidden">✨ New version ready — Restart</button>
+          <button id="install-btn" class="hidden">📲 Install app</button>
+          <p id="ios-tip" class="hidden">Install: tap <b>Share</b> then <b>Add to Home Screen</b> <button id="ios-tip-x" title="Hide">✕</button></p>
+        </div>
         <button id="fly-btn" class="big">FLY!</button>
         <details class="controls">
           <summary>Controls</summary>

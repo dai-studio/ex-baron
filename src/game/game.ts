@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AudioEngine } from '../audio/audio';
 import { WakeLock, enterGameFullscreen, safeInsets, smallTouchScreen } from '../core/device';
 import { Input } from '../core/input';
+import { Pwa } from '../core/pwa';
 import { Loop } from '../core/loop';
 import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
@@ -143,6 +144,7 @@ export class Game {
   private contextLost = false;
   private stats: HTMLDivElement | null = null;
   private wakeLock = new WakeLock();
+  private pwa = new Pwa();
   /** touch, flying, held upright: paused behind the 'turn sideways' card */
   private rotateShown = false;
   private portraitPaused = false;
@@ -260,6 +262,28 @@ export class Game {
     window.addEventListener('pointerup', unlock, true);
     window.addEventListener('touchend', unlock, true);
     window.addEventListener('keydown', unlock, true);
+
+    // installable app: install button, iOS tip and the update prompt live on the main menu
+    const $ = (id: string) => document.getElementById(id)!;
+    const syncApp = () => {
+      const p = this.pwa;
+      $('update-btn').classList.toggle('hidden', !p.updateReady);
+      $('install-btn').classList.toggle('hidden', !p.canInstall);
+      $('ios-tip').classList.toggle('hidden', !p.iosTip || p.canInstall);
+      $('app-row').classList.toggle('hidden', !p.updateReady && !p.canInstall && !p.iosTip);
+    };
+    this.pwa.onChange = syncApp;
+    $('install-btn').addEventListener('click', () => {
+      this.uiClick();
+      void this.pwa.install();
+    });
+    $('update-btn').addEventListener('click', () => {
+      this.uiClick();
+      if (this.state === 'title') this.pwa.restart();
+    });
+    $('ios-tip-x').addEventListener('click', () => this.pwa.dismissTip());
+    syncApp();
+    this.pwa.register();
 
     this.applyTier();
     this.newWorld(this.settings.seed);
