@@ -1,0 +1,15 @@
+{
+  "name": "Baron — A biplane in every browser",
+  "short_name": "Baron",
+  "description": "A free cartoon flying game. Build your plane, take off, explore and land it in one piece.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#9fd3ef",
+  "theme_color": "#9fd3ef",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

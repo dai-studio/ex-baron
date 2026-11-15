@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioEngine } from '../audio/audio';
+import { WakeLock, enterGameFullscreen, safeInsets, smallTouchScreen } from '../core/device';
 import { Input } from '../core/input';
 import { Loop } from '../core/loop';
 import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
@@ -30,7 +31,7 @@ import { CRUISE_SPEED, TURN_RADIUS, RouteTracker, airfieldNames, bearing, planRo
  * → Ending (crash/landed) → Debrief.
  */
 type State = 'title' | 'hangar' | 'loading' | 'sortie' | 'ending' | 'debrief';
-type TierName = 'low' | 'medium' | 'high';
+type TierName = 'mobile' | 'low' | 'medium' | 'high';
 type Result = 'landed' | 'field landing' | 'crashed' | 'ditched' | 'bailed out';
 
 interface Tier {
@@ -42,6 +43,8 @@ interface Tier {
 }
 
 const TIERS: Record<TierName, Tier> = {
+  // phones (design §9.3): short view, no shadows or edge pass, capped pixel ratio
+  mobile: { radius: 3, post: false, shadows: false, shadowSize: 1024, maxPR: 1.25 },
   low: { radius: 4, post: false, shadows: false, shadowSize: 1024, maxPR: 1 },
   medium: { radius: 6, post: true, shadows: true, shadowSize: 1024, maxPR: 1.5 },
   high: { radius: 8, post: true, shadows: true, shadowSize: 2048, maxPR: 2 },
@@ -139,6 +142,10 @@ export class Game {
   private readonly rejoin = new THREE.Vector3();
   private contextLost = false;
   private stats: HTMLDivElement | null = null;
+  private wakeLock = new WakeLock();
+  /** touch, flying, held upright: paused behind the 'turn sideways' card */
+  private rotateShown = false;
+  private portraitPaused = false;
 
   constructor(canvas: HTMLCanvasElement, hudCanvas: HTMLCanvasElement) {
     this.settings = loadSettings();
@@ -149,6 +156,9 @@ export class Game {
 
     this.input = new Input(canvas);
     this.input.invertPitch = this.settings.invertPitch;
+    const setKind = (k: 'touch' | 'desktop') => document.body.classList.toggle('touch', k === 'touch');
+    setKind(this.input.lastInput);
+    this.input.onInputKind = setKind;
     this.rig = new CameraRig(this.camera);
     this.hud = new Hud(hudCanvas);
     this.ui = new Menus(this.settings, {
@@ -172,6 +182,8 @@ export class Game {
       modeChanged: () => this.refreshRoute(),
       destStep: (d) => this.stepDest(d),
       click: () => this.uiClick(),
+      tiltChanged: (on) => this.input.touch.setTilt(on),
+      recentre: () => this.input.touch.recentre(),
     });
     // redraw the flight-plan map when its size changes (window resize, controls list opened)
     let mapTimer = 0;
@@ -225,9 +237,29 @@ export class Game {
       this.ui.show(this.state === 'title' ? 'title' : this.state === 'hangar' ? 'hangar-screen' : 'pause');
     });
     window.addEventListener('resize', () => this.resize());
+    window.visualViewport?.addEventListener('resize', () => this.resize());
+    // interruptions (design §9.2): a call, the app switcher or a locked screen pause the sortie;
+    // coming back always lands on the Pause screen
+    const away = () => {
+      if (this.state === 'sortie' || this.state === 'ending') this.setPaused(true);
+      this.portraitPaused = false;
+      this.audio.suspend();
+    };
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && (this.state === 'sortie' || this.state === 'ending')) this.setPaused(true);
+      if (document.hidden) away();
+      else if (!this.paused) this.audio.resume();
     });
+    window.addEventListener('pagehide', away);
+    // iOS only lets audio start inside a user gesture: unlock it on the first tap anywhere
+    const unlock = () => {
+      this.audio.init();
+      window.removeEventListener('pointerup', unlock, true);
+      window.removeEventListener('touchend', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+    };
+    window.addEventListener('pointerup', unlock, true);
+    window.addEventListener('touchend', unlock, true);
+    window.addEventListener('keydown', unlock, true);
 
     this.applyTier();
     this.newWorld(this.settings.seed);
@@ -249,9 +281,10 @@ export class Game {
 
   private pickTier(): TierName {
     if (this.settings.quality !== 'auto') return this.settings.quality;
+    // phones and small tablets from their input and screen, not the user agent (design §9.3)
+    if (smallTouchScreen()) return 'mobile';
     const cores = navigator.hardwareConcurrency || 4;
-    const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-    return mobile || cores <= 4 ? 'low' : 'medium';
+    return cores <= 4 ? 'low' : 'medium';
   }
 
   private applyTier() {
@@ -299,6 +332,7 @@ export class Game {
     this.camera.updateProjectionMatrix();
     this.post.setSize(w * pr, h * pr);
     this.hud.resize();
+    this.input.touch.model.resize(w, h, safeInsets());
   }
 
   private newWorld(seed: number) {
@@ -499,7 +533,21 @@ export class Game {
 
   private fly() {
     this.uiClick();
+    if (this.input.lastInput === 'touch') {
+      // inside the tap: fullscreen + landscape lock where allowed, and the tilt permission
+      enterGameFullscreen();
+      if (this.settings.tilt && !this.input.touch.tiltEnabled) {
+        void this.input.touch.setTilt(true).then((ok) => {
+          if (!ok) this.ui.hint('Tilt steering is not available here: using the on-screen stick.', 4000);
+        });
+      }
+    }
     this.startSortie();
+  }
+
+  /** Desktop or touch wording for tips. */
+  private say(desktop: string, touch: string): string {
+    return this.input.lastInput === 'touch' ? touch : desktop;
   }
 
   private toTitle() {
@@ -507,6 +555,7 @@ export class Game {
     this.clearPlanes();
     this.clearGuide();
     this.state = 'title';
+    this.wakeLock.set(false);
     this.hud.visible = false;
     this.hud.clear();
     this.ui.clearHint();
@@ -608,9 +657,17 @@ export class Game {
     this.hud.visible = true;
     this.hud.invalidateMinimap();
     this.ui.show('none');
-    const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : ' Take-off flaps: F.';
+    this.wakeLock.set(true);
+    this.input.touch.recentre();
+    const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : this.say(' Take-off flaps: F.', ' Take-off flaps: tap FLAP +.');
     const follow = this.sortieRoute ? ` Follow the arrows to ${this.destName()}.` : '';
-    this.ui.hint(`Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}${follow}`, 6000);
+    this.ui.hint(
+      this.say(
+        `Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}${follow}`,
+        `Push the throttle lever (right) all the way up. Steer with the stick (left thumb).${jet}${follow}`,
+      ),
+      6000,
+    );
   }
 
   // ------------------------------------------------------------- outcomes
@@ -695,6 +752,7 @@ export class Game {
     const m = this.mission;
     const p = this.player!;
     this.state = 'debrief';
+    this.wakeLock.set(false);
     this.hud.visible = false;
     this.hud.clear();
     const landedOk = m.result === 'landed' || m.result === 'field landing';
@@ -738,9 +796,14 @@ export class Game {
     const a = this.settings.assist;
     const inp = p.input;
     const s = p.s;
-    if (a === 'expert' || s.onGround) return;
+    // touch has no rudder pedals (design §9.1 ADR): the stick steers the wheels on the ground
+    // and the rudder is coordinated with the roll in the air, on every assist level
+    const touch = this.input.lastInput === 'touch';
+    if (touch && s.onGround) inp.yaw = THREE.MathUtils.clamp(inp.yaw + inp.roll, -1, 1);
+    if (s.onGround || (a === 'expert' && !touch)) return;
     // auto-rudder
     inp.yaw = THREE.MathUtils.clamp(inp.yaw + inp.roll * 0.3, -1, 1);
+    if (a === 'expert') return;
     if (a === 'arcade') {
       if (Math.abs(inp.roll) < 0.05 && !this.input.mouseStick) {
         const level = bankAngle(s);
@@ -842,8 +905,8 @@ export class Game {
         const vr = Math.round((stallSpeed(p.spec) * 1.25 * 3.6) / 5) * 5;
         this.ui.hint(
           p.gear.tricycle
-            ? `Keep it straight with Q / E, then pull back gently with S at about ${vr} km/h.`
-            : `Ease the tail up with W, then pull back gently with S at about ${vr} km/h.`,
+            ? this.say(`Keep it straight with Q / E, then pull back gently with S at about ${vr} km/h.`, `Keep it straight with the stick, then drag it gently down at about ${vr} km/h.`)
+            : this.say(`Ease the tail up with W, then pull back gently with S at about ${vr} km/h.`, `Ease the tail up (stick up a little), then drag it gently down at about ${vr} km/h.`),
           6000,
         );
       }
@@ -860,7 +923,7 @@ export class Game {
         const near = w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z);
         if (near.dist < 2500 && (!this.sortieRoute || near.af === this.sortieRoute.to)) {
           m.flapHint = true;
-          this.ui.hint('Landing? Full flaps (press F twice) let you come in slower and steeper.', 5000);
+          this.ui.hint(this.say('Landing? Full flaps (press F twice) let you come in slower and steeper.', 'Landing? Full flaps (tap FLAP + twice) let you come in slower and steeper. Hold BRAKE after touchdown.'), 5000);
         }
       }
       // cross-country: progress along the path and how much of the flight stayed on it
@@ -888,12 +951,13 @@ export class Game {
 
   private handleKeys() {
     const i = this.input;
-    if (i.wasPressed('Escape') || i.wasPressed('KeyP') || i.padWasPressed(9)) {
+    const ta = i.touch.model.take();
+    if (i.wasPressed('Escape') || i.wasPressed('KeyP') || i.padWasPressed(9) || ta.has('pause')) {
       if (this.state === 'sortie' || this.state === 'ending') this.setPaused(!this.paused);
     }
     if (this.paused) return;
     if (this.state === 'sortie' || this.state === 'ending') {
-      if (i.wasPressed('KeyC') || i.padWasPressed(3)) {
+      if (i.wasPressed('KeyC') || i.padWasPressed(3) || ta.has('camera')) {
         this.rig.cycle();
         this.ui.toast(this.rig.mode.toUpperCase(), 700);
       }
@@ -901,7 +965,8 @@ export class Game {
     }
     if (this.state === 'sortie') {
       // flaps: F (d-pad down) one notch more, V (d-pad up) one notch less
-      const fd = (i.wasPressed('KeyF') || i.padWasPressed(13) ? 1 : 0) - (i.wasPressed('KeyV') || i.padWasPressed(12) ? 1 : 0);
+      const fd =
+        (i.wasPressed('KeyF') || i.padWasPressed(13) || ta.has('flapsMore') ? 1 : 0) - (i.wasPressed('KeyV') || i.padWasPressed(12) || ta.has('flapsLess') ? 1 : 0);
       if (fd && i.stepFlaps(fd)) {
         this.ui.toast(`FLAPS ${FLAP_LABELS[i.flapNotch]}`, 700);
         this.audio.click();
@@ -911,7 +976,7 @@ export class Game {
         this.ui.hint(i.mouseStick ? 'Mouse stick ON: move the cursor to fly.' : 'Mouse stick OFF', 3000);
       }
       const p = this.player;
-      if (i.wasPressed('KeyX') && p && !p.wrecked && !p.s.onGround && this.mission.tookOff) {
+      if ((i.wasPressed('KeyX') || ta.has('bail')) && p && !p.wrecked && !p.s.onGround && this.mission.tookOff) {
         this.abandonPlane(p);
         this.mission.result = 'bailed out';
         this.mission.resultText = 'Parachuted to safety';
@@ -955,6 +1020,7 @@ export class Game {
 
   private frame(dt: number, alpha: number) {
     this.input.pollPad();
+    this.updateTouch(dt);
     this.handleKeys();
     this.time += dt;
     const w = this.world;
@@ -1048,6 +1114,7 @@ export class Game {
           showLanding: m.tookOff && agl < 450 && (!this.sortieRoute || w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af === this.sortieRoute.to),
           guide: this.hudGuide(),
           flapNotch: this.input.flapNotch,
+          touch: this.touchView(),
         },
         dt,
       );
@@ -1089,6 +1156,50 @@ export class Game {
     if (next === tenths) return;
     this.renderScale = next / 10;
     this.resize();
+  }
+
+  /** Per-frame touch bookkeeping: enable, BAIL, tilt filter, the portrait card, the frame cap. */
+  private updateTouch(dt: number) {
+    const t = this.input.touch;
+    const flying = this.state === 'sortie' || this.state === 'ending';
+    const p = this.player;
+    t.setEnabled(flying && !this.paused);
+    if (document.body.classList.contains('flying') !== flying) document.body.classList.toggle('flying', flying);
+    t.model.bailShown = this.state === 'sortie' && !!p && !p.wrecked && !p.downed && !p.s.onGround && !!this.mission?.tookOff;
+    t.update(dt);
+    // held upright while flying on a phone: pause behind the card, resume when turned back
+    const portrait = this.input.lastInput === 'touch' && window.innerHeight > window.innerWidth * 1.05;
+    const block = flying && portrait;
+    if (block !== this.rotateShown) {
+      this.rotateShown = block;
+      document.getElementById('rotate')!.classList.toggle('hidden', !block);
+    }
+    if (block && !this.paused) {
+      this.setPaused(true);
+      this.portraitPaused = true;
+    } else if (!block && this.portraitPaused) {
+      this.portraitPaused = false;
+      if (this.paused && !document.hidden) this.setPaused(false);
+    }
+    // phones: 60 fps in flight, 30 behind the menus (heat and battery, design §9.3)
+    this.loop.maxFps = this.tierName === 'mobile' ? (flying && !this.paused ? 60 : 30) : 0;
+  }
+
+  /** What the HUD needs to draw the touch controls (null when not on touch). */
+  private touchView() {
+    const t = this.input.touch;
+    if (this.input.lastInput !== 'touch' || !t.enabled) return null;
+    const m = t.model;
+    const now = performance.now() / 1000;
+    return {
+      layout: m.layout,
+      stick: m.stick(),
+      throttle: m.throttle,
+      held: (id: Parameters<typeof m.held>[0]) => m.held(id),
+      bailShown: m.bailShown,
+      bailProgress: m.bailProgress(now),
+      tilt: t.tiltEnabled,
+    };
   }
 
   private hudGuide() {

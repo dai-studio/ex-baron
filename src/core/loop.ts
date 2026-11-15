@@ -12,6 +12,8 @@ export class Loop {
   private last = 0;
   private raf = 0;
   running = false;
+  /** render-rate cap (0 = every display refresh); the simulation still steps at 120 Hz */
+  maxFps = 0;
 
   constructor(
     private onStep: (dt: number) => void,
@@ -25,6 +27,8 @@ export class Loop {
     const tick = (now: number) => {
       if (!this.running) return;
       this.raf = requestAnimationFrame(tick);
+      // frame cap (phones with 120 Hz screens): skip refreshes that come too early; 1 ms slack for vsync jitter
+      if (this.maxFps > 0 && now - this.last < 1000 / this.maxFps - 1) return;
       let frameDt = (now - this.last) / 1000;
       this.last = now;
       if (frameDt > MAX_FRAME) frameDt = MAX_FRAME;

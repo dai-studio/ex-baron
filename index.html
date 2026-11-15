@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <title>Baron — A biplane in every browser</title>
     <meta
       name="description"
@@ -12,6 +12,10 @@
     <link rel="icon" href="/favicon.ico" sizes="32x32 48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="application-name" content="Baron" />
     <meta name="apple-mobile-web-app-title" content="Baron" />
     <meta name="color-scheme" content="light" />
@@ -95,7 +99,18 @@
         <button id="fly-btn" class="big">FLY!</button>
         <details class="controls">
           <summary>Controls</summary>
-          <table>
+          <table class="touch-only">
+            <tr><td>Fly</td><td>Left thumb: drag anywhere on the left half (drag down to climb)</td></tr>
+            <tr><td>Throttle</td><td>Lever on the right edge (double-tap = idle)</td></tr>
+            <tr><td>Flaps</td><td>FLAP + / FLAP − (UP, T/O, LAND)</td></tr>
+            <tr><td>Brakes</td><td>Hold BRAKE</td></tr>
+            <tr><td>Rudder</td><td>Automatic (the stick steers on the ground)</td></tr>
+            <tr><td>Camera</td><td>CAM (chase / cockpit)</td></tr>
+            <tr><td>Bail out</td><td>Hold BAIL for a second</td></tr>
+            <tr><td>Pause</td><td>❚❚ top-left</td></tr>
+            <tr><td>Tilt</td><td>Pause → Steer by tilting</td></tr>
+          </table>
+          <table class="desktop-only">
             <tr><td>Pitch</td><td>W / S or ↑ / ↓ (S pulls up)</td></tr>
             <tr><td>Roll</td><td>A / D or ← / →</td></tr>
             <tr><td>Rudder</td><td>Q / E</td></tr>
@@ -135,7 +150,8 @@
         <div id="hangar-name" class="hangar-name"></div>
         <div id="hangar-stats" class="stats"></div>
         <button id="close-hangar" class="big">Back to menu</button>
-        <p class="hangar-keys">← → category · ↑ ↓ choose · drag to look around · Esc back</p>
+        <p class="hangar-keys desktop-only">← → category · ↑ ↓ choose · drag to look around · Esc back</p>
+        <p class="hangar-keys touch-only">Tap a tab and a card · drag the plane to look around</p>
       </div>
     </section>
 
@@ -162,6 +178,11 @@
         <div class="row">
           <label><input id="invert" type="checkbox" /> Invert pitch</label>
         </div>
+        <div class="row touch-only tilt-row">
+          <label><input id="tilt" type="checkbox" /> Steer by tilting</label>
+          <span id="tilt-note" class="note"></span>
+        </div>
+        <button id="recentre-btn" class="touch-only hidden">Re-centre tilt</button>
       </div>
     </section>
 
@@ -175,6 +196,15 @@
           <button id="newworld-btn">New world</button>
           <button id="hangar-btn">Main menu</button>
         </div>
+      </div>
+    </section>
+
+    <!-- touch, flying, held upright: the sortie waits behind this card (design §9.2) -->
+    <section id="rotate" class="hidden">
+      <div class="panel small">
+        <div class="rotate-icon">📱↻</div>
+        <h2>Turn your phone sideways</h2>
+        <p>Baron flies in landscape. The flight is paused until you turn back.</p>
       </div>
     </section>
 

@@ -14,7 +14,14 @@
 html, body {
   margin: 0;
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
+  /* a game, not a page: no rubber-band, callouts, tap flashes or text inflation on phones (design §9.2) */
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   background: #9fd3ef;
   font-family: var(--font);
   color: var(--ink);
@@ -30,6 +37,8 @@ html, body {
   display: block;
 }
 #hud { pointer-events: none; }
+/* the canvas takes every touch itself: no scroll, pinch or double-tap zoom over the game */
+#game { touch-action: none; }
 
 #whiteout {
   position: fixed; inset: 0; pointer-events: none;
@@ -51,17 +60,19 @@ html, body {
 #toast.show { opacity: 1; transform: translateX(-50%) scale(1.08); }
 
 #hint {
-  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); left: 50%; transform: translateX(-50%);
   background: var(--paper); border: 3px solid var(--ink); border-radius: 14px;
   padding: 6px 16px; font-weight: 700; font-size: 17px;
   box-shadow: 4px 4px 0 var(--ink); pointer-events: none;
   opacity: 0; transition: opacity 0.3s; max-width: min(90vw, 640px); text-align: center;
 }
 #hint.show { opacity: 1; }
+/* touch: the thumbs and the instruments own the bottom, so tips go under the objective */
+body.touch #hint { bottom: auto; top: calc(env(safe-area-inset-top) + 100px); font-size: 15px; max-width: min(56vw, 560px); padding: 5px 12px; }
 
 /* "Built with DAI Studio" badge, always in the top-right corner (the in-flight minimap sits below it) */
 #built-with {
-  position: fixed; top: 12px; right: 12px; z-index: 20;
+  position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); z-index: 20;
   padding: 5px 12px; border-radius: 999px;
   background: #121826; border: 1px solid #2b3445;
   color: #c3c9d4; text-decoration: none; white-space: nowrap;
@@ -70,11 +81,14 @@ html, body {
   transition: border-color 0.15s, background 0.15s;
 }
 #built-with b { color: #7b61e8; font-weight: 700; }
-#built-with:hover { border-color: #7b61e8; background: #161d2e; }
+@media (hover: hover) { #built-with:hover { border-color: #7b61e8; background: #161d2e; } }
+/* in flight on touch the badge is only a badge: a stray tap must not leave the game */
+body.touch.flying #built-with { pointer-events: none; }
 
 .screen {
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-  padding: 16px; overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain;
 }
 .screen.hidden { display: none; }
 /* menu + flight plan: fixed widths, equal heights (the plan stretches to the menu), so text never resizes them */
@@ -136,7 +150,8 @@ button {
   padding: 6px 12px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink);
   transition: transform 0.06s, box-shadow 0.06s;
 }
-button:hover { background: #fff0c4; }
+@media (hover: hover) { button:hover { background: #fff0c4; } }
+button.hidden { display: none !important; }
 button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
 button.big {
   display: block; width: 100%; font-family: var(--display); font-weight: 400;
@@ -210,11 +225,78 @@ input[type='range'] { accent-color: var(--accent); }
 .hangar-keys { margin: 10px 0 0; font-size: 12px; font-weight: 700; color: #6b4b2a; text-align: center; }
 
 @media (max-width: 980px) {
-  #hangar-screen { justify-content: center; align-items: flex-end; pointer-events: auto; }
+  /* the screen stays click-through so the plane preview can still be dragged around */
+  #hangar-screen { justify-content: center; align-items: flex-end; }
 }
 
 @media (max-width: 560px) {
   #built-with { top: 8px; right: 8px; padding: 4px 10px; font-size: 11px; }
   #title { justify-content: center; padding-left: 16px; align-content: flex-start; }
   .row { flex-wrap: wrap; }
+}
+
+/* ------------------------------------------------------------ touch & mobile (design §9.2) */
+body:not(.touch) .touch-only { display: none !important; }
+body.touch .desktop-only { display: none !important; }
+
+/* finger-sized targets: ≥ 44 × 44 CSS px */
+body.touch button { min-height: 44px; }
+body.touch .seg { gap: 8px; }
+body.touch .seg button { min-width: 48px; padding: 4px 12px; }
+body.touch .dest-pick button { min-width: 52px; }
+body.touch input[type='checkbox'] { width: 24px; height: 24px; vertical-align: middle; margin: 0 6px 0 0; }
+body.touch input[type='range'] { height: 36px; width: 60%; }
+body.touch .controls summary { padding: 10px 0; }
+body.touch .card { min-height: 52px; }
+body.touch .seed input { min-height: 44px; }
+.tilt-row .note { font-size: 13px; font-weight: 700; color: #6b4b2a; }
+
+/* rotate card: above everything while a touch sortie is held upright */
+#rotate {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(30, 50, 70, 0.8); touch-action: none;
+}
+#rotate.hidden { display: none; }
+#rotate p { font-weight: 700; margin: 0; }
+.rotate-icon { font-size: 54px; line-height: 1; margin-bottom: 6px; animation: rotate-tip 1.8s ease-in-out infinite; display: inline-block; }
+@keyframes rotate-tip { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+
+/* short landscape screens (phones on their side): panels side by side, scrolling inside themselves */
+@media (max-height: 560px) {
+  .panel { padding: 12px 16px; border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); border-width: 3px; }
+  .panel h2 { font-size: 24px; margin-bottom: 6px; }
+  .row { margin: 6px 0; }
+  #title { flex-wrap: nowrap; gap: 14px; align-items: stretch; align-content: stretch; }
+  #title .title-panel, .panel.route-panel {
+    width: min(440px, calc(50vw - 24px)); max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  }
+  /* free flight: no flight plan, the menu gets the full width */
+  .route-panel.hidden { display: none; }
+  #title:has(.route-panel.hidden) .title-panel { width: min(440px, 100%); }
+  .panel.route-panel { padding: 12px 14px; }
+  #route-map { min-height: 110px; }
+  .logo { font-size: 46px; -webkit-text-stroke-width: 2px; text-shadow: 3px 4px 0 var(--ink); }
+  .tagline { display: none; }
+  /* FLY! stays in reach while the menu scrolls */
+  #fly-btn { position: sticky; bottom: 0; z-index: 1; font-size: 26px; margin: 8px 0 0; }
+  .route-note { display: none; }
+  #pause .panel, #debrief .panel, #loading .panel { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+  #pause .panel.small { width: min(460px, 100%); display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; align-content: start; }
+  #pause h2, #pause .big, #pause .row, #pause #recentre-btn { grid-column: 1 / -1; }
+  #pause .panel.small button { margin: 5px 0; }
+  #medal { font-size: 40px; }
+  #debrief-stats { font-size: 15px; }
+  #debrief .panel { width: min(560px, 100%); }
+  /* hangar: the panel on the right half, the plane on the left */
+  #hangar-screen { justify-content: flex-end; align-items: stretch; }
+  .hangar-panel { width: min(380px, 52vw); max-height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px; }
+  .hangar-panel .cards:not(.swatches) {
+    flex-direction: row; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 4px 6px 2px; touch-action: pan-x pan-y;
+  }
+  .hangar-panel .cards:not(.swatches) .card { flex: 0 0 80%; scroll-snap-align: start; }
+  .cards.swatches { gap: 6px; }
+  .swatch { width: 28px; height: 28px; }
+  .stat { grid-template-columns: 82px 1fr 78px 30px; font-size: 12px; }
+  .hangar-panel #close-hangar { font-size: 22px; margin: 8px 0 0; padding: 4px; }
+  .hangar-keys { margin-top: 6px; }
 }
