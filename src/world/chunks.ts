@@ -45,7 +45,9 @@ export class ChunkManager {
     public radius: number,
   ) {
     this.group.name = 'terrain';
-    const n = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
+    // phones: at most 2 chunk workers (heat, memory and the main thread need cores too; design §9.3)
+    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    const n = Math.max(1, Math.min(coarse ? 2 : 4, (navigator.hardwareConcurrency || 4) - 1));
     for (let i = 0; i < n; i++) {
       const w = new Worker(new URL('./chunk.worker.ts', import.meta.url), { type: 'module' });
       w.onmessage = (e: MessageEvent<ChunkData>) => {

@@ -6,6 +6,7 @@ import type { World } from '../world/world';
 import type { Route } from '../game/route';
 import type { Airfield } from '../world/terrain';
 import { CLUSTER_H, CLUSTER_W, Instruments } from './instruments';
+import { MINI_TOP, MINI_TOUCH, type Circle, type Control, type TouchLayout } from '../core/touch';
 
 /**
  * HUD & UI (design §3): hand-drawn style overlay on a 2D canvas —
@@ -37,6 +38,18 @@ export interface HudContext {
   flapNotch: number;
   /** cross-country flight: the route, destination and (when off the path) where to rejoin it */
   guide?: { route: Route; dest: Airfield; rejoin: THREE.Vector3 | null };
+  /** touch play: draw the on-screen controls and keep the gauges clear of the thumbs (design §9.2) */
+  touch?: TouchView | null;
+}
+
+export interface TouchView {
+  layout: TouchLayout;
+  stick: { ox: number; oy: number; x: number; y: number } | null;
+  throttle: number;
+  held(id: Control): boolean;
+  bailShown: boolean;
+  bailProgress: number;
+  tilt: boolean;
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -71,8 +84,9 @@ export class Hud {
   private miniT = 0;
   private readonly miniSpan = 7000;
   private instruments = new Instruments();
-  /** top of the instrument cluster (CSS px), so the landing guide sits above it */
+  /** top and centre of the instrument cluster (CSS px), so the landing guide sits above it */
   private clusterTop = 0;
+  private clusterCx = 0;
   visible = false;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -113,11 +127,26 @@ export class Hud {
     const compact = this.w < 700;
     const sc = compact ? 0.8 : 1;
 
+    const tv = c.touch ?? null;
+    const cl = this.cluster(sc, tv);
+    this.clusterTop = cl.y;
+    this.clusterCx = cl.cx;
+
     // ---------- markers in the world
-    this.drawMouseStick(c);
-    this.clusterTop = this.h - 16 - CLUSTER_H * this.clusterScale(sc);
+    if (!tv) this.drawMouseStick(c);
     if (c.showLanding) this.drawLandingGuide(c);
     if (c.guide?.rejoin) this.drawRejoin(c.guide.rejoin, c.camera);
+
+    if (tv) {
+      this.drawInstruments(c, cl);
+      this.drawTouchStatus(c, tv);
+      this.drawCompass(c, Math.min(300, this.w * 0.36), tv.layout.safe.t);
+      this.drawObjective(c.objective, 14, tv.layout.safe.t);
+      this.miniT -= dt;
+      this.drawMinimap(c, MINI_TOUCH, tv.layout.safe.t, tv.layout.safe.r);
+      this.drawTouchControls(c, tv);
+      return;
+    }
 
     // ---------- bottom-left gauges
     g.save();
@@ -178,31 +207,45 @@ export class Hud {
     g.restore();
 
     // ---------- bottom-centre: airspeed, attitude, altimeter
-    this.drawInstruments(c, sc);
+    this.drawInstruments(c, cl);
 
     // ---------- top: compass ribbon + objective
-    this.drawCompass(c);
-    g.font = `800 ${compact ? 14 : 16}px ${FONT}`;
-    g.textAlign = 'center';
-    const objW = g.measureText(c.objective).width + 28;
-    panel(g, this.w / 2 - objW / 2, 62, objW, 30);
-    g.fillStyle = INK;
-    g.fillText(c.objective, this.w / 2, 83);
-    g.textAlign = 'left';
+    this.drawCompass(c, Math.min(420, this.w - 40), 0);
+    this.drawObjective(c.objective, compact ? 14 : 16, 0);
 
     // ---------- minimap (top-right)
     this.miniT -= dt;
-    this.drawMinimap(c, compact ? 120 : 160);
+    this.drawMinimap(c, compact ? 120 : 160, 0, 0);
   }
 
-  /** Cluster scale: fits between the gauge panel (left) and the damage panel (right). */
-  private clusterScale(sc: number): number {
+  private drawObjective(text: string, size: number, top: number) {
+    const g = this.g;
+    g.font = `800 ${size}px ${FONT}`;
+    g.textAlign = 'center';
+    const objW = g.measureText(text).width + 28;
+    panel(g, this.w / 2 - objW / 2, top + 62, objW, 30);
+    g.fillStyle = INK;
+    g.fillText(text, this.w / 2, top + 62 + 21);
+    g.textAlign = 'left';
+  }
+
+  /**
+   * Where the instrument cluster goes. Desktop: centre-bottom between the gauge panel (left) and
+   * the damage panel (right). Touch: in the gap between the stick thumb and the button cluster.
+   */
+  private cluster(sc: number, tv: TouchView | null): { k: number; cx: number; y: number } {
+    if (tv) {
+      const l = tv.layout;
+      const gap = l.rightEdge - l.leftEdge - 24;
+      const k = THREE.MathUtils.clamp(gap / CLUSTER_W, 0.4, 0.8);
+      return { k, cx: (l.leftEdge + l.rightEdge) / 2, y: this.h - l.safe.b - 10 - CLUSTER_H * k };
+    }
     const side = Math.max(16 + 220 * sc, 16 + 120 * sc) + 12;
-    const avail = this.w - 2 * side;
-    return THREE.MathUtils.clamp(avail / CLUSTER_W, 0.45, 1);
+    const k = THREE.MathUtils.clamp((this.w - 2 * side) / CLUSTER_W, 0.45, 1);
+    return { k, cx: this.w / 2, y: this.h - 16 - CLUSTER_H * k };
   }
 
-  private drawInstruments(c: HudContext, sc: number) {
+  private drawInstruments(c: HudContext, cl: { k: number; cx: number; y: number }) {
     const g = this.g;
     const p = c.player;
     p.forward(_fwd);
@@ -210,9 +253,9 @@ export class Hud {
     _right.set(1, 0, 0).applyQuaternion(p.s.quat);
     const pitch = Math.asin(THREE.MathUtils.clamp(_fwd.y, -1, 1));
     const bank = Math.atan2(-_right.y, _up.y);
-    const k = this.clusterScale(sc);
+    const k = cl.k;
     g.save();
-    g.translate(this.w / 2 - (CLUSTER_W * k) / 2, this.h - 16 - CLUSTER_H * k);
+    g.translate(cl.cx - (CLUSTER_W * k) / 2, cl.y);
     g.scale(k, k);
     this.instruments.draw(g, 0, 0, k * this.dpr, { airspeed: p.s.airspeed, altitude: p.s.pos.y, pitch, bank, spec: p.spec });
     g.restore();
@@ -297,11 +340,10 @@ export class Hud {
     g.restore();
   }
 
-  private drawCompass(c: HudContext) {
+  private drawCompass(c: HudContext, w: number, top: number) {
     const g = this.g;
-    const w = Math.min(420, this.w - 40);
     const x0 = this.w / 2 - w / 2;
-    const y0 = 12;
+    const y0 = top + 12;
     panel(g, x0, y0, w, 40);
     c.player.forward(_fwd);
     const heading = (Math.atan2(_fwd.x, -_fwd.z) * 180) / Math.PI;
@@ -473,10 +515,11 @@ export class Hud {
       const text = `${msg}   sink ${sink.toFixed(1)} m/s`;
       const tw = g.measureText(text).width + 24;
       const y = this.clusterTop - 44;
-      panel(g, this.w / 2 - tw / 2, y, tw, 30);
+      const cx = this.clusterCx;
+      panel(g, cx - tw / 2, y, tw, 30);
       g.fillStyle = sink > 3 * LANDING_FORGIVENESS ? RED : INK;
       g.textAlign = 'center';
-      g.fillText(text, this.w / 2, y + 21);
+      g.fillText(text, cx, y + 21);
       g.textAlign = 'left';
     }
   }
@@ -514,15 +557,15 @@ export class Hud {
     this.miniAt.set(px, pz);
   }
 
-  private drawMinimap(c: HudContext, size: number) {
+  private drawMinimap(c: HudContext, size: number, top: number, right: number) {
     const s = c.player.s;
     if (this.miniT <= 0 && (Math.abs(s.pos.x - this.miniAt.x) > 400 || Math.abs(s.pos.z - this.miniAt.y) > 400)) {
       this.renderMinimap(c);
       this.miniT = 0.5;
     }
     const g = this.g;
-    const x0 = this.w - size - 16;
-    const y0 = 46; // below the "Built with DAI Studio" badge in the top-right corner
+    const x0 = this.w - right - size - 16;
+    const y0 = top + MINI_TOP; // below the "Built with DAI Studio" badge in the top-right corner
     panel(g, x0, y0, size, size);
     g.save();
     roundRect(g, x0 + 3, y0 + 3, size - 6, size - 6, 10);
@@ -587,5 +630,196 @@ export class Hud {
     g.font = `800 11px ${FONT}`;
     g.fillStyle = INK;
     g.fillText('N', x0 + size / 2 - 4, y0 + 15);
+  }
+
+  // ------------------------------------------------------------ touch (design §9.1, §9.2)
+
+  /** Small status card under the pause button: height above ground, stall / flap warnings, damage. */
+  private drawTouchStatus(c: HudContext, tv: TouchView) {
+    const g = this.g;
+    const l = tv.layout;
+    const s = c.player.s;
+    const p = l.buttons.pause;
+    const x = l.safe.l + 12 * l.u;
+    const y = p.y + p.r + 10 * l.u;
+    const w = 132;
+    const h = 58;
+    panel(g, x, y, w, h);
+    const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
+    g.fillStyle = INK;
+    g.font = `800 12px ${FONT}`;
+    g.fillText('AGL', x + 10, y + 20);
+    g.font = `800 18px ${FONT}`;
+    g.fillText(`${Math.round(agl)} m`, x + 40, y + 21);
+    g.font = `800 12px ${FONT}`;
+    if (c.stallWarn) {
+      g.fillStyle = RED;
+      g.fillText('STALL!', x + 10, y + 44);
+    } else if (s.flapsBlown) {
+      g.fillStyle = RED;
+      g.fillText('TOO FAST!', x + 10, y + 44);
+    } else {
+      g.fillStyle = '#6b4b2a';
+      g.fillText(`FLAPS ${FLAP_LABELS[c.flapNotch]}`, x + 10, y + 44);
+    }
+    g.save();
+    g.translate(x + w - 26, y + h / 2 + 2);
+    g.scale(0.42, 0.42);
+    this.drawDamage(g, 0, 0, s.health);
+    g.restore();
+  }
+
+  private drawTouchControls(c: HudContext, tv: TouchView) {
+    const g = this.g;
+    const l = tv.layout;
+    const u = l.u;
+    const font = (px: number) => `800 ${Math.max(11, Math.round(px * u))}px ${FONT}`;
+    g.save();
+    g.lineJoin = 'round';
+
+    // stick: base where the thumb landed, knob under the thumb; a ghost at rest
+    const st = tv.stick;
+    const R = l.stickR;
+    const bx = st ? st.ox : l.stickRest.x;
+    const by = st ? st.oy : l.stickRest.y;
+    g.globalAlpha = st ? 0.9 : tv.tilt ? 0.35 : 0.5;
+    g.beginPath();
+    g.arc(bx, by, R, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(255, 246, 221, 0.28)';
+    g.fill();
+    g.lineWidth = 3;
+    g.strokeStyle = INK;
+    g.stroke();
+    // up / down / left / right ticks
+    g.lineWidth = 2.5;
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      g.beginPath();
+      g.moveTo(bx + Math.cos(a) * R * 0.78, by + Math.sin(a) * R * 0.78);
+      g.lineTo(bx + Math.cos(a) * R * 0.92, by + Math.sin(a) * R * 0.92);
+      g.stroke();
+    }
+    const kx = bx + (st ? st.x * R : 0);
+    const ky = by + (st ? st.y * R : 0);
+    g.beginPath();
+    g.arc(kx, ky, R * 0.42, 0, Math.PI * 2);
+    g.fillStyle = st ? GOLD : 'rgba(255, 246, 221, 0.85)';
+    g.fill();
+    g.lineWidth = 3;
+    g.stroke();
+    if (!st) {
+      g.fillStyle = INK;
+      g.font = font(11);
+      g.textAlign = 'center';
+      g.fillText(tv.tilt ? 'TILT' : 'FLY', kx, ky + 4 * u);
+      g.textAlign = 'left';
+    }
+    g.globalAlpha = 1;
+
+    // throttle lever: setting (wide fill), engine rpm / spool (thin inner bar), handle with %
+    const lv = l.lever;
+    const held = tv.held('lever');
+    g.globalAlpha = held ? 0.95 : 0.8;
+    roundRect(g, lv.x, lv.y, lv.w, lv.h, 12 * u);
+    g.fillStyle = 'rgba(255, 246, 221, 0.55)';
+    g.fill();
+    g.save();
+    g.clip();
+    const fillH = lv.h * tv.throttle;
+    g.fillStyle = 'rgba(242, 177, 52, 0.85)';
+    g.fillRect(lv.x, lv.y + lv.h - fillH, lv.w, fillH);
+    const rpm = c.player.s.rpm;
+    g.fillStyle = 'rgba(224, 79, 58, 0.85)';
+    g.fillRect(lv.x + lv.w - 7 * u, lv.y + lv.h - lv.h * rpm, 4 * u, lv.h * rpm);
+    g.restore();
+    roundRect(g, lv.x, lv.y, lv.w, lv.h, 12 * u);
+    g.lineWidth = 3;
+    g.strokeStyle = INK;
+    g.stroke();
+    g.lineWidth = 1.5;
+    for (const f of [0.25, 0.5, 0.75]) {
+      const y = lv.y + lv.h * (1 - f);
+      g.beginPath();
+      g.moveTo(lv.x + 4, y);
+      g.lineTo(lv.x + 12 * u, y);
+      g.stroke();
+    }
+    const hy = lv.y + lv.h * (1 - tv.throttle);
+    const hh = 24 * u;
+    roundRect(g, lv.x - 6 * u, hy - hh / 2, lv.w + 12 * u, hh, 8 * u);
+    g.fillStyle = held ? GOLD : PAPER;
+    g.fill();
+    g.lineWidth = 3;
+    g.stroke();
+    g.fillStyle = INK;
+    g.font = font(12);
+    g.textAlign = 'center';
+    g.fillText(`${Math.round(tv.throttle * 100)}%`, lv.x + lv.w / 2, hy + 4.5 * u);
+    g.font = font(10);
+    const eng = engineOf(c.player.loadout.style);
+    // label at the far end from the handle so they never overlap
+    const top = tv.throttle < 0.6;
+    g.fillText(eng === 'jet' ? `${Math.round(rpm * 100)}` : 'THR', lv.x + lv.w / 2, top ? lv.y + 16 * u : lv.y + lv.h - 8 * u);
+    g.textAlign = 'left';
+    g.globalAlpha = 1;
+
+    // buttons
+    const b = l.buttons;
+    const blown = c.player.s.flapsBlown;
+    this.touchButton(b.flapsLess, 'FLAP −', tv.held('flapsLess'), font(11));
+    this.touchButton(b.flapsMore, 'FLAP +', tv.held('flapsMore'), font(11));
+    // the flap notch between the two flap buttons
+    g.font = font(12);
+    g.textAlign = 'center';
+    const ny = (b.flapsLess.y + b.flapsMore.y) / 2 + 4 * u;
+    g.lineWidth = 4;
+    g.strokeStyle = PAPER;
+    const label = blown ? 'TOO FAST' : FLAP_LABELS[c.flapNotch];
+    g.strokeText(label, b.flapsMore.x, ny);
+    g.fillStyle = blown ? RED : INK;
+    g.fillText(label, b.flapsMore.x, ny);
+    g.textAlign = 'left';
+    this.touchButton(b.brake, 'BRAKE', tv.held('brake'), font(13));
+    this.touchButton(b.camera, 'CAM', tv.held('camera'), font(11));
+    if (tv.bailShown) {
+      this.touchButton(b.bail, 'BAIL', tv.held('bail'), font(11), '#f6c2b8');
+      if (tv.bailProgress > 0) {
+        g.beginPath();
+        g.arc(b.bail.x, b.bail.y, b.bail.r + 5 * u, -Math.PI / 2, -Math.PI / 2 + tv.bailProgress * Math.PI * 2);
+        g.lineWidth = 5 * u;
+        g.strokeStyle = RED;
+        g.stroke();
+      }
+    }
+    // pause: two bars
+    const p = b.pause;
+    this.touchButton(p, '', tv.held('pause'), font(11));
+    g.fillStyle = INK;
+    g.fillRect(p.x - p.r * 0.32, p.y - p.r * 0.38, p.r * 0.22, p.r * 0.76);
+    g.fillRect(p.x + p.r * 0.1, p.y - p.r * 0.38, p.r * 0.22, p.r * 0.76);
+    g.restore();
+  }
+
+  private touchButton(c: Circle, label: string, down: boolean, font: string, fill = 'rgba(255, 246, 221, 0.78)') {
+    const g = this.g;
+    g.beginPath();
+    g.arc(c.x + (down ? 0 : 3), c.y + (down ? 0 : 3), c.r, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(43, 29, 26, 0.55)';
+    g.fill();
+    g.beginPath();
+    g.arc(c.x + (down ? 2 : 0), c.y + (down ? 2 : 0), c.r, 0, Math.PI * 2);
+    g.fillStyle = down ? ACCENT : fill;
+    g.fill();
+    g.lineWidth = 3;
+    g.strokeStyle = INK;
+    g.stroke();
+    if (!label) return;
+    g.fillStyle = down ? '#fff' : INK;
+    g.font = font;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(label, c.x + (down ? 2 : 0), c.y + (down ? 2 : 0) + 1);
+    g.textBaseline = 'alphabetic';
+    g.textAlign = 'left';
   }
 }

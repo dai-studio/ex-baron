@@ -1,4 +1,6 @@
 import { FLAP_NOTCHES, type ControlInput } from '../plane/flight';
+import { coarsePointer } from './device';
+import { TouchControls, stickCurve } from './touch';
 
 /**
  * Controls & input (design §3): keyboard, mouse "virtual stick" and gamepad
@@ -19,11 +21,22 @@ export class Input {
   private axes = { pitch: 0, roll: 0, yaw: 0 };
   private padPressed = new Set<number>();
   private padPrev: boolean[] = [];
-  /** true while any keyboard/pad flight input is active this frame */
+  /** true while any keyboard/pad/touch flight input is active this frame */
   manual = false;
+  /** touch controls (design §9.1) */
+  readonly touch: TouchControls;
+  /** what the player used last: drives the touch HUD, hints and menus */
+  lastInput: 'touch' | 'desktop' = coarsePointer() ? 'touch' : 'desktop';
+  onInputKind: ((k: 'touch' | 'desktop') => void) | null = null;
 
   constructor(private target: HTMLElement) {
+    this.touch = new TouchControls(target);
+    window.addEventListener('pointerdown', (e) => this.setKind(e.pointerType === 'touch' ? 'touch' : 'desktop'), true);
+    window.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse' && (e.movementX || e.movementY)) this.setKind('desktop');
+    });
     window.addEventListener('keydown', (e) => {
+      this.setKind('desktop');
       if (e.repeat) return;
       this.keys.add(e.code);
       this.pressed.add(e.code);
@@ -46,6 +59,12 @@ export class Input {
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouse.down = false;
     });
+  }
+
+  private setKind(k: 'touch' | 'desktop') {
+    if (k === this.lastInput) return;
+    this.lastInput = k;
+    this.onInputKind?.(k);
   }
 
   /** Edge-triggered key check; cleared by endFrame(). */
@@ -72,7 +91,10 @@ export class Input {
     const pad = this.gamepad();
     if (!pad) return;
     pad.buttons.forEach((b, i) => {
-      if (b.pressed && !this.padPrev[i]) this.padPressed.add(i);
+      if (b.pressed && !this.padPrev[i]) {
+        this.padPressed.add(i);
+        this.setKind('desktop');
+      }
       this.padPrev[i] = b.pressed;
     });
   }
@@ -122,6 +144,7 @@ export class Input {
       const ly = dz(pad.axes[1] ?? 0);
       const rx = dz(pad.axes[2] ?? 0);
       const ry = dz(pad.axes[3] ?? 0);
+      if (lx || ly || rx || ry) this.setKind('desktop');
       if (lx || ly) {
         roll = lx;
         pitch = ly; // stick back (positive y) = pull up
@@ -130,6 +153,24 @@ export class Input {
       if (ry) this.throttle -= ry * THROTTLE_RATE * 1.5 * dt;
       if (pad.buttons[1]?.pressed) brake = true;
     }
+
+    // touch: the stick thumb (or, without it, device tilt) and the throttle lever
+    const t = this.touch;
+    const m = t.model;
+    if (t.enabled) {
+      const st = m.stick();
+      const tilt = st ? null : t.tilt();
+      if (st) {
+        this.axes.roll = roll = stickCurve(st.x);
+        this.axes.pitch = pitch = stickCurve(st.y); // drag down (towards you) = pull up
+      } else if (tilt) {
+        roll = tilt.x;
+        pitch = tilt.y;
+      }
+      if (m.leverHeld) this.throttle = m.throttle;
+      if (m.brake) brake = true;
+    }
+    if (!m.leverHeld) m.throttle = Math.max(0, Math.min(1, this.throttle));
 
     this.manual = pitch !== 0 || roll !== 0 || yaw !== 0;
 

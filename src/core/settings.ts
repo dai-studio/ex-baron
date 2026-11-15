@@ -14,6 +14,8 @@ export interface Settings {
   mode: Mode;
   /** cross-country destination: index into the world's airfields (1..) */
   dest: number;
+  /** touch: steer by tilting the device instead of the on-screen stick (design §9.1) */
+  tilt: boolean;
 }
 
 export interface BestRecord {
@@ -40,6 +42,7 @@ export function defaultSettings(): Settings {
     cameraShake: true,
     mode: 'free',
     dest: 1,
+    tilt: false,
   };
 }
 

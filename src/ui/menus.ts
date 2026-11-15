@@ -18,6 +18,9 @@ export interface MenuHandlers {
   modeChanged(): void;
   destStep(dir: number): void;
   click(): void;
+  /** touch: steer by tilting; resolves false when the device can't (or the player said no) */
+  tiltChanged(on: boolean): Promise<boolean>;
+  recentre(): void;
 }
 
 export interface DebriefData {
@@ -99,6 +102,35 @@ export class Menus {
     shake.addEventListener('change', () => {
       settings.cameraShake = shake.checked;
       saveSettings(settings);
+    });
+    // touch: tilt steering (asks for motion permission on iOS from this tap)
+    const tilt = $<HTMLInputElement>('tilt');
+    const tiltNote = $('tilt-note');
+    const recentre = $<HTMLButtonElement>('recentre-btn');
+    const syncTilt = () => recentre.classList.toggle('hidden', !tilt.checked);
+    tilt.checked = settings.tilt;
+    syncTilt();
+    if (!('DeviceOrientationEvent' in window)) {
+      tilt.disabled = true;
+      tilt.checked = false;
+      tiltNote.textContent = 'Not available on this device';
+    }
+    tilt.addEventListener('change', () => {
+      const want = tilt.checked;
+      void h.tiltChanged(want).then((ok) => {
+        if (want && !ok) {
+          tilt.checked = false;
+          tiltNote.textContent = 'Motion access was not allowed';
+        } else tiltNote.textContent = '';
+        settings.tilt = tilt.checked;
+        saveSettings(settings);
+        syncTilt();
+      });
+    });
+    recentre.addEventListener('click', () => {
+      h.click();
+      h.recentre();
+      this.hint('Tilt re-centred: hold the device like this to fly straight.', 2500);
     });
     const inv = $<HTMLInputElement>('invert');
     inv.checked = settings.invertPitch;
