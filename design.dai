@@ -2,7 +2,7 @@
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dai="https://dai.studio/schema/dai/1.0" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="https://dai.studio/workflow">
   <bpmn:process id="Process_1" name="Baron — Game Design" isExecutable="false">
     <bpmn:extensionElements>
-      <dai:workflowMeta description="Design for Baron, a browser-based cartoon flying game. The player builds an aircraft in the hangar (Biplane, Turboprop or Jet; paint, engine and wheels), then takes off, flies and lands over procedurally generated terrain under procedurally generated clouds. There is no combat. Everything is drawn with a cartoon (toon/cel) shader. It runs on WebGL 2 in any modern desktop browser. Target: TypeScript + three.js, built with Vite." version="0.1.0">
+      <dai:workflowMeta description="Design for Baron, a browser-based cartoon flying game. The player builds an aircraft in the hangar (Biplane, Turboprop or Jet; paint and wheels), then takes off, flies and lands over procedurally generated terrain under procedurally generated clouds. There is no combat. Everything is drawn with a cartoon (toon/cel) shader. It runs on WebGL 2 in any modern desktop browser, and on phones and tablets with touch controls (§9). Target: TypeScript + three.js, built with Vite." version="0.1.0">
         <dai:taskTypeEntry type="dai.types.ai.context" stepType="context" description="Background knowledge, grounding data, or reference material that informs downstream steps. Does not produce output itself — it shapes how the AI reasons." />
         <dai:taskTypeEntry type="dai.types.product.persona" stepType="persona" description="A research-based user archetype that represents a segment of your target audience. Use it to ground product decisions in real user needs and connect to Stories, Features, and Journeys." />
         <dai:taskTypeEntry type="dai.types.business.objective" stepType="objective" description="A strategic goal or OKR — a time-bound target the team aims to achieve. Pairs with KPIs to define what success looks like and how it will be measured." />
@@ -23,7 +23,7 @@
       <bpmn:task id="task_1b20th0f" name="Game vision" dai:type="dai.types.ai.context" dai:stepType="context" dai:source="manual" dai:format="markdown" dai:scope="global" dai:content="Baron is an arcade biplane game set in a WWI-inspired, cartoon world. The player builds their aircraft in the hangar, takes off from an airfield, flies over a procedurally generated landscape under procedurally generated clouds, and lands again. There is no combat. Pillars: (1) Flying feels great: quick to learn, satisfying to master. (2) A readable, cheerful cartoon look: toon shading, ink outlines, bold colours. (3) Every flight is different: a seed generates terrain, clouds and airfields. (4) Instant play: opens in a browser tab with no install." />
       <bpmn:task id="task_fa6q48n4" name="Casual sky ace" dai:type="dai.types.product.persona" dai:stepType="persona" dai:role="Casual / mid-core browser gamer" dai:age="14-45" dai:goals="Jump into a short, relaxing flight; explore the landscape; pull off a clean landing." dai:frustrations="Simulator-level complexity; long downloads; cluttered, unreadable visuals." dai:behaviours="Plays 10-20 minute sessions on a laptop with keyboard + mouse or a gamepad." dai:quote="I want to feel like a flying ace without reading a manual." />
       <bpmn:task id="task_2mjnmids" name="Playable vertical slice" dai:type="dai.types.business.objective" dai:stepType="objective" dai:status="draft" dai:timeframe="custom" dai:keyResults="1. A full hangar → takeoff → fly → land loop is playable in Chrome, Firefox, Safari and Edge.&#10;2. 60 fps at 1080p on a 2020-era integrated GPU.&#10;3. First load under 10 MB and under 5 s on broadband.&#10;4. 8 of 10 playtesters land successfully within 3 attempts." />
-      <bpmn:task id="task_6bl3c6qz" name="WebGL in any modern browser" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Must run on WebGL 2 in the latest two versions of Chrome, Edge, Firefox and Safari (desktop) with no plugins or install. Feature-detect WebGL 2 and show a friendly error if it is missing. No native-only APIs. WebGPU can be added later as an optional path, never required." dai:scope="global" dai:rulePriority="critical" dai:enforcement="hard" />
+      <bpmn:task id="task_6bl3c6qz" name="WebGL in any modern browser" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Must run on WebGL 2 in the latest two versions of Chrome, Edge, Firefox and Safari (desktop), and on iOS/iPadOS Safari and Chrome for Android (phones and tablets, landscape, touch only — see §9), with no plugins or install. Feature-detect WebGL 2 and show a friendly error if it is missing. No native-only APIs. WebGPU can be added later as an optional path, never required." dai:scope="global" dai:rulePriority="critical" dai:enforcement="hard" />
       <bpmn:task id="task_7oymt4a7" name="Everything looks cartoon" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Every visible object (planes, terrain, water, props, clouds, effects) goes through the toon pipeline: banded lighting, ink outlines, flat saturated palette. No photoreal textures or PBR materials. UI and HUD match the style (hand-drawn look, rounded shapes)." dai:scope="global" dai:rulePriority="high" dai:enforcement="hard" />
       <bpmn:task id="task_dlmjq7ne" name="Original assets only" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Aircraft, insignia, characters, music and art are original designs inspired by the WWI era in general. Do not reproduce real-world military insignia or the assets, names or look of any existing game." dai:scope="global" dai:rulePriority="high" dai:enforcement="hard" />
     </bpmn:subProcess>
@@ -91,7 +91,7 @@
       <bpmn:task id="task_ulal5bhu" name="Flight model" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Simplified rigid-body model run at a fixed 120 Hz step. Forces: thrust (from the engine&#39;s thrust curve), lift = ½pv²·S·Cl(AoA) with a soft stall past the critical angle of attack, drag (parasitic + induced), gravity. Torques come from control surfaces scaled by airspeed, plus auto-coordination (assisted rudder) for casual players. Ground contact: wheels + tail skid or nose wheel as spring-dampers, with friction per surface. Tunables live in PlaneSpec, composed from the hangar Loadout (section 8)." dai:componentType="service" dai:propsInterface="interface FlightModel {&#10;  step(state: PlaneState, input: ControlInput, dt: number): PlaneState; // fixed 120 Hz&#10;}&#10;interface PlaneSpec { mass: number; wingArea: number; maxThrust: number; stallAoA: number; rollRate: number; pitchRate: number; yawRate: number; }">
         <bpmn:incoming>flow_b0fokrf1</bpmn:incoming>
       </bpmn:task>
-      <bpmn:task id="task_97b94fjq" name="Controls &#38; input" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Maps keyboard (WASD/arrow keys, Q/E rudder, Shift/Ctrl throttle, B brakes), mouse (mouse-aim mode: the plane steers toward the cursor) and gamepad (Gamepad API, twin-stick) to a normalised ControlInput. Remappable. Has assist levels: Arcade (auto-level, stall protection), Normal, and Expert (no assists)." dai:componentType="utility" dai:propsInterface="interface ControlInput { pitch: number; roll: number; yaw: number; throttle: number; brake: boolean; look: { x: number; y: number }; }">
+      <bpmn:task id="task_97b94fjq" name="Controls &#38; input" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Maps keyboard (WASD/arrow keys, Q/E rudder, Shift/Ctrl throttle, B brakes), mouse (mouse-aim mode: the plane steers toward the cursor), gamepad (Gamepad API, twin-stick) and touch (floating stick, throttle lever and buttons, optional tilt — see §9.1 TouchControls) to a normalised ControlInput. Remappable. Has assist levels: Arcade (auto-level, stall protection), Normal, and Expert (no assists)." dai:componentType="utility" dai:propsInterface="interface ControlInput { pitch: number; roll: number; yaw: number; throttle: number; brake: boolean; look: { x: number; y: number }; }">
         <bpmn:outgoing>flow_b0fokrf1</bpmn:outgoing>
       </bpmn:task>
       <bpmn:task id="task_4ox45e0m" name="Camera rig" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Chase camera with a spring-damped lag and FOV kick with speed; cockpit view; free-look. Cinematic cameras for takeoff, crash replay and landing roll-out. Camera shake on hard touchdowns and scrapes." dai:componentType="utility" />
@@ -306,6 +306,79 @@
         <bpmn:task id="task_tvic4tao" name="Jets outrun world streaming" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="high" dai:impact="high" dai:mitigation="Jet top speed is ~140 m/s vs ~55 m/s for the biplane. Scale the chunk prefetch distance with speed, keep the upload budget, cap v1 top speed at 140 m/s through drag tuning, and run the frame-time benchmark with a jet loadout." />
         <bpmn:sequenceFlow id="flow_q168k8ph" sourceRef="task_rrvdhu07" targetRef="task_0kcdmlvp" />
         <bpmn:sequenceFlow id="flow_bnf2nb4i" sourceRef="task_0kcdmlvp" targetRef="task_iv2q9bbx" />
+      </bpmn:subProcess>
+    </bpmn:subProcess>
+    <bpmn:subProcess id="task_prw0r0bn" name="9. Mobile &#38; Touch" dai:notes="Baron also plays on phones and tablets in the browser: latest iOS/iPadOS Safari and Chrome on Android, held in landscape, touch only, no install. Same game, same world, same 72 loadouts; only input, layout and the quality tier change. Desktop keyboard, mouse and gamepad stay as they are. A touch device is detected from the input it uses (first touch pointer, or `(pointer: coarse)`), not from the user agent, so a tablet with a keyboard or a touchscreen laptop works either way.">
+      <bpmn:subProcess id="task_b69j0djf" name="9.1 Touch flight controls" dai:notes="How a thumb on glass becomes the same normalised ControlInput the keyboard and gamepad produce.">
+        <bpmn:task id="task_sjpos6m3" name="Touch flight controls" dai:type="dai.types.product.feature" dai:stepType="feature" dai:notes="Shown only while flying on a touch device; hidden as soon as a key, mouse or gamepad is used (and back on the next touch). Drawn on the HUD canvas in the hand-drawn ink style, semi-transparent so the world shows through." dai:status="proposed" dai:acceptanceCriteria="- Left half of the screen: floating stick. It appears where the left thumb lands; dragging up to ~60 px (scaled by screen) from that point = full deflection. X = roll, Y = pitch (drag down = pull up, matching S; &#39;Invert pitch&#39; flips it). Releasing recentres to 0 with the same ramp as the keyboard axes.&#10;- Right edge: vertical throttle lever (0–100%), stays where it is left; double-tap snaps to idle. Shows % or jet spool.&#10;- Right cluster of round buttons (≥ 56 px): FLAPS + / FLAPS − (shows UP / T/O / LAND), BRAKE (hold), CAMERA (chase / cockpit), and a small PAUSE button top-left. BAIL appears only when airborne after take-off, as a hold-for-1 s button so it isn&#39;t pressed by accident.&#10;- Rudder: no on-screen pedals; on touch the yaw is auto-coordinated with roll (all assists) and nose-wheel steering on the ground follows the stick X.&#10;- Multi-touch: each control owns its pointer id, so stick + throttle + brake can be held at once.&#10;- Optional Tilt steering instead of the stick (see Tilt steering).&#10;- Default assist on first touch play is Arcade." dai:valueStatement="Fly, take off and land a whole sortie with two thumbs.">
+          <bpmn:outgoing>flow_d8xldxll</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="task_drtp3fcq" name="Tilt steering (optional)" dai:type="dai.types.product.feature" dai:stepType="feature" dai:notes="Off by default; a Pause-menu toggle &#39;Steer by tilting&#39;. Can make some players queasy (see Motion sickness), so the stick stays the default." dai:status="proposed" dai:acceptanceCriteria="- Uses DeviceOrientation; on iOS asks DeviceOrientationEvent.requestPermission() from the toggle tap. Denied or unavailable → toggle disabled with a short reason.&#10;- The neutral attitude is captured when the sortie starts and on a &#39;Re-centre&#39; tap; landscape-left and landscape-right both work (axes follow screen.orientation.angle).&#10;- ±25° tilt = full deflection, 3° dead zone, low-pass filtered.&#10;- The left-thumb stick still works and overrides tilt while touched." dai:valueStatement="Lets players steer by tilting the device like a yoke.">
+          <bpmn:incoming>flow_d8xldxll</bpmn:incoming>
+          <bpmn:outgoing>flow_9q8izjes</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:sequenceFlow id="flow_d8xldxll" sourceRef="task_sjpos6m3" targetRef="task_drtp3fcq" />
+        <bpmn:task id="task_lapipn4n" name="TouchControls" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="src/core/touch.ts. Pointer Events (pointerdown/move/up/cancel with pointerType &#39;touch&#39;) on the game canvas, setPointerCapture per control. A pure layout + mapping function (screen size, safe-area insets, active pointers → stick/throttle/button state) so it can be unit-tested without a DOM. Input.sample() reads it after keyboard and pad: touch counts as &#39;manual&#39; input, so assists and the mouse stick behave as with the keyboard. The HUD asks it for its layout to draw the controls and to keep gauges clear of thumbs." dai:componentType="utility" dai:propsInterface="interface TouchState { active: boolean; stick: { x: number; y: number } | null; throttle: number; brake: boolean; pressed: Set&#60;&#39;flapsUp&#39; | &#39;flapsDown&#39; | &#39;camera&#39; | &#39;pause&#39; | &#39;bail&#39;&#62;; tilt: { x: number; y: number } | null; }">
+          <bpmn:incoming>flow_9q8izjes</bpmn:incoming>
+        </bpmn:task>
+        <bpmn:sequenceFlow id="flow_9q8izjes" sourceRef="task_drtp3fcq" targetRef="task_lapipn4n" />
+        <bpmn:task id="task_ll3k05o4" name="ADR: Touch control scheme" dai:type="dai.types.software.decision" dai:status="accepted" dai:context="Phones have no keys, mouse or (usually) gamepad. The plane needs pitch, roll, throttle, flaps, brakes and camera, with both thumbs mostly on the glass and the HUD still readable." dai:decision="Option 2 as the default, with tilt (3) as an opt-in. A floating stick never misses the thumb and needs no look-down; the throttle is a lever because it is a setting, not a held input. Rudder is auto-coordinated on touch to save a control." dai:consequences="+ One scheme for phones and tablets; works with Arcade, Normal and Expert.&#10;+ Reuses ControlInput, so the flight model, AI and tests don&#39;t change.&#10;- No manual rudder on touch (slips and crosswind crabbing rely on the assist).&#10;- Thumbs hide part of the lower corners, so the HUD layout must move for touch.">
+          <bpmn:extensionElements>
+            <dai:fields>
+              <dai:field key="options">1. Fixed on-screen stick + throttle + buttons
+2. Floating stick (appears under the left thumb) + throttle lever + buttons on the right
+3. Tilt to steer, tap zones for the rest
+4. Tap-and-drag anywhere like the mouse stick (cursor offset from centre)</dai:field>
+            </dai:fields>
+          </bpmn:extensionElements>
+        </bpmn:task>
+        <bpmn:task id="task_fn4zg4h8" name="Touch uses the same ControlInput" dai:type="dai.types.ai.rule" dai:stepType="rule" dai:notes="Touch only produces a ControlInput (plus the same edge-triggered actions as keys: flaps, camera, pause, bail). No touch-only physics, assists or difficulty changes; the flight model and every existing flight test stay untouched." dai:scope="global" dai:rulePriority="high" dai:enforcement="hard" />
+      </bpmn:subProcess>
+      <bpmn:subProcess id="task_ft19sdvw" name="9.2 Mobile screen, UI &#38; lifecycle" dai:notes="Fitting the page, HUD, menus and hangar onto a small landscape screen with notches, home bars and interruptions.">
+        <bpmn:task id="task_7xd4vgss" name="Mobile page, orientation &#38; fullscreen" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- viewport-fit=cover; layout respects env(safe-area-inset-*) (notch, home bar).&#10;- No page scroll, rubber-band, pinch-zoom or double-tap zoom over the game (touch-action: none on the canvas, overscroll-behavior: none, user-select off on HUD controls); menus still scroll if taller than the screen.&#10;- FLY! on a touch device asks for fullscreen and screen.orientation.lock(&#39;landscape&#39;) where supported (Android Chrome); failure is silent.&#10;- Portrait while flying → the sim pauses behind a &#39;Turn your phone sideways&#39; card; rotating back resumes. Menus and hangar also work in portrait.&#10;- Web app manifest (name, icons, theme colour, display: fullscreen, orientation: landscape) so &#39;Add to Home Screen&#39; launches full-screen on iOS and Android.&#10;- Uses 100dvh / visualViewport so the browser&#39;s address bar showing and hiding doesn&#39;t leave gaps." dai:valueStatement="The page behaves like a game, not a website, on a phone.">
+          <bpmn:outgoing>flow_ehz3ljkj</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="task_dgsro7x2" name="Interruptions &#38; lifecycle" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- visibilitychange / pagehide while flying → auto-pause and suspend the AudioContext; coming back shows the Pause screen (never resumes by itself).&#10;- The AudioContext is created or resumed on the first tap (iOS needs a user gesture), so engine sound works on the first sortie.&#10;- WebGL context loss after the app was in the background reuses the existing &#39;Graphics hiccup&#39; restore (§5 Context loss &#38; fallback); the sortie resumes from pause.&#10;- Optional Screen Wake Lock while flying so the screen doesn&#39;t dim on a long cross-country." dai:valueStatement="A call, a notification or a locked screen never crashes the plane.">
+          <bpmn:incoming>flow_ehz3ljkj</bpmn:incoming>
+          <bpmn:outgoing>flow_f3knpkm0</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:sequenceFlow id="flow_ehz3ljkj" sourceRef="task_7xd4vgss" targetRef="task_dgsro7x2" />
+        <bpmn:task id="task_mrq3mosn" name="Responsive HUD &#38; instruments" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- HUD scale comes from the short side of the screen, not the width; text never below 11 CSS px.&#10;- On touch, the six-pack instrument cluster sits centre-bottom between the stick and throttle zones, scaled down; the glide-slope panel above it; minimap and objective top-right below the safe area; compass ribbon top-centre.&#10;- Key hints in tips and the HUD (&#39;(V ↔ F)&#39;, &#39;Press B&#39;) switch to touch wording (&#39;tap FLAPS +&#39;, &#39;hold BRAKE&#39;) when the last input was touch.&#10;- Nothing the player needs is under a touch control&#39;s resting area.&#10;- Checked on 667×375 (small phone), 844×390 (phone with notch) and 1180×820 (tablet)." dai:valueStatement="Every gauge stays readable and clear of the thumbs on a 6-inch screen.">
+          <bpmn:incoming>flow_f3knpkm0</bpmn:incoming>
+          <bpmn:outgoing>flow_bb23q3dh</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:sequenceFlow id="flow_f3knpkm0" sourceRef="task_dgsro7x2" targetRef="task_mrq3mosn" />
+        <bpmn:task id="task_f2i7n67n" name="Touch-friendly menus &#38; hangar" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- All buttons, segments and cards are ≥ 44×44 CSS px with spacing; no hover-only states.&#10;- Main menu: on a short landscape screen the title panel and the Cross-country flight plan sit side by side and scroll inside the panel if needed; the route map fits its column.&#10;- Destination picker ◀ ▶ also swipes.&#10;- Hangar: tabs and cards are tappable, card list swipes sideways on narrow screens; drag on the 3D preview rotates it (pointer events already support touch).&#10;- &#39;Controls&#39; shows the touch controls on a touch device (and the keyboard table on desktop).&#10;- Seed input opens the numeric keypad and doesn&#39;t zoom the page (font-size ≥ 16 px).&#10;- Pause and debrief buttons are reachable with a thumb." dai:valueStatement="Choose a mission, build a plane and read the debrief with fingers.">
+          <bpmn:incoming>flow_bb23q3dh</bpmn:incoming>
+        </bpmn:task>
+        <bpmn:sequenceFlow id="flow_bb23q3dh" sourceRef="task_mrq3mosn" targetRef="task_f2i7n67n" />
+      </bpmn:subProcess>
+      <bpmn:subProcess id="task_6b9hcnhb" name="9.3 Mobile performance &#38; validation" dai:notes="Keeping a phone GPU at frame rate without overheating, and proving touch play works.">
+        <bpmn:task id="task_4x4s1ruk" name="Mobile quality tier &#38; budget" dai:type="dai.types.business.requirement" dai:stepType="requirement" dai:notes="&#39;Auto&#39; quality picks Mobile on a touch device with a small screen (pointer: coarse and short side ≤ 900 CSS px) instead of today&#39;s user-agent check; the player can still choose Low / Med / High." dai:status="draft" dai:priority="must" dai:acceptanceCriteria="- New &#39;mobile&#39; tier: view radius 3 chunks, no shadows, no edge-detect post pass (hull outlines only), max pixel ratio 1.25, fewer clouds and particles, smaller chunk LRU cache.&#10;- ≤ 2 chunk workers on mobile (navigator.hardwareConcurrency capped).&#10;- 30 fps floor, 60 fps target on a 2022 mid-range phone (iPhone 13 / Pixel 6 class); dynamic resolution keeps working.&#10;- ≤ 150 draw calls per frame and ≤ 300 MB JS + GPU memory, so iOS Safari doesn&#39;t kill the tab.&#10;- 10 minutes of cross-country flight without frame-rate collapse from thermal throttling (dynamic resolution steps down instead)." />
+        <bpmn:task id="task_0f89bis3" name="Thumbs hide the HUD" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="high" dai:impact="medium" dai:mitigation="Touch-specific HUD layout from TouchControls&#39; layout; semi-transparent controls; playtest on a small phone (667×375) before polishing anything else." />
+        <bpmn:task id="task_95w4siec" name="iOS Safari limits" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="medium" dai:impact="high" dai:mitigation="No fullscreen API or orientation lock on iPhone (use the manifest + &#39;Add to Home Screen&#39; tip and the rotate card); audio only after a tap; tab killed on high memory (Mobile tier caps); context loss when backgrounded (existing restore path). Test on a real iPhone, not only in emulation." />
+        <bpmn:task id="task_ivtp6r1c" name="Thermal throttling &#38; battery" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="high" dai:impact="medium" dai:mitigation="Mobile tier; dynamic resolution steps down on sustained frame-time growth; cap the frame rate at 60 and render menus at a lower rate; pause rendering when hidden." />
+        <bpmn:task id="task_dd3tplaq" name="Touch mapping unit test" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="unit" dai:testStatus="not-run" dai:testSteps="Vitest on the pure TouchControls mapping: stick drag directions and deflection limits, release ramp, throttle lever drag and double-tap idle, multi-touch (stick + throttle + brake held together), button edge triggers, invert pitch, layout on 667×375 / 844×390 / 1180×820 with safe-area insets.">
+          <bpmn:extensionElements>
+            <dai:fields>
+              <dai:field key="expectedResult">Each gesture produces the expected ControlInput and actions; controls never overlap each other or the safe area.</dai:field>
+            </dai:fields>
+          </bpmn:extensionElements>
+        </bpmn:task>
+        <bpmn:task id="task_r3uptjbx" name="Mobile emulation smoke test" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="e2e" dai:testStatus="not-run" dai:testSteps="Browser with mobile emulation (iPhone and Pixel viewports, touch, coarse pointer): load, tap FLY!, take off with the throttle lever and stick using synthetic touch events, fly 20 s, pause via the button, rotate to portrait and back.">
+          <bpmn:extensionElements>
+            <dai:fields>
+              <dai:field key="expectedResult">No console errors; touch controls visible and working; Mobile tier chosen by Auto; rotate card shown in portrait; no page scroll or zoom.</dai:field>
+            </dai:fields>
+          </bpmn:extensionElements>
+        </bpmn:task>
+        <bpmn:task id="task_jl8iahtb" name="Real-device playtest" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="manual" dai:testStatus="not-run" dai:testSteps="On a real iPhone (Safari and Home Screen app) and an Android phone (Chrome): full sortie in each plane — hangar, take off with flaps, cross-country to another airfield, land; lock the screen mid-flight and come back; try tilt steering.">
+          <bpmn:extensionElements>
+            <dai:fields>
+              <dai:field key="expectedResult">Whole sortie playable with thumbs; ≥ 30 fps; sound works; resuming always lands on the Pause screen.</dai:field>
+            </dai:fields>
+          </bpmn:extensionElements>
+        </bpmn:task>
       </bpmn:subProcess>
     </bpmn:subProcess>
   </bpmn:process>
@@ -695,6 +768,86 @@
         <di:waypoint x="570" y="430" />
         <di:waypoint x="626" y="430" />
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_prw0r0bn_di" bpmnElement="task_prw0r0bn" isExpanded="true">
+        <dc:Bounds x="30" y="2210" width="1550" height="630" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_b69j0djf_di" bpmnElement="task_b69j0djf" isExpanded="true">
+        <dc:Bounds x="60" y="2260" width="1490" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ft19sdvw_di" bpmnElement="task_ft19sdvw" isExpanded="true">
+        <dc:Bounds x="60" y="2450" width="1490" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_6b9hcnhb_di" bpmnElement="task_6b9hcnhb" isExpanded="true">
+        <dc:Bounds x="60" y="2640" width="1490" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_sjpos6m3_di" bpmnElement="task_sjpos6m3">
+        <dc:Bounds x="90" y="2305" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_drtp3fcq_di" bpmnElement="task_drtp3fcq">
+        <dc:Bounds x="270" y="2305" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_d8xldxll_di" bpmnElement="flow_d8xldxll">
+        <di:waypoint x="190" y="2345" />
+        <di:waypoint x="270" y="2345" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_lapipn4n_di" bpmnElement="task_lapipn4n">
+        <dc:Bounds x="450" y="2305" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_9q8izjes_di" bpmnElement="flow_9q8izjes">
+        <di:waypoint x="370" y="2345" />
+        <di:waypoint x="450" y="2345" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_ll3k05o4_di" bpmnElement="task_ll3k05o4">
+        <dc:Bounds x="630" y="2305" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_fn4zg4h8_di" bpmnElement="task_fn4zg4h8">
+        <dc:Bounds x="810" y="2305" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_7xd4vgss_di" bpmnElement="task_7xd4vgss">
+        <dc:Bounds x="90" y="2495" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_dgsro7x2_di" bpmnElement="task_dgsro7x2">
+        <dc:Bounds x="270" y="2495" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ehz3ljkj_di" bpmnElement="flow_ehz3ljkj">
+        <di:waypoint x="190" y="2535" />
+        <di:waypoint x="270" y="2535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_mrq3mosn_di" bpmnElement="task_mrq3mosn">
+        <dc:Bounds x="450" y="2495" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_f3knpkm0_di" bpmnElement="flow_f3knpkm0">
+        <di:waypoint x="370" y="2535" />
+        <di:waypoint x="450" y="2535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_f2i7n67n_di" bpmnElement="task_f2i7n67n">
+        <dc:Bounds x="630" y="2495" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_bb23q3dh_di" bpmnElement="flow_bb23q3dh">
+        <di:waypoint x="550" y="2535" />
+        <di:waypoint x="630" y="2535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_4x4s1ruk_di" bpmnElement="task_4x4s1ruk">
+        <dc:Bounds x="90" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_0f89bis3_di" bpmnElement="task_0f89bis3">
+        <dc:Bounds x="270" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_95w4siec_di" bpmnElement="task_95w4siec">
+        <dc:Bounds x="450" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_ivtp6r1c_di" bpmnElement="task_ivtp6r1c">
+        <dc:Bounds x="630" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_dd3tplaq_di" bpmnElement="task_dd3tplaq">
+        <dc:Bounds x="810" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_r3uptjbx_di" bpmnElement="task_r3uptjbx">
+        <dc:Bounds x="990" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_jl8iahtb_di" bpmnElement="task_jl8iahtb">
+        <dc:Bounds x="1170" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>

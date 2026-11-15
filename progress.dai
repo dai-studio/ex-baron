@@ -226,8 +226,13 @@
     <bpmn:sequenceFlow id="flow_of524yj9" sourceRef="task_55qxiw53" targetRef="task_07kcl9d9" />
     <bpmn:task id="task_49kwxe03" name="Fix white flashes in flight" dai:notes="Cause: dynamic resolution, not the cloud whiteout. Measured in Chrome over 25 s after a fresh load + FLY! (sampling the game canvas every frame): the cloud whiteout never rose above 0, but each render-scale step (1 → 0.9 → 0.8 → 0.7 → 0.6, every 2 s while the frame time is high during the first seconds of chunk streaming after a refresh) left one frame with a fully transparent game canvas: 4 empty frames, so the sky-blue page background flashed full screen. The step ran resize() after rendering, and setting a canvas&#39;s size clears it (the HUD canvas too). Also one extra no-op resize at the 0.6 limit from float drift (0.6000000000000001 &#62; 0.6). Fix in game.ts: new dynamicResolution(dt) runs at the start of frame(), before the HUD and the 3D render, so a resized canvas is redrawn in the same frame; the scale is stepped in whole tenths (6..10). Re-measured the same way: 4 resizes (0.9/0.8/0.7/0.6), 0 empty game frames, 0 blank HUD frames, no extra resize. Tests 65/65, tsc and build OK. Note: the automated tab runs at ~30 fps, so it steps down to 0.6; on a fast machine there will be fewer steps, but now none of them flash." dai:agentStatus="done" dai:planRef="task_550ytawb">
       <bpmn:incoming>flow_syqowir3</bpmn:incoming>
+      <bpmn:outgoing>flow_t6uith4h</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_syqowir3" sourceRef="task_07kcl9d9" targetRef="task_49kwxe03" />
+    <bpmn:task id="task_xlpdic8b" name="Plan mobile support (design §9, plan 31–37)" dai:notes="Design: added section 9 Mobile &#38; Touch (9.1 Touch flight controls, 9.2 Mobile screen/UI/lifecycle, 9.3 Mobile performance &#38; validation): features, TouchControls component, ADR Touch control scheme (floating stick + throttle lever + buttons, tilt opt-in, auto rudder), rule Touch uses the same ControlInput, Mobile tier requirement, 3 risks, 3 tests. Updated rule &#39;WebGL in any modern browser&#39;, &#39;Controls &#38; input&#39; and the design description for mobile. Plan: added 31–37 (page &#38; lifecycle, touch input layer, on-screen controls &#38; tilt, responsive HUD, touch menus/hangar, mobile tier, tests &#38; verification) after step 30, all todo. No code changed." dai:agentStatus="done">
+      <bpmn:incoming>flow_t6uith4h</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_t6uith4h" sourceRef="task_49kwxe03" targetRef="task_xlpdic8b" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -551,6 +556,13 @@
       <bpmndi:BPMNEdge id="flow_syqowir3_di" bpmnElement="flow_syqowir3">
         <di:waypoint x="728" y="800" />
         <di:waypoint x="808" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_xlpdic8b_di" bpmnElement="task_xlpdic8b">
+        <dc:Bounds x="988" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_t6uith4h_di" bpmnElement="flow_t6uith4h">
+        <di:waypoint x="908" y="800" />
+        <di:waypoint x="988" y="800" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_saj7yspq</bpmn:incoming>
+      <bpmn:incoming>flow_wm2ibgum</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -159,10 +159,45 @@
     <bpmn:sequenceFlow id="flow_v31d9nac" sourceRef="task_i1juquj8" targetRef="task_v3nk7q0a" />
     <bpmn:task id="task_550ytawb" name="30. Fix white flashes in flight" dai:notes="After a page refresh and FLY!, the screen flashes full white now and then. Reproduce in the browser (per-frame whiteout value, overlay opacity, frame brightness), find the cause, fix it, and confirm no flashes on a fresh load." dai:agentStatus="done">
       <bpmn:incoming>flow_a5ogctmm</bpmn:incoming>
-      <bpmn:outgoing>flow_saj7yspq</bpmn:outgoing>
+      <bpmn:outgoing>flow_cl5edggv</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_a5ogctmm" sourceRef="task_v3nk7q0a" targetRef="task_550ytawb" />
-    <bpmn:sequenceFlow id="flow_saj7yspq" sourceRef="task_550ytawb" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_ffytomoq" name="31. Mobile-ready page &#38; lifecycle" dai:notes="index.html / style.css: viewport-fit=cover, safe-area insets, 100dvh, touch-action none on the canvas, no overscroll / pinch / double-tap zoom, seed input font ≥ 16 px. Web app manifest (fullscreen, landscape, icons). Fullscreen + orientation lock on FLY! where supported; &#39;Turn your phone sideways&#39; card pauses the sim in portrait. visibilitychange/pagehide → auto-pause + suspend audio, resume to the Pause screen; AudioContext resumed on first tap; optional Wake Lock while flying. (design §9.2 Mobile page, orientation &#38; fullscreen; Interruptions &#38; lifecycle)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_cl5edggv</bpmn:incoming>
+      <bpmn:outgoing>flow_b918numb</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_yjzfzje6" name="32. Touch input layer" dai:notes="src/core/touch.ts TouchControls: Pointer Events on the canvas with per-control pointer capture; pure layout + mapping (screen, safe areas, pointers → TouchState) so it unit-tests without a DOM. Floating stick (left half), throttle lever (right edge, double-tap idle), FLAPS ±, BRAKE hold, CAMERA, PAUSE, BAIL (hold 1 s, airborne only). Input.sample() merges it into ControlInput as manual input; auto-coordinated rudder and nose-wheel steering on touch; last-input-type tracking (touch vs keys/mouse/pad). Detect touch from the first touch pointer / (pointer: coarse), not the UA. Unit tests: Touch mapping unit test. No flight-model changes. (design §9.1 TouchControls, ADR: Touch control scheme, Rule: Touch uses the same ControlInput)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_b918numb</bpmn:incoming>
+      <bpmn:outgoing>flow_53hu5c3q</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_b918numb" sourceRef="task_ffytomoq" targetRef="task_yjzfzje6" />
+    <bpmn:task id="task_ibjujnvg" name="33. On-screen flight controls &#38; tilt" dai:notes="Draw the touch controls on the HUD canvas in the ink style, semi-transparent, only while flying on touch; hide on key/mouse/pad input. Flap notch and throttle % / spool on the controls. Arcade assist by default on first touch play. Optional &#39;Steer by tilting&#39; in Pause: DeviceOrientation with iOS permission on tap, neutral captured at sortie start + Re-centre, ±25° full, 3° dead zone, low-pass; stick overrides tilt. Check in the browser with touch emulation. (design §9.1 Touch flight controls, Tilt steering)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_53hu5c3q</bpmn:incoming>
+      <bpmn:outgoing>flow_s444bi7j</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_53hu5c3q" sourceRef="task_yjzfzje6" targetRef="task_ibjujnvg" />
+    <bpmn:task id="task_bgqvncfw" name="34. Responsive HUD &#38; instruments" dai:notes="HUD scale from the short side (text ≥ 11 px). Touch layout from TouchControls&#39; layout: six-pack centre-bottom between the thumb zones, glide-slope panel above, minimap/objective top-right under the safe area, compass top-centre; nothing under a control&#39;s resting area. Tips and HUD hints switch to touch wording when the last input was touch. Check at 667×375, 844×390 and 1180×820. (design §9.2 Responsive HUD &#38; instruments)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_s444bi7j</bpmn:incoming>
+      <bpmn:outgoing>flow_51wcoij3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_s444bi7j" sourceRef="task_ibjujnvg" targetRef="task_bgqvncfw" />
+    <bpmn:task id="task_3axh0qdj" name="35. Touch-friendly menus, hangar &#38; route map" dai:notes="≥ 44×44 px targets, no hover-only states. Short-landscape main menu: title panel and flight plan side by side, scrolling inside panels; route map fits its column; destination picker swipes. Hangar: tappable tabs/cards, sideways-swiping card list on narrow screens, drag-to-rotate preview on touch. &#39;Controls&#39; shows the touch controls on touch devices. Pause and debrief reachable by thumb. (design §9.2 Touch-friendly menus &#38; hangar)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_51wcoij3</bpmn:incoming>
+      <bpmn:outgoing>flow_9jk5y5kf</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_51wcoij3" sourceRef="task_bgqvncfw" targetRef="task_3axh0qdj" />
+    <bpmn:task id="task_di6k95w8" name="36. Mobile quality tier" dai:notes="New &#39;mobile&#39; tier in TIERS: radius 3, no shadows, no edge-detect post (hulls only), maxPR 1.25, fewer clouds/particles, smaller chunk LRU; ≤ 2 chunk workers. Auto picks it for pointer: coarse + short side ≤ 900 px (replace the UA regex in pickTier). Frame cap 60, lower-rate menu rendering, pause rendering when hidden; dynamic resolution handles thermal throttling. Measure draw calls (≤ 150) and memory in mobile emulation with ?debug. (design §9.3 Mobile quality tier &#38; budget; Thermal throttling &#38; battery)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_9jk5y5kf</bpmn:incoming>
+      <bpmn:outgoing>flow_z9b8wmai</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_9jk5y5kf" sourceRef="task_3axh0qdj" targetRef="task_di6k95w8" />
+    <bpmn:task id="task_tp1g3er9" name="37. Mobile tests &#38; verification" dai:notes="Touch mapping unit tests pass; all existing tests unchanged and green; tsc; production build. Mobile emulation smoke test in the browser (iPhone + Pixel viewports): tap FLY!, take off with lever + stick, fly 20 s, pause button, portrait card, no scroll/zoom, no console errors, Mobile tier chosen. Desktop regression: keyboard, mouse stick and gamepad unchanged, no touch controls shown. Real-device playtest checklist handed to the user (iPhone Safari + Home Screen, Android Chrome). (design §9.3 tests)" dai:agentStatus="todo">
+      <bpmn:incoming>flow_z9b8wmai</bpmn:incoming>
+      <bpmn:outgoing>flow_wm2ibgum</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_z9b8wmai" sourceRef="task_di6k95w8" targetRef="task_tp1g3er9" />
+    <bpmn:sequenceFlow id="flow_wm2ibgum" sourceRef="task_tp1g3er9" targetRef="event_blqfau9s" />
+    <bpmn:sequenceFlow id="flow_cl5edggv" sourceRef="task_550ytawb" targetRef="task_ffytomoq" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -247,7 +282,7 @@
         <di:waypoint x="1980" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="event_blqfau9s_di" bpmnElement="event_blqfau9s">
-        <dc:Bounds x="2499" y="501" width="40" height="40" />
+        <dc:Bounds x="1469" y="661" width="40" height="40" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_dm9i0pir_di" bpmnElement="task_dm9i0pir">
         <dc:Bounds x="180" y="320" width="100" height="80" />
@@ -386,9 +421,60 @@
         <di:waypoint x="1334" y="521" />
         <di:waypoint x="1414" y="521" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_saj7yspq_di" bpmnElement="flow_saj7yspq">
-        <di:waypoint x="1514" y="521" />
-        <di:waypoint x="2499" y="521" />
+      <bpmndi:BPMNShape id="task_ffytomoq_di" bpmnElement="task_ffytomoq">
+        <dc:Bounds x="180" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_yjzfzje6_di" bpmnElement="task_yjzfzje6">
+        <dc:Bounds x="360" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_b918numb_di" bpmnElement="flow_b918numb">
+        <di:waypoint x="280" y="681" />
+        <di:waypoint x="360" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_ibjujnvg_di" bpmnElement="task_ibjujnvg">
+        <dc:Bounds x="540" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_53hu5c3q_di" bpmnElement="flow_53hu5c3q">
+        <di:waypoint x="460" y="681" />
+        <di:waypoint x="540" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_bgqvncfw_di" bpmnElement="task_bgqvncfw">
+        <dc:Bounds x="720" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_s444bi7j_di" bpmnElement="flow_s444bi7j">
+        <di:waypoint x="640" y="681" />
+        <di:waypoint x="720" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_3axh0qdj_di" bpmnElement="task_3axh0qdj">
+        <dc:Bounds x="900" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_51wcoij3_di" bpmnElement="flow_51wcoij3">
+        <di:waypoint x="820" y="681" />
+        <di:waypoint x="900" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_di6k95w8_di" bpmnElement="task_di6k95w8">
+        <dc:Bounds x="1080" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_9jk5y5kf_di" bpmnElement="flow_9jk5y5kf">
+        <di:waypoint x="1000" y="681" />
+        <di:waypoint x="1080" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_tp1g3er9_di" bpmnElement="task_tp1g3er9">
+        <dc:Bounds x="1260" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_z9b8wmai_di" bpmnElement="flow_z9b8wmai">
+        <di:waypoint x="1180" y="681" />
+        <di:waypoint x="1260" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_wm2ibgum_di" bpmnElement="flow_wm2ibgum">
+        <di:waypoint x="1360" y="681" />
+        <di:waypoint x="1469" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_cl5edggv_di" bpmnElement="flow_cl5edggv">
+        <di:waypoint x="1464" y="561" />
+        <di:waypoint x="1464" y="601" />
+        <di:waypoint x="230" y="601" />
+        <di:waypoint x="230" y="641" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
