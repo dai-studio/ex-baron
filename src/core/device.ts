@@ -49,7 +49,7 @@ export function enterGameFullscreen() {
       return o?.lock?.('landscape');
     })
     .catch(() => {
-      /* not allowed or not supported (iPhone): the rotate card and the home-screen app cover it */
+      /* not allowed or not supported (iPhone): the home-screen app covers it */
     });
 }
 

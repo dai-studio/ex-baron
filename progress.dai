@@ -291,8 +291,13 @@
     <bpmn:sequenceFlow id="flow_985qrvi8" sourceRef="task_r6jzgfom" targetRef="task_zzp3k58r" />
     <bpmn:task id="task_7g4z5op2" name="42. PWA tests &#38; verification" dai:notes="88/88 tests, tsc, build. Production preview in Chrome: service worker activated and controlling, 12 files precached, Chrome fired beforeinstallprompt (Install app button shown). Update: rebuilt → &#39;New version ready&#39; appeared → Restart reloaded on the new version and deleted the old cache. Offline (server stopped): new tab loaded from cache, game started, chunk worker built 152 chunks, sortie flew to 87 km/h, fonts from cache. README section. Not tested: actually installing via the browser dialog, iOS Home Screen, Cloudflare&#39;s _headers in production." dai:agentStatus="done" dai:planRef="task_l2mzu38v">
       <bpmn:incoming>flow_7vhdsxab</bpmn:incoming>
+      <bpmn:outgoing>flow_p6m1ny80</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_7vhdsxab" sourceRef="task_zzp3k58r" targetRef="task_7g4z5op2" />
+    <bpmn:task id="task_te6i8660" name="43. Remove the rotate card" dai:notes="Removed the #rotate section (index.html), its CSS and keyframes, and the portrait check + portraitPaused/rotateShown state in Game.updateTouch / the interruption handler; updated a stale comment in device.ts. Portrait mid-flight now keeps flying (browser check: touch, 390×760, not paused, sim advanced 1.5 s in 1.5 s, no #rotate element). tsc, 88 tests, build pass. Design §9.2 criteria and the iOS risk updated." dai:agentStatus="done" dai:planRef="task_6gx8cq89">
+      <bpmn:incoming>flow_p6m1ny80</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_p6m1ny80" sourceRef="task_7g4z5op2" targetRef="task_te6i8660" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -711,6 +716,13 @@
         <di:waypoint x="1578" y="1010" />
         <di:waypoint x="318" y="1010" />
         <di:waypoint x="318" y="1040" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_te6i8660_di" bpmnElement="task_te6i8660">
+        <dc:Bounds x="448" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_p6m1ny80_di" bpmnElement="flow_p6m1ny80">
+        <di:waypoint x="368" y="1080" />
+        <di:waypoint x="448" y="1080" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
