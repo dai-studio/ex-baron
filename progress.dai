@@ -271,8 +271,28 @@
     <bpmn:sequenceFlow id="flow_nyzysayc" sourceRef="task_ubjpq32t" targetRef="task_gyv6aya1" />
     <bpmn:task id="task_425pmp5m" name="38. Hide instrument cluster on mobile" dai:notes="Touch HUD no longer draws the instrument cluster. Status card under the pause button now shows SPD (km/h, red when stalled), ALT with AGL, flaps / STALL / TOO FAST, and a mini damage silhouette; 158 px wide so it clears the objective banner at 667 px. Landing glide-slope panel moves low between the thumbs. Desktop HUD unchanged. tsc + 81 tests pass; frames checked at 667×375 and 844×390." dai:agentStatus="done" dai:planRef="task_55o4fsch">
       <bpmn:incoming>flow_44vi5bml</bpmn:incoming>
+      <bpmn:outgoing>flow_50cfo5x7</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_44vi5bml" sourceRef="task_gyv6aya1" targetRef="task_425pmp5m" />
+    <bpmn:task id="task_264im0p4" name="39. Manifest &#38; app icons" dai:notes="icon-192, icon-512 and icon-maskable-512 PNGs rendered from favicon.svg in the browser (maskable: full sky background, plane at 70%). Manifest: id &#39;/&#39;, display fullscreen + display_override [fullscreen, standalone], icons any + maskable, wide screenshot (og-image), categories. public/_headers: sw.js and manifest no-cache." dai:agentStatus="done" dai:planRef="task_wrzm9l4q">
+      <bpmn:incoming>flow_50cfo5x7</bpmn:incoming>
+      <bpmn:outgoing>flow_vv5sejl2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_50cfo5x7" sourceRef="task_425pmp5m" targetRef="task_264im0p4" />
+    <bpmn:task id="task_r6jzgfom" name="40. Service worker &#38; offline" dai:notes="src/pwa/sw.template.js + src/pwa/precache.ts (precacheList, cacheVersion, serviceWorkerSource) + build-only plugin in vite.config.ts emitting dist/sw.js (page, every bundle file incl. chunk worker, public files; skips og-image, _headers, maps). Precache on install (cache: reload), cache-first for files, network-first navigation with 3 s timeout and cached &#39;/&#39; fallback, stale-while-revalidate for Google Fonts, old caches deleted on activate, skipWaiting only on message. Registered from src/core/pwa.ts in production only. Bugs found in testing and fixed: (1) &#39;Vary: Origin&#39; made module-script lookups miss offline → ignoreVary; (2) template not in the version hash → included; (3) placeholder words in a comment got replaced → exact-line substitution. tests/pwa.test.ts (7 tests)." dai:agentStatus="done" dai:planRef="task_arp2kyhm">
+      <bpmn:incoming>flow_vv5sejl2</bpmn:incoming>
+      <bpmn:outgoing>flow_985qrvi8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_vv5sejl2" sourceRef="task_264im0p4" targetRef="task_r6jzgfom" />
+    <bpmn:task id="task_zzp3k58r" name="41. Install button &#38; update prompt" dai:notes="Main menu app row (hidden when empty): &#39;📲 Install app&#39; from beforeinstallprompt; iOS Safari tip &#39;Share → Add to Home Screen&#39; with ✕ (remembered); nothing when running installed (display-mode / navigator.standalone). &#39;✨ New version ready — Restart&#39; when an update is waiting; only acts on the title screen; skipWaiting + reload on controllerchange. Tracks reg.waiting and reg.installing at register time (missed updates otherwise) and checks for updates when the app returns to the front." dai:agentStatus="done" dai:planRef="task_4b0hq1pa">
+      <bpmn:incoming>flow_985qrvi8</bpmn:incoming>
+      <bpmn:outgoing>flow_7vhdsxab</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_985qrvi8" sourceRef="task_r6jzgfom" targetRef="task_zzp3k58r" />
+    <bpmn:task id="task_7g4z5op2" name="42. PWA tests &#38; verification" dai:notes="88/88 tests, tsc, build. Production preview in Chrome: service worker activated and controlling, 12 files precached, Chrome fired beforeinstallprompt (Install app button shown). Update: rebuilt → &#39;New version ready&#39; appeared → Restart reloaded on the new version and deleted the old cache. Offline (server stopped): new tab loaded from cache, game started, chunk worker built 152 chunks, sortie flew to 87 km/h, fonts from cache. README section. Not tested: actually installing via the browser dialog, iOS Home Screen, Cloudflare&#39;s _headers in production." dai:agentStatus="done" dai:planRef="task_l2mzu38v">
+      <bpmn:incoming>flow_7vhdsxab</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_7vhdsxab" sourceRef="task_zzp3k58r" targetRef="task_7g4z5op2" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -661,6 +681,36 @@
       <bpmndi:BPMNEdge id="flow_44vi5bml_di" bpmnElement="flow_44vi5bml">
         <di:waypoint x="908" y="940" />
         <di:waypoint x="988" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_264im0p4_di" bpmnElement="task_264im0p4">
+        <dc:Bounds x="1168" y="900" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_50cfo5x7_di" bpmnElement="flow_50cfo5x7">
+        <di:waypoint x="1088" y="940" />
+        <di:waypoint x="1168" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_r6jzgfom_di" bpmnElement="task_r6jzgfom">
+        <dc:Bounds x="1348" y="900" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_vv5sejl2_di" bpmnElement="flow_vv5sejl2">
+        <di:waypoint x="1268" y="940" />
+        <di:waypoint x="1348" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_zzp3k58r_di" bpmnElement="task_zzp3k58r">
+        <dc:Bounds x="1528" y="900" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_985qrvi8_di" bpmnElement="flow_985qrvi8">
+        <di:waypoint x="1448" y="940" />
+        <di:waypoint x="1528" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_7g4z5op2_di" bpmnElement="task_7g4z5op2">
+        <dc:Bounds x="268" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_7vhdsxab_di" bpmnElement="flow_7vhdsxab">
+        <di:waypoint x="1578" y="980" />
+        <di:waypoint x="1578" y="1010" />
+        <di:waypoint x="318" y="1010" />
+        <di:waypoint x="318" y="1040" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

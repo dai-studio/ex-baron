@@ -381,6 +381,42 @@
         </bpmn:task>
       </bpmn:subProcess>
     </bpmn:subProcess>
+    <bpmn:subProcess id="task_qwcbumcz" name="10. Installable app (PWA)" dai:notes="Baron can be installed as an app (Progressive Web App) so it runs outside the browser: its own icon on the home screen, dock or Start menu, its own window with no browser bar, and it starts and flies offline. The world is procedural, so once the app files are cached nothing else is needed. Requested by a superuser.">
+      <bpmn:task id="task_k9ozstk6" name="Install Baron as an app" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- Installable in Chrome and Edge (desktop and Android): manifest with id, name, 192 and 512 px icons (any + maskable), screenshots, theme colours and a registered service worker.&#10;- iPhone/iPad: &#39;Add to Home Screen&#39; opens full-screen (apple-touch-icon and web-app metas).&#10;- Opens in its own window without browser UI (fullscreen on phones, standalone window on desktop).&#10;- Main menu shows an &#39;Install app&#39; button when the browser offers installation; on iOS Safari a short &#39;Share → Add to Home Screen&#39; tip instead. Neither shows once installed." dai:valueStatement="Players keep Baron one tap away and play it like a native game.">
+        <bpmn:outgoing>flow_gj5v83ko</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_tpljcrfv" name="Works offline" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- After the first visit, the app starts and a full sortie can be flown with no network.&#10;- The service worker caches every built file (page, JS, CSS, chunk worker, icons, manifest) when it installs, not only what the first visit happened to load.&#10;- Google Fonts are cached on first use; without them the fallback fonts are used.&#10;- Settings, loadout and best records already live in localStorage, so they work offline." dai:valueStatement="Fly on a plane, on the underground, anywhere.">
+        <bpmn:incoming>flow_gj5v83ko</bpmn:incoming>
+        <bpmn:outgoing>flow_ndvkdirt</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_gj5v83ko" sourceRef="task_k9ozstk6" targetRef="task_tpljcrfv" />
+      <bpmn:task id="task_5m8lrkcz" name="App updates" dai:type="dai.types.product.feature" dai:stepType="feature" dai:status="proposed" dai:acceptanceCriteria="- A new deploy is downloaded in the background on the next launch.&#10;- The main menu then shows &#39;New version ready — Restart&#39;; tapping it switches to the new version and reloads.&#10;- Never reloads during a sortie; if ignored, the new version starts next launch." dai:valueStatement="Installed players get new versions without reinstalling, and never mid-flight.">
+        <bpmn:incoming>flow_ndvkdirt</bpmn:incoming>
+        <bpmn:outgoing>flow_6dy95dc0</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_ndvkdirt" sourceRef="task_tpljcrfv" targetRef="task_5m8lrkcz" />
+      <bpmn:task id="task_rb5gb66w" name="Service worker (sw.js)" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Generated at build time by a small Vite plugin: the list of every emitted file plus public files, and a version hash used in the cache name. Precache on install; cache-first for precached files; network-first for page navigations with the cached page as fallback; stale-while-revalidate for fonts.googleapis.com / fonts.gstatic.com; old caches deleted on activate; skipWaiting only when the page asks. Registered from src/core/pwa.ts in production builds only (never in vite dev). Served with Cache-Control: no-cache (public/_headers)." dai:componentType="service">
+        <bpmn:incoming>flow_6dy95dc0</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_6dy95dc0" sourceRef="task_5m8lrkcz" targetRef="task_rb5gb66w" />
+      <bpmn:task id="task_hs1p7pm3" name="ADR: Hand-written service worker" dai:type="dai.types.software.decision" dai:status="accepted" dai:context="Baron is one page with about six built files. It needs precaching, offline start and an update prompt." dai:decision="Option 2: no new dependencies, every line readable, and the precache list still comes from the real build output. Option 3 was rejected because the first visit&#39;s files would not all be cached before going offline." dai:consequences="+ No extra packages or generated Workbox runtime.&#10;+ Full control over the update flow.&#10;- Cache strategies are ours to test and maintain.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="options">1. vite-plugin-pwa (Workbox)
+2. Hand-written sw.js + a ~30-line Vite plugin that injects the precache list
+3. Runtime caching only (no precache)</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+      <bpmn:task id="task_79mm2v3i" name="Stale app after a deploy" dai:type="dai.types.business.risk-item" dai:stepType="risk" dai:probability="medium" dai:impact="medium" dai:mitigation="Version hash in the cache name; sw.js served no-cache so browsers always check for a new one; &#39;New version ready&#39; prompt; activate deletes old caches; hashed asset names never collide." />
+      <bpmn:task id="task_wcoeipp3" name="PWA install &#38; offline test" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="e2e" dai:testStatus="passed" dai:testSteps="Unit: the build plugin&#39;s precache list contains index.html, every /assets file (incl. the chunk worker), the manifest and icons; manifest has 192/512 any + maskable icons. Browser: production preview → service worker activated, caches filled; go offline and reload → the menu loads and a sortie flies; deploy a changed build → &#39;New version ready&#39; appears on the menu, restart switches version.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="expectedResult">Installable (Chrome shows the install option), starts and flies offline, updates only from the menu.</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+      </bpmn:task>
+    </bpmn:subProcess>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -847,6 +883,42 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="task_jl8iahtb_di" bpmnElement="task_jl8iahtb">
         <dc:Bounds x="1170" y="2685" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_qwcbumcz_di" bpmnElement="task_qwcbumcz" isExpanded="true">
+        <dc:Bounds x="30" y="2885" width="1550" height="230" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_k9ozstk6_di" bpmnElement="task_k9ozstk6">
+        <dc:Bounds x="90" y="2970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_tpljcrfv_di" bpmnElement="task_tpljcrfv">
+        <dc:Bounds x="270" y="2970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_gj5v83ko_di" bpmnElement="flow_gj5v83ko">
+        <di:waypoint x="190" y="3010" />
+        <di:waypoint x="270" y="3010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_5m8lrkcz_di" bpmnElement="task_5m8lrkcz">
+        <dc:Bounds x="450" y="2970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ndvkdirt_di" bpmnElement="flow_ndvkdirt">
+        <di:waypoint x="370" y="3010" />
+        <di:waypoint x="450" y="3010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_rb5gb66w_di" bpmnElement="task_rb5gb66w">
+        <dc:Bounds x="630" y="2970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_6dy95dc0_di" bpmnElement="flow_6dy95dc0">
+        <di:waypoint x="550" y="3010" />
+        <di:waypoint x="630" y="3010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_hs1p7pm3_di" bpmnElement="task_hs1p7pm3">
+        <dc:Bounds x="810" y="2970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_79mm2v3i_di" bpmnElement="task_79mm2v3i">
+        <dc:Bounds x="990" y="2970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_wcoeipp3_di" bpmnElement="task_wcoeipp3">
+        <dc:Bounds x="1170" y="2970" width="100" height="80" />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

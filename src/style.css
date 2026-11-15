@@ -300,3 +300,10 @@ body.touch .seed input { min-height: 44px; }
   .hangar-panel #close-hangar { font-size: 22px; margin: 8px 0 0; padding: 4px; }
   .hangar-keys { margin-top: 6px; }
 }
+
+/* installable app (design §10) */
+.app-row { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; }
+.app-row.hidden, .app-row .hidden { display: none !important; }
+#update-btn { background: var(--accent); color: #fff; }
+#ios-tip { margin: 0; font-size: 13px; font-weight: 700; color: #6b4b2a; text-align: center; }
+#ios-tip-x { padding: 0 6px; font-size: 12px; min-height: 0; box-shadow: none; border-width: 2px; margin-left: 4px; }

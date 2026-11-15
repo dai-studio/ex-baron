@@ -1,15 +1,29 @@
 {
+  "id": "/",
   "name": "Baron — A biplane in every browser",
   "short_name": "Baron",
-  "description": "A free cartoon flying game. Build your plane, take off, explore and land it in one piece.",
+  "description": "A free cartoon flying game. Build your plane, take off, explore and land it in one piece. Works offline.",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "landscape",
   "background_color": "#9fd3ef",
   "theme_color": "#9fd3ef",
+  "categories": ["games", "entertainment"],
   "icons": [
-    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "A red cartoon biplane banking over green hills and an airfield"
+    }
   ]
 }
