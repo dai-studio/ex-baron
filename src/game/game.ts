@@ -683,7 +683,7 @@ export class Game {
     const follow = this.sortieRoute ? ` Follow the arrows to ${this.destName()}.` : '';
     this.ui.hint(
       this.say(
-        `Open the throttle: hold Shift (or press 0). Steer with Q / E.${jet}${follow}`,
+        `Open the throttle: press 0 for full power (1 is idle). Steer with Q / E.${jet}${follow}`,
         `Push the throttle lever (right) all the way up. Steer with the stick (left thumb).${jet}${follow}`,
       ),
       6000,

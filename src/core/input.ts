@@ -9,6 +9,11 @@ import { TouchControls, stickCurve } from './touch';
 const AXIS_RATE = 4.5; // keyboard axes ramp instead of snapping
 const THROTTLE_RATE = 0.6;
 
+/** Number-row throttle: 1 = idle, 2–9 in even steps, 0 = full (the keys left to right). */
+export function digitThrottle(digit: number): number {
+  return digit === 0 ? 1 : (digit - 1) / 9;
+}
+
 export class Input {
   readonly keys = new Set<string>();
   private pressed = new Set<string>();
@@ -130,11 +135,8 @@ export class Input {
     let yaw = this.axes.yaw;
     let brake = k.has('KeyB');
 
-    // throttle
-    if (k.has('ShiftLeft') || k.has('ShiftRight')) this.throttle += THROTTLE_RATE * dt;
-    if (k.has('ControlLeft') || k.has('ControlRight')) this.throttle -= THROTTLE_RATE * dt;
-    for (let d = 1; d <= 9; d++) if (k.has(`Digit${d}`)) this.throttle = d / 10;
-    if (k.has('Digit0')) this.throttle = 1;
+    // throttle: number row only (Shift / Ctrl clashed with browser shortcuts such as Ctrl+W)
+    for (let d = 0; d <= 9; d++) if (k.has(`Digit${d}`)) this.throttle = digitThrottle(d);
 
     // gamepad (standard mapping)
     const pad = this.gamepad();

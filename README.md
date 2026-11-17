@@ -42,7 +42,7 @@ Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, 
 | Pitch | W / S or ↑ / ↓ (S pulls up) |
 | Roll | A / D or ← / → |
 | Rudder | Q / E |
-| Throttle | Shift / Ctrl, or 1–9 and 0 (full) |
+| Throttle | Number keys: 1 (idle) … 9, 0 (full) |
 | Flaps | F more / V less (UP, T/O, LAND); gamepad d-pad ↓ / ↑ |
 | Brakes | B |
 | Camera | C (chase / cockpit) |
