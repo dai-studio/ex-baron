@@ -296,8 +296,18 @@
     <bpmn:sequenceFlow id="flow_7vhdsxab" sourceRef="task_zzp3k58r" targetRef="task_7g4z5op2" />
     <bpmn:task id="task_te6i8660" name="43. Remove the rotate card" dai:notes="Removed the #rotate section (index.html), its CSS and keyframes, and the portrait check + portraitPaused/rotateShown state in Game.updateTouch / the interruption handler; updated a stale comment in device.ts. Portrait mid-flight now keeps flying (browser check: touch, 390×760, not paused, sim advanced 1.5 s in 1.5 s, no #rotate element). tsc, 88 tests, build pass. Design §9.2 criteria and the iOS risk updated." dai:agentStatus="done" dai:planRef="task_6gx8cq89">
       <bpmn:incoming>flow_p6m1ny80</bpmn:incoming>
+      <bpmn:outgoing>flow_1c6t47h8</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_p6m1ny80" sourceRef="task_7g4z5op2" targetRef="task_te6i8660" />
+    <bpmn:task id="task_xagxikxo" name="44. Design doc catch-up" dai:notes="Audited plan/progress (tasks 1–43 all present and done) against design.dai. design.dai was missing work from tasks 19–30 and had one stale test after task 43. Added §11 Cross-country missions (Cross-country mission feature, Route planner component, 3D guide arrows, Route planner tests) and §3 Flaps and Six-pack instrument cluster features. Updated HUD &#38; UI, Flight model, Controls &#38; input, Hangar &#38; briefing, Settings &#38; saves, Debrief &#38; score, Plane style (biplane maxThrust 3250 N), Wheels (brakes 0.605/0.495/0.418), Quality tiers (render-scale white-flash fix), Vite + TypeScript (Node 26.13.1 / npm 11 pin, lock file from npm 11.20), and the Mobile emulation smoke test (no rotate card in portrait)." dai:agentStatus="done" dai:planRef="task_i6pkr3dk">
+      <bpmn:incoming>flow_1c6t47h8</bpmn:incoming>
+      <bpmn:outgoing>flow_y8cx3pz7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_1c6t47h8" sourceRef="task_te6i8660" targetRef="task_xagxikxo" />
+    <bpmn:task id="task_mcnsgw7d" name="45. Esc is the only pause key" dai:notes="Removed KeyP from the pause check and the KeyR restart in Game.handleKeys (src/game/game.ts); Esc still toggles pause in a sortie, gamepad Start and the touch pause button unchanged. Restart is only via the Pause menu&#39;s &#39;Restart sortie&#39; button. Controls table in index.html now reads &#39;Pause — Esc&#39;; README controls row updated. design.dai §3 Controls &#38; input updated. tsc clean, 88/88 tests pass." dai:agentStatus="done" dai:planRef="task_r08m1dby">
+      <bpmn:incoming>flow_y8cx3pz7</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_y8cx3pz7" sourceRef="task_xagxikxo" targetRef="task_mcnsgw7d" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -723,6 +733,20 @@
       <bpmndi:BPMNEdge id="flow_p6m1ny80_di" bpmnElement="flow_p6m1ny80">
         <di:waypoint x="368" y="1080" />
         <di:waypoint x="448" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_xagxikxo_di" bpmnElement="task_xagxikxo">
+        <dc:Bounds x="628" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_1c6t47h8_di" bpmnElement="flow_1c6t47h8">
+        <di:waypoint x="548" y="1080" />
+        <di:waypoint x="628" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_mcnsgw7d_di" bpmnElement="task_mcnsgw7d">
+        <dc:Bounds x="808" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_y8cx3pz7_di" bpmnElement="flow_y8cx3pz7">
+        <di:waypoint x="728" y="1080" />
+        <di:waypoint x="808" y="1080" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

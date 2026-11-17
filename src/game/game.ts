@@ -972,7 +972,7 @@ export class Game {
   private handleKeys() {
     const i = this.input;
     const ta = i.touch.model.take();
-    if (i.wasPressed('Escape') || i.wasPressed('KeyP') || i.padWasPressed(9) || ta.has('pause')) {
+    if (i.wasPressed('Escape') || i.padWasPressed(9) || ta.has('pause')) {
       if (this.state === 'sortie' || this.state === 'ending') this.setPaused(!this.paused);
     }
     if (this.paused) return;
@@ -981,7 +981,6 @@ export class Game {
         this.rig.cycle();
         this.ui.toast(this.rig.mode.toUpperCase(), 700);
       }
-      if (i.wasPressed('KeyR')) this.startSortie();
     }
     if (this.state === 'sortie') {
       // flaps: F (d-pad down) one notch more, V (d-pad up) one notch less

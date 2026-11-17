@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_omjlvn2n</bpmn:incoming>
+      <bpmn:incoming>flow_b71l3ony</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -224,10 +224,20 @@
     <bpmn:sequenceFlow id="flow_nf5v4hnl" sourceRef="task_55o4fsch" targetRef="task_wrzm9l4q" />
     <bpmn:task id="task_6gx8cq89" name="43. Remove the rotate card" dai:notes="Owner request: drop the &#39;Turn your phone sideways&#39; card and the portrait pause that came with it (a pause with no card would look frozen). Portrait mid-flight now just keeps flying. Removed the #rotate section, its CSS and the portrait check in Game.updateTouch. (design §9.2 Mobile page, orientation &#38; fullscreen)" dai:agentStatus="done">
       <bpmn:incoming>flow_rqrd8zn1</bpmn:incoming>
-      <bpmn:outgoing>flow_omjlvn2n</bpmn:outgoing>
+      <bpmn:outgoing>flow_07jlf29z</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_rqrd8zn1" sourceRef="task_l2mzu38v" targetRef="task_6gx8cq89" />
-    <bpmn:sequenceFlow id="flow_omjlvn2n" sourceRef="task_6gx8cq89" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_i6pkr3dk" name="44. Design doc catch-up" dai:notes="Bring design.dai in line with what shipped: new §11 Cross-country missions (mission, route planner, guide arrows, route tests); §3 Flaps and Six-pack instrument cluster; HUD &#38; UI, Flight model, Controls (F/V flaps), Hangar &#38; briefing (no engine pick, mission choice), Settings &#38; saves, Debrief (path accuracy), Plane style (biplane 3250 N), Wheels (brakes ×1.1), Quality tiers (render-scale white-flash fix), Vite + TypeScript (Node 26.13.1 / npm 11 pin); mobile smoke test no longer expects the rotate card." dai:agentStatus="done">
+      <bpmn:incoming>flow_07jlf29z</bpmn:incoming>
+      <bpmn:outgoing>flow_hqy5dzzo</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_07jlf29z" sourceRef="task_6gx8cq89" targetRef="task_i6pkr3dk" />
+    <bpmn:task id="task_r08m1dby" name="45. Esc is the only pause key" dai:notes="Owner request: remove the P (pause) and R (restart sortie) keyboard shortcuts; Esc pauses and resumes. Restart stays on the Pause menu&#39;s &#39;Restart sortie&#39; button; gamepad Start and the touch pause button unchanged. Controls table (index.html) and README updated. tsc + tests. (design §3 Controls &#38; input)" dai:agentStatus="done">
+      <bpmn:incoming>flow_hqy5dzzo</bpmn:incoming>
+      <bpmn:outgoing>flow_b71l3ony</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_hqy5dzzo" sourceRef="task_i6pkr3dk" targetRef="task_r08m1dby" />
+    <bpmn:sequenceFlow id="flow_b71l3ony" sourceRef="task_r08m1dby" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -544,9 +554,27 @@
         <di:waypoint x="1720" y="681" />
         <di:waypoint x="1800" y="681" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_omjlvn2n_di" bpmnElement="flow_omjlvn2n">
+      <bpmndi:BPMNShape id="task_i6pkr3dk_di" bpmnElement="task_i6pkr3dk">
+        <dc:Bounds x="1980" y="641" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_07jlf29z_di" bpmnElement="flow_07jlf29z">
         <di:waypoint x="1900" y="681" />
-        <di:waypoint x="2206" y="681" />
+        <di:waypoint x="1980" y="681" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_r08m1dby_di" bpmnElement="task_r08m1dby">
+        <dc:Bounds x="2160" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_hqy5dzzo_di" bpmnElement="flow_hqy5dzzo">
+        <di:waypoint x="2080" y="681" />
+        <di:waypoint x="2120" y="681" />
+        <di:waypoint x="2120" y="791" />
+        <di:waypoint x="2160" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_b71l3ony_di" bpmnElement="flow_b71l3ony">
+        <di:waypoint x="2210" y="751" />
+        <di:waypoint x="2210" y="726" />
+        <di:waypoint x="2226" y="726" />
+        <di:waypoint x="2226" y="701" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -50,7 +50,7 @@ Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, 
 | Bail out | X |
 | Hangar (main menu) | H |
 | Cross-country destination (main menu) | ← / → |
-| Pause / restart | Esc or P / R |
+| Pause (restart from the Pause menu) | Esc |
 | Gamepad | Left stick to fly, right stick X for rudder and Y for throttle |
 
 ## Phones, tablets and the app
