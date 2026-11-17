@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AudioEngine } from '../audio/audio';
 import { WakeLock, enterGameFullscreen, safeInsets, smallTouchScreen } from '../core/device';
 import { Input } from '../core/input';
+import { fmtAltRounded, fmtDist, fmtVs, setUnits, speedOf, speedUnit } from '../core/units';
 import { Pwa } from '../core/pwa';
 import { Loop } from '../core/loop';
 import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
@@ -148,6 +149,7 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement, hudCanvas: HTMLCanvasElement) {
     this.settings = loadSettings();
+    setUnits(this.settings.units);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -183,6 +185,11 @@ export class Game {
       click: () => this.uiClick(),
       tiltChanged: (on) => this.input.touch.setTilt(on),
       recentre: () => this.input.touch.recentre(),
+      unitsChanged: () => {
+        setUnits(this.settings.units);
+        this.hangar.refreshUnits();
+        this.refreshRoute();
+      },
     });
     // redraw the flight-plan map when its size changes (window resize, controls list opened)
     let mapTimer = 0;
@@ -404,11 +411,10 @@ export class Game {
     const r = planRoute(w.gen, w.home, to, w.baseWind, TURN_RADIUS[this.loadout.style]);
     this.route = r;
     this.drawMap();
-    const km = (r.sAim / 1000).toFixed(1);
     const min = Math.max(1, Math.round(r.sAim / CRUISE_SPEED[this.loadout.style] / 60));
     const dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(bearing(w.home.x, w.home.z, to.x, to.z) / 45) % 8];
     const downwind = r.land.dx * w.baseWind.x + r.land.dz * w.baseWind.z > 0 ? ' · downwind landing' : '';
-    this.ui.setRouteInfo(this.names[st.dest], `${km} km ${dir} · about ${min} min · up to ${Math.round(r.maxAlt / 10) * 10} m${downwind}`);
+    this.ui.setRouteInfo(this.names[st.dest], `${fmtDist(r.sAim)} ${dir} · about ${min} min · up to ${fmtAltRounded(r.maxAlt)}${downwind}`);
   }
 
   /** Draw the flight-plan map at the canvas's on-screen size (it stretches to the menu's height). */
@@ -797,7 +803,7 @@ export class Game {
       rows.push(['On the path', m.tookOff ? `${pathPct}%` : '—']);
     }
     rows.push(['Damage taken', `${Math.round(damage * 100)}%`]);
-    if (m.touch) rows.push(['Touchdown', `${m.touch.sink.toFixed(1)} m/s sink, ${Math.round((m.touch.bank * 180) / Math.PI)}° bank`]);
+    if (m.touch) rows.push(['Touchdown', `${fmtVs(m.touch.sink)} sink, ${Math.round((m.touch.bank * 180) / Math.PI)}° bank`]);
     rows.push(['Landing grade', landedOk ? m.grade : '—']);
     rows.push(['Flight time', mmss]);
     rows.push(['Aircraft', describeLoadout(p.loadout)]);
@@ -922,11 +928,11 @@ export class Game {
       const agl = p.s.pos.y - Math.max(w.groundHeight(p.s.pos.x, p.s.pos.z), 0);
       if (m.hintStage === 0 && p.s.onGround && p.s.airspeed > 14) {
         m.hintStage = 1;
-        const vr = Math.round((stallSpeed(p.spec) * 1.25 * 3.6) / 5) * 5;
+        const vr = `${Math.round(speedOf(stallSpeed(p.spec) * 1.25) / 5) * 5} ${speedUnit()}`;
         this.ui.hint(
           p.gear.tricycle
-            ? this.say(`Keep it straight with Q / E, then pull back gently with S at about ${vr} km/h.`, `Keep it straight with the stick, then drag it gently down at about ${vr} km/h.`)
-            : this.say(`Ease the tail up with W, then pull back gently with S at about ${vr} km/h.`, `Ease the tail up (stick up a little), then drag it gently down at about ${vr} km/h.`),
+            ? this.say(`Keep it straight with Q / E, then pull back gently with S at about ${vr}.`, `Keep it straight with the stick, then drag it gently down at about ${vr}.`)
+            : this.say(`Ease the tail up with W, then pull back gently with S at about ${vr}.`, `Ease the tail up (stick up a little), then drag it gently down at about ${vr}.`),
           6000,
         );
       }
@@ -977,6 +983,7 @@ export class Game {
     }
     if (this.paused) return;
     if (this.state === 'sortie' || this.state === 'ending') {
+      if (i.wasPressed('KeyK')) this.ui.toggleFlightKeys();
       if (i.wasPressed('KeyC') || i.padWasPressed(3) || ta.has('camera')) {
         this.rig.cycle();
         this.ui.toast(this.rig.mode.toUpperCase(), 700);
@@ -1025,8 +1032,8 @@ export class Game {
     if (this.sortieRoute && tr) {
       const name = this.destName();
       if (!m.tookOff) return `Take off — follow the arrows to ${name}`;
-      const km = Math.max(0, (this.sortieRoute.sAim - tr.progress) / 1000).toFixed(1);
-      return tr.onPath() ? `Fly to ${name} — ${km} km` : `Back to the path! ${name} ${km} km`;
+      const left = fmtDist(Math.max(0, this.sortieRoute.sAim - tr.progress));
+      return tr.onPath() ? `Fly to ${name} — ${left}` : `Back to the path! ${name} ${left}`;
     }
     if (!m.tookOff) return 'Take off!';
     return 'Free flight — land on any strip to finish';
@@ -1041,6 +1048,7 @@ export class Game {
     this.input.pollPad();
     this.updateTouch(dt);
     this.handleKeys();
+    this.ui.setFlightKeys(this.hud.visible && !this.paused && (this.state === 'sortie' || this.state === 'ending'));
     this.time += dt;
     const w = this.world;
     if (!w) return;

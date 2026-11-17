@@ -59,6 +59,21 @@ html, body {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) scale(1.08); }
 
+/* in-flight key list, top-left (desktop only) */
+#flight-keys {
+  position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left));
+  margin: 0; padding: 4px 12px; max-width: min(360px, 40vw); max-height: calc(100dvh - 300px); overflow-y: auto;
+  background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 4px 4px 0 var(--ink);
+  font-size: 14px; user-select: none;
+}
+#flight-keys.hidden { display: none; }
+#flight-keys summary { padding: 2px 0; }
+#flight-keys kbd {
+  display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 4px; text-align: center;
+  border: 2px solid var(--ink); border-radius: 6px; background: #fff; font: inherit; font-size: 12px; line-height: 1.4;
+}
+#flight-keys table { font-size: 13px; }
+
 #hint {
   position: fixed; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); left: 50%; transform: translateX(-50%);
   background: var(--paper); border: 3px solid var(--ink); border-radius: 14px;
@@ -159,6 +174,9 @@ button.big {
   background: var(--accent-2);
 }
 .panel.small button { display: block; width: 100%; margin: 8px 0; }
+/* segmented choices (Units) inside a small panel keep their side-by-side buttons */
+.panel.small .seg button { display: inline-block; width: auto; margin: 0; }
+#pause .panel.small .seg button { margin: 0; }
 
 .seg { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .seg button { padding: 4px 10px; font-size: 15px; }

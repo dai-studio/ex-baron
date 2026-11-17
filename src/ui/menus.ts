@@ -21,6 +21,8 @@ export interface MenuHandlers {
   /** touch: steer by tilting; resolves false when the device can't (or the player said no) */
   tiltChanged(on: boolean): Promise<boolean>;
   recentre(): void;
+  /** display units changed (metric / imperial) */
+  unitsChanged(): void;
 }
 
 export interface DebriefData {
@@ -54,6 +56,14 @@ export class Menus {
       h.click();
       h.destStep(1);
     });
+    // Units is on the main menu and in Pause; both controls show the same setting
+    const unitSyncs = ['units-seg-menu', 'units-seg'].map((id) =>
+      this.bindSeg(id, () => settings.units, (v) => {
+        settings.units = v as Settings['units'];
+        unitSyncs.forEach((sync) => sync());
+        h.unitsChanged();
+      }),
+    );
     this.bindSeg('assist-seg', () => settings.assist, (v) => (settings.assist = v as Settings['assist']));
     this.bindSeg('quality-seg', () => settings.quality, (v) => {
       settings.quality = v as Settings['quality'];
@@ -138,10 +148,33 @@ export class Menus {
       settings.invertPitch = inv.checked;
       saveSettings(settings);
     });
+    // in-flight key list: a copy of the main menu's keyboard table, minus menu-only rows
+    const keys = $<HTMLDetailsElement>('flight-keys');
+    const table = document.querySelector('#title .controls table.desktop-only')!.cloneNode(true) as HTMLTableElement;
+    table.classList.remove('desktop-only');
+    table.querySelectorAll('tr').forEach((tr) => {
+      if (/on the menu|Key list/.test(tr.textContent ?? '')) tr.remove();
+    });
+    keys.appendChild(table);
+    // clicking the summary must not leave focus on it (Space / Enter would toggle it again)
+    keys.addEventListener('toggle', () => (document.activeElement as HTMLElement | null)?.blur());
+    this.flightKeys = keys;
     this.refreshBest();
   }
 
-  private bindSeg(id: string, get: () => string, set: (v: string) => void) {
+  private flightKeys: HTMLDetailsElement;
+
+  /** Show the in-flight key list (desktop only; CSS hides it on touch). It keeps its open/closed state. */
+  setFlightKeys(show: boolean) {
+    this.flightKeys.classList.toggle('hidden', !show);
+  }
+
+  toggleFlightKeys() {
+    this.flightKeys.open = !this.flightKeys.open;
+  }
+
+  /** Wire a segmented control to a setting; returns a function that re-syncs its highlight. */
+  private bindSeg(id: string, get: () => string, set: (v: string) => void): () => void {
     const el = $(id);
     const buttons = Array.from(el.querySelectorAll('button'));
     const sync = () => buttons.forEach((b) => b.classList.toggle('on', b.dataset.v === get()));
@@ -155,6 +188,7 @@ export class Menus {
       }),
     );
     sync();
+    return sync;
   }
 
   refreshBest() {

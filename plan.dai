@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_u2oxajsx</bpmn:incoming>
+      <bpmn:incoming>flow_f9wygez6</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -239,10 +239,30 @@
     <bpmn:sequenceFlow id="flow_hqy5dzzo" sourceRef="task_i6pkr3dk" targetRef="task_r08m1dby" />
     <bpmn:task id="task_pur6z8jw" name="46. Number-key throttle only" dai:notes="Hacker News feedback: Ctrl (throttle down) collided with browser shortcuts — Ctrl+S opened Save, Ctrl+W (with W = pitch down) closed the tab. Remove the Shift/Ctrl throttle keys; the number row sets the throttle: 1 = idle, 2–9 in even steps, 0 = full (digitThrottle in src/core/input.ts). Gamepad and touch throttle unchanged. Take-off tip, controls table and README updated. Unit test for the mapping; tsc + tests. (design §3 Controls &#38; input)" dai:agentStatus="done">
       <bpmn:incoming>flow_7qzw23yu</bpmn:incoming>
-      <bpmn:outgoing>flow_u2oxajsx</bpmn:outgoing>
+      <bpmn:outgoing>flow_ha1dfmnh</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_7qzw23yu" sourceRef="task_r08m1dby" targetRef="task_pur6z8jw" />
-    <bpmn:sequenceFlow id="flow_u2oxajsx" sourceRef="task_pur6z8jw" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_lzj8fxri" name="47. Imperial units toggle" dai:notes="Hacker News request: knots, feet and feet per minute instead of metric. src/core/units.ts converts every displayed value (speed, altitude, vertical speed, distance; nautical miles for distance). Settings.units (metric default), Pause menu Metric / Imperial. HUD, touch status card, glide-slope panel, airspeed dial and altimeter faces, hangar stats, route info, objective, route-map scale bar, take-off tip and debrief. Simulation unchanged. Unit tests; tsc + tests; browser check. (design §3 Display units)" dai:agentStatus="done">
+      <bpmn:incoming>flow_ha1dfmnh</bpmn:incoming>
+      <bpmn:outgoing>flow_noiuvhdn</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_ha1dfmnh" sourceRef="task_pur6z8jw" targetRef="task_lzj8fxri" />
+    <bpmn:task id="task_t1in0a48" name="48. Units on the main menu" dai:notes="Owner request: the Units toggle (Metric / Imperial) also on the main menu, below Graphics, so units can be chosen before the first flight. Same setting as the Pause control; both stay in sync. Check the main menu at 667×375, 844×390 and 1180×820. (design §3 Display units)" dai:agentStatus="done">
+      <bpmn:incoming>flow_noiuvhdn</bpmn:incoming>
+      <bpmn:outgoing>flow_wan2wny1</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_noiuvhdn" sourceRef="task_lzj8fxri" targetRef="task_t1in0a48" />
+    <bpmn:task id="task_gf83x58k" name="49. Vertical speed always shown" dai:notes="Hacker News request (kqr): a vertical speed gauge all the time, not only on approach. Desktop: a fourth round gauge, the Vertical Speed Indicator, right of the altimeter (±10 m/s or ±2000 ft/min, follows Display units). Cluster widens; side panels go compact below 800 px and the cluster&#39;s minimum scale drops to 0.35 so it still fits. Touch: V/S row on the status card. Unit tests for the needle and signed values; tsc + tests; check the cluster and the phone card in the browser. (design §3 Instrument cluster, §9.2 Responsive HUD)" dai:agentStatus="done">
+      <bpmn:incoming>flow_wan2wny1</bpmn:incoming>
+      <bpmn:outgoing>flow_tvk9whid</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_wan2wny1" sourceRef="task_t1in0a48" targetRef="task_gf83x58k" />
+    <bpmn:task id="task_vzhb191d" name="50. In-flight key list" dai:notes="Hacker News request (pampas): a legend of the keyboard shortcuts visible while playing. Owner spec: optional, top-left, collapsed by default like Controls on the main menu, not on mobile. &#60;details id=flight-keys&#62; filled from the main menu&#39;s keyboard table; K toggles; shown only while flying and not paused; desktop-only. README + main-menu Controls row. Browser check desktop and touch. (design §3 In-flight key list)" dai:agentStatus="done">
+      <bpmn:incoming>flow_tvk9whid</bpmn:incoming>
+      <bpmn:outgoing>flow_f9wygez6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_tvk9whid" sourceRef="task_gf83x58k" targetRef="task_vzhb191d" />
+    <bpmn:sequenceFlow id="flow_f9wygez6" sourceRef="task_vzhb191d" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -582,10 +602,38 @@
         <di:waypoint x="2260" y="791" />
         <di:waypoint x="2340" y="791" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_u2oxajsx_di" bpmnElement="flow_u2oxajsx">
-        <di:waypoint x="2340" y="791" />
-        <di:waypoint x="2293" y="791" />
-        <di:waypoint x="2293" y="681" />
+      <bpmndi:BPMNShape id="task_lzj8fxri_di" bpmnElement="task_lzj8fxri">
+        <dc:Bounds x="2520" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_ha1dfmnh_di" bpmnElement="flow_ha1dfmnh">
+        <di:waypoint x="2440" y="791" />
+        <di:waypoint x="2520" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_t1in0a48_di" bpmnElement="task_t1in0a48">
+        <dc:Bounds x="2700" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_noiuvhdn_di" bpmnElement="flow_noiuvhdn">
+        <di:waypoint x="2620" y="791" />
+        <di:waypoint x="2700" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_gf83x58k_di" bpmnElement="task_gf83x58k">
+        <dc:Bounds x="2880" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_wan2wny1_di" bpmnElement="flow_wan2wny1">
+        <di:waypoint x="2800" y="791" />
+        <di:waypoint x="2880" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_vzhb191d_di" bpmnElement="task_vzhb191d">
+        <dc:Bounds x="3060" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_tvk9whid_di" bpmnElement="flow_tvk9whid">
+        <di:waypoint x="2980" y="791" />
+        <di:waypoint x="3060" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_f9wygez6_di" bpmnElement="flow_f9wygez6">
+        <di:waypoint x="3060" y="791" />
+        <di:waypoint x="2653" y="791" />
+        <di:waypoint x="2653" y="681" />
         <di:waypoint x="2246" y="681" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>

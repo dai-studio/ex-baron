@@ -1,4 +1,6 @@
 /** Settings & saves in localStorage (design §6 "Settings & saves"). */
+import type { Units } from './units';
+
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
 export type Assist = 'arcade' | 'normal' | 'expert';
 /** free flight, or a cross-country flight to another airfield along a guided path */
@@ -16,6 +18,8 @@ export interface Settings {
   dest: number;
   /** touch: steer by tilting the device instead of the on-screen stick (design §9.1) */
   tilt: boolean;
+  /** display units: metric (km/h, m) or imperial (knots, ft, ft/min, nm) */
+  units: Units;
 }
 
 export interface BestRecord {
@@ -43,6 +47,7 @@ export function defaultSettings(): Settings {
     mode: 'free',
     dest: 1,
     tilt: false,
+    units: 'metric',
   };
 }
 
@@ -71,6 +76,7 @@ export function loadSettings(): Settings {
     delete s.difficulty;
     const out = { ...d, ...s };
     if (out.mode !== 'free' && out.mode !== 'route') out.mode = 'free';
+    if (out.units !== 'metric' && out.units !== 'imperial') out.units = 'metric';
     if (!Number.isInteger(out.dest) || out.dest < 1 || out.dest > 4) out.dest = 1;
     return out;
   } catch {

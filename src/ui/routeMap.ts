@@ -1,5 +1,6 @@
 import type { Route } from '../game/route';
 import type { TerrainGen } from '../world/terrain';
+import { distUnit, getUnits } from '../core/units';
 
 /**
  * Menu map of a cross-country flight plan (plan step 22): shaded terrain,
@@ -192,8 +193,9 @@ export function drawRouteMap(canvas: HTMLCanvasElement, gen: TerrainGen, route: 
   g.restore();
 
   // scale bar
-  const km = [1, 2, 5, 10].find((k) => (k * 1000) / span > 50 * px) ?? 10;
-  const len = (km * 1000) / span;
+  const unitM = getUnits() === 'imperial' ? 1852 : 1000;
+  const km = [1, 2, 5, 10].find((k) => (k * unitM) / span > 50 * px) ?? 10;
+  const len = (km * unitM) / span;
   const sx = 12 * px;
   const sy = H - 14 * px;
   g.fillStyle = PAPER;
@@ -204,5 +206,5 @@ export function drawRouteMap(canvas: HTMLCanvasElement, gen: TerrainGen, route: 
   g.fillStyle = INK;
   g.font = `800 ${11 * px}px ${FONT}`;
   g.textAlign = 'left';
-  g.fillText(`${km} km`, sx + len + 6 * px, sy + 1 * px);
+  g.fillText(`${km} ${distUnit()}`, sx + len + 6 * px, sy + 1 * px);
 }
