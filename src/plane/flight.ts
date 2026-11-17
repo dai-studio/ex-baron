@@ -132,9 +132,34 @@ export interface ControlInput {
   brake: boolean;
   /** flap lever 0..1 (see FLAP_NOTCHES) */
   flaps: number;
+  /** elevator trim -1 (nose down) .. +1 (nose up): shifts the angle of attack the plane settles at hands-off */
+  pitchTrim: number;
 }
 
-export const emptyInput = (): ControlInput => ({ pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: false, flaps: 0 });
+export const emptyInput = (): ControlInput => ({ pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: false, flaps: 0, pitchTrim: 0 });
+
+/** Full nose-up trim raises the hands-off angle of attack by this much (rad): slow flight, well clear of the stall. */
+export const TRIM_ALPHA = 0.1;
+/** Full nose-down trim lowers it by this much (rad): a fast cruise that still holds height; more would dive. */
+export const TRIM_ALPHA_DOWN = 0.015;
+/** Trim can never ask for more than this share of the stall angle, so trim alone can't stall the plane. */
+const TRIM_STALL_MARGIN = 0.8;
+
+/** Angle of attack the plane settles at with the stick centred (rad): built-in trim, flaps and elevator trim. */
+export function trimmedAlpha(spec: PlaneSpec, flaps: number, pitchTrim: number): number {
+  const shift = pitchTrim >= 0 ? TRIM_ALPHA * pitchTrim : TRIM_ALPHA_DOWN * pitchTrim;
+  return Math.min(spec.alphaTrim - spec.flapTrim * flaps + shift, stallAlphaAt(spec, flaps) * TRIM_STALL_MARGIN);
+}
+
+/**
+ * Trim setting (-1..1) that makes `alpha` the hands-off angle of attack: 'trim for the speed I am flying now'.
+ * In steady flight the angle of attack fixes the airspeed, so letting go afterwards keeps that speed.
+ */
+export function trimForAlpha(spec: PlaneSpec, flaps: number, alpha: number): number {
+  const shift = alpha - (spec.alphaTrim - spec.flapTrim * flaps);
+  const t = shift >= 0 ? shift / TRIM_ALPHA : shift / TRIM_ALPHA_DOWN;
+  return Math.max(-1, Math.min(1, t));
+}
 
 export interface Health {
   engine: number;
@@ -313,7 +338,7 @@ export function stepFlight(s: PlaneState, spec: PlaneSpec, input: ControlInput, 
   const e = Math.min(qd / spec.qRef, 1.6);
   const tailEff = 0.35 + 0.65 * h.tail;
   const av = s.angVel;
-  const aC = THREE.MathUtils.clamp(s.alpha - (spec.alphaTrim - spec.flapTrim * fl), -0.6, 0.6);
+  const aC = THREE.MathUtils.clamp(s.alpha - trimmedAlpha(spec, fl, input.pitchTrim), -0.6, 0.6);
   const bC = THREE.MathUtils.clamp(s.beta, -0.6, 0.6);
   _acc.set(
     input.pitch * spec.pitchAcc * e * tailEff - av.x * spec.pitchDamp * (0.3 + e) - aC * spec.pitchStab * e,

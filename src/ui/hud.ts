@@ -37,6 +37,8 @@ export interface HudContext {
   showLanding: boolean;
   /** flap lever notch (index into FLAP_NOTCHES) */
   flapNotch: number;
+  /** elevator trim -1 (nose down) .. +1 (nose up) */
+  trim: number;
   /** cross-country flight: the route, destination and (when off the path) where to rejoin it */
   guide?: { route: Route; dest: Airfield; rejoin: THREE.Vector3 | null };
   /** touch play: draw the on-screen controls and keep the gauges clear of the thumbs (design §9.2) */
@@ -73,6 +75,15 @@ function panel(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
   g.lineWidth = 3;
   g.strokeStyle = INK;
   g.stroke();
+}
+
+/** height of the bottom-left gauge panel (speed, altitude, throttle, flaps, trim) */
+const PANEL_H = 270;
+
+/** Trim setting as text: 'NEUTRAL', 'NOSE UP 3', 'NOSE DN 2' (tenths of full trim). */
+export function trimText(trim: number): string {
+  const n = Math.round(Math.abs(trim) * 10);
+  return n === 0 ? 'NEUTRAL' : `${trim > 0 ? 'NOSE UP' : 'NOSE DN'} ${n}`;
 }
 
 export class Hud {
@@ -152,9 +163,9 @@ export class Hud {
 
     // ---------- bottom-left gauges
     g.save();
-    g.translate(16, this.h - 16 - 218 * sc);
+    g.translate(16, this.h - 16 - PANEL_H * sc);
     g.scale(sc, sc);
-    panel(g, 0, 0, 220, 218);
+    panel(g, 0, 0, 220, PANEL_H);
     const spd = speedOf(s.airspeed);
     const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
     g.fillStyle = INK;
@@ -195,6 +206,7 @@ export class Hud {
     const turn = eng === 'jet' ? `spool ${Math.round(s.rpm * 100)}%` : `rpm ${Math.round(s.rpm * (eng === 'turbo' ? 2000 : 1400))}`;
     g.fillText(`${Math.round(s.throttle * 100)}%   ${turn}`, 16, 142);
     this.drawFlaps(g, c.flapNotch, s.flaps, s.flapsBlown);
+    this.drawTrim(g, c.trim);
     g.restore();
 
     // ---------- bottom-right: damage
@@ -309,6 +321,61 @@ export class Hud {
     g.lineTo(px + 5, y + 31);
     g.closePath();
     g.fill();
+  }
+
+  /** TRIM row under the flaps: a bar from nose down (left) to nose up (right) with the setting marked. */
+  private drawTrim(g: CanvasRenderingContext2D, trim: number) {
+    g.save();
+    g.strokeStyle = 'rgba(43, 29, 26, 0.35)';
+    g.lineWidth = 1.5;
+    g.setLineDash([4, 4]);
+    g.beginPath();
+    g.moveTo(14, 220);
+    g.lineTo(206, 220);
+    g.stroke();
+    g.restore();
+    const y = 240;
+    g.font = `800 13px ${FONT}`;
+    g.fillStyle = INK;
+    g.fillText('TRIM', 14, y);
+    const lw = g.measureText('TRIM').width;
+    g.font = `700 12px ${FONT}`;
+    g.fillStyle = '#6b4b2a';
+    g.fillText('([ ↔ ]  T)', 14 + lw + 6, y);
+    g.font = `800 12px ${FONT}`;
+    g.fillStyle = INK;
+    g.textAlign = 'right';
+    g.fillText(trimText(trim), 206, y);
+    g.textAlign = 'left';
+    // bar: DN ... centre ... UP
+    const x0 = 34;
+    const x1 = 186;
+    const by = y + 8;
+    roundRect(g, x0, by, x1 - x0, 12, 6);
+    g.fillStyle = '#fff';
+    g.fill();
+    g.strokeStyle = INK;
+    g.lineWidth = 2;
+    g.stroke();
+    const cx = (x0 + x1) / 2;
+    const px = cx + (trim * (x1 - x0 - 8)) / 2;
+    if (trim !== 0) {
+      g.fillStyle = GOLD;
+      g.fillRect(Math.min(cx, px), by + 2, Math.abs(px - cx), 8);
+    }
+    g.fillStyle = INK;
+    g.fillRect(cx - 1, by - 2, 2, 16);
+    g.beginPath();
+    g.moveTo(px, by + 13);
+    g.lineTo(px - 5, by + 19);
+    g.lineTo(px + 5, by + 19);
+    g.closePath();
+    g.fill();
+    g.font = `700 10px ${FONT}`;
+    g.fillText('DN', 14, by + 10);
+    g.textAlign = 'right';
+    g.fillText('UP', 206, by + 10);
+    g.textAlign = 'left';
   }
 
   private drawDamage(g: CanvasRenderingContext2D, cx: number, cy: number, h: { engine: number; wings: number; tail: number; pilot: number }) {

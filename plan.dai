@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_f9wygez6</bpmn:incoming>
+      <bpmn:incoming>flow_asv5zgd5</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -259,10 +259,15 @@
     <bpmn:sequenceFlow id="flow_wan2wny1" sourceRef="task_t1in0a48" targetRef="task_gf83x58k" />
     <bpmn:task id="task_vzhb191d" name="50. In-flight key list" dai:notes="Hacker News request (pampas): a legend of the keyboard shortcuts visible while playing. Owner spec: optional, top-left, collapsed by default like Controls on the main menu, not on mobile. &#60;details id=flight-keys&#62; filled from the main menu&#39;s keyboard table; K toggles; shown only while flying and not paused; desktop-only. README + main-menu Controls row. Browser check desktop and touch. (design §3 In-flight key list)" dai:agentStatus="done">
       <bpmn:incoming>flow_tvk9whid</bpmn:incoming>
-      <bpmn:outgoing>flow_f9wygez6</bpmn:outgoing>
+      <bpmn:outgoing>flow_6milwahr</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_tvk9whid" sourceRef="task_gf83x58k" targetRef="task_vzhb191d" />
-    <bpmn:sequenceFlow id="flow_f9wygez6" sourceRef="task_vzhb191d" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_7fg7ydu6" name="51. Elevator trim" dai:notes="Hacker News requests (leetrout, piloto_ciego, kqr, hypertexthero). ControlInput.pitchTrim shifts the hands-off angle of attack (trimmedAlpha): +0.1 rad nose-up, −0.015 rad nose-down, capped at 80% of stall. [ / ], mouse wheel, gamepad LB / RB in tenths; T = trim for the current speed (trimForAlpha). Reset each sortie; TRIM row on the HUD; toasts. Controls table, README. Tests: hands-off speed ordering for every plane, T holds speed, stall cap, existing tests unchanged. Browser check. (design §3 Elevator trim)" dai:agentStatus="done">
+      <bpmn:incoming>flow_6milwahr</bpmn:incoming>
+      <bpmn:outgoing>flow_asv5zgd5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_6milwahr" sourceRef="task_vzhb191d" targetRef="task_7fg7ydu6" />
+    <bpmn:sequenceFlow id="flow_asv5zgd5" sourceRef="task_7fg7ydu6" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -630,10 +635,17 @@
         <di:waypoint x="2980" y="791" />
         <di:waypoint x="3060" y="791" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_f9wygez6_di" bpmnElement="flow_f9wygez6">
-        <di:waypoint x="3060" y="791" />
-        <di:waypoint x="2653" y="791" />
-        <di:waypoint x="2653" y="681" />
+      <bpmndi:BPMNShape id="task_7fg7ydu6_di" bpmnElement="task_7fg7ydu6">
+        <dc:Bounds x="3240" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_6milwahr_di" bpmnElement="flow_6milwahr">
+        <di:waypoint x="3160" y="791" />
+        <di:waypoint x="3240" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_asv5zgd5_di" bpmnElement="flow_asv5zgd5">
+        <di:waypoint x="3240" y="791" />
+        <di:waypoint x="2743" y="791" />
+        <di:waypoint x="2743" y="681" />
         <di:waypoint x="2246" y="681" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
