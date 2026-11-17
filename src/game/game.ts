@@ -7,7 +7,7 @@ import { Pwa } from '../core/pwa';
 import { Loop } from '../core/loop';
 import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
-import { DEFAULT_SPEC, FLAP_LABELS, LANDING_FORGIVENESS, groundAttitude, restHeight, stallAlphaAt, stepFlight, type Env, type PlaneSpec } from '../plane/flight';
+import { DEFAULT_SPEC, FLAP_LABELS, LANDING_FORGIVENESS, groundAttitude, restHeight, stallAlphaAt, stepFlight, trimForAlpha, type Env, type PlaneSpec } from '../plane/flight';
 import { AIRFRAMES, composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
 import { Plane } from '../plane/plane';
 import { bankAngle } from '../plane/steer';
@@ -18,7 +18,7 @@ import { Sky, sunDirection } from '../render/sky';
 import { toonMaterial } from '../render/toon';
 import { Water } from '../render/water';
 import { Hangar } from '../ui/hangar';
-import { Hud } from '../ui/hud';
+import { Hud, trimText } from '../ui/hud';
 import { Menus } from '../ui/menus';
 import { drawRouteMap } from '../ui/routeMap';
 import { CHUNK_SIZE } from '../world/terrain';
@@ -86,6 +86,9 @@ interface Mission {
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
+
+/** one press of [ / ], a wheel notch or LB / RB: a tenth of full trim */
+const TRIM_STEP = 0.1;
 
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
@@ -645,6 +648,7 @@ export class Game {
     p.teleport();
     this.input.resetThrottle(0);
     this.input.flapNotch = 0;
+    this.input.trim = 0;
     this.planes.push(p);
     this.player = p;
     this.scene.add(p.visual.root);
@@ -978,6 +982,7 @@ export class Game {
   private handleKeys() {
     const i = this.input;
     const ta = i.touch.model.take();
+    const wheel = i.takeWheelSteps(); // always drained, so scrolls on a menu don't trim the next sortie
     if (i.wasPressed('Escape') || i.padWasPressed(9) || ta.has('pause')) {
       if (this.state === 'sortie' || this.state === 'ending') this.setPaused(!this.paused);
     }
@@ -995,6 +1000,16 @@ export class Game {
         (i.wasPressed('KeyF') || i.padWasPressed(13) || ta.has('flapsMore') ? 1 : 0) - (i.wasPressed('KeyV') || i.padWasPressed(12) || ta.has('flapsLess') ? 1 : 0);
       if (fd && i.stepFlaps(fd)) {
         this.ui.toast(`FLAPS ${FLAP_LABELS[i.flapNotch]}`, 700);
+        this.audio.click();
+      }
+      // elevator trim: [ nose down, ] nose up, mouse wheel, gamepad LB / RB; T trims for the speed you are flying
+      const td =
+        (i.wasPressed('BracketRight') || i.padWasPressed(5) ? 1 : 0) - (i.wasPressed('BracketLeft') || i.padWasPressed(4) ? 1 : 0) + wheel;
+      let trimmed = td !== 0 && i.stepTrim(td * TRIM_STEP);
+      const pl = this.player;
+      if (i.wasPressed('KeyT') && pl && !pl.s.onGround) trimmed = i.stepTrim(trimForAlpha(pl.spec, pl.s.flaps, pl.s.alpha) - i.trim) || trimmed;
+      if (trimmed) {
+        this.ui.toast(`TRIM ${trimText(i.trim)}`, 700);
         this.audio.click();
       }
       if (i.wasPressed('KeyM')) {
@@ -1141,6 +1156,7 @@ export class Game {
           showLanding: m.tookOff && agl < 450 && (!this.sortieRoute || w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af === this.sortieRoute.to),
           guide: this.hudGuide(),
           flapNotch: this.input.flapNotch,
+          trim: this.input.trim,
           touch: this.touchView(),
         },
         dt,

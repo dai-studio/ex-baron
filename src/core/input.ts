@@ -22,6 +22,10 @@ export class Input {
   throttle = 0;
   /** flap lever notch: index into FLAP_NOTCHES (0 = up) */
   flapNotch = 0;
+  /** elevator trim -1 (nose down) .. +1 (nose up) */
+  trim = 0;
+  /** mouse-wheel trim steps since the game last read them (+ = nose up) */
+  private wheelSteps = 0;
   invertPitch = false;
   private axes = { pitch: 0, roll: 0, yaw: 0 };
   private padPressed = new Set<number>();
@@ -50,6 +54,15 @@ export class Input {
       }
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    // mouse wheel trims like a trim wheel: roll it forward (away) for nose down, back for nose up
+    this.target.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        if (e.deltaY) this.wheelSteps += e.deltaY > 0 ? 1 : -1;
+      },
+      { passive: false },
+    );
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.mouse.down = false;
@@ -114,6 +127,21 @@ export class Input {
     if (n === this.flapNotch) return false;
     this.flapNotch = n;
     return true;
+  }
+
+  /** Move the elevator trim by `d` (+ = nose up), clamped to ±1. Returns true if it moved. */
+  stepTrim(d: number): boolean {
+    const t = Math.round(Math.max(-1, Math.min(1, this.trim + d)) * 100) / 100;
+    if (t === this.trim) return false;
+    this.trim = t;
+    return true;
+  }
+
+  /** Mouse-wheel trim steps since the last call (+ = nose up). */
+  takeWheelSteps(): number {
+    const n = this.wheelSteps;
+    this.wheelSteps = 0;
+    return n;
   }
 
   sample(dt: number, out: ControlInput) {
@@ -192,5 +220,6 @@ export class Input {
     out.throttle = this.throttle;
     out.brake = brake;
     out.flaps = FLAP_NOTCHES[this.flapNotch];
+    out.pitchTrim = this.trim;
   }
 }

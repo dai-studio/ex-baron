@@ -331,8 +331,13 @@
     <bpmn:sequenceFlow id="flow_860wkust" sourceRef="task_dnwksuf9" targetRef="task_9etudnz0" />
     <bpmn:task id="task_fwcjedln" name="50. In-flight key list" dai:notes="index.html: &#60;details id=&#34;flight-keys&#34; class=&#34;controls desktop-only hidden&#34;&#62; with summary &#39;Keys [K]&#39;; main-menu Controls gains &#39;Key list in flight — K (top-left)&#39;. menus.ts: clones the main menu&#39;s keyboard table into it (drops the &#39;on the menu&#39; Destination row and its own row), blurs focus on toggle, setFlightKeys(show) / toggleFlightKeys(). game.ts: K toggles in sortie/ending; each frame shows it only while the HUD is visible, not paused, in sortie or ending. style.css: fixed top-left inside the safe area, paper panel with ink border, max-width min(360px, 40vw), scrolls if tall. README row. tsc clean, 97/97 tests pass. Browser (1440×816): hidden on the main menu; collapsed 101×41 at (12,12) on take-off; K opens it (331×333, 11 rows: Pitch … Gamepad); hidden while paused and comes back open after resume; K closes; clicking the summary opens it and focus returns to the page. Touch (844×390 iframe, simulated touch): display none while flying. Known overlap: when opened on a desktop window narrower than ~1100 px, the panel covers the left end of the compass ribbon." dai:agentStatus="done" dai:planRef="task_vzhb191d">
       <bpmn:incoming>flow_937qfn1c</bpmn:incoming>
+      <bpmn:outgoing>flow_f2ayzm0g</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_937qfn1c" sourceRef="task_9etudnz0" targetRef="task_fwcjedln" />
+    <bpmn:task id="task_wx2bntta" name="51. Elevator trim" dai:notes="flight.ts: ControlInput.pitchTrim (emptyInput 0); trimmedAlpha(spec, flaps, trim) replaces the stability term&#39;s target; TRIM_ALPHA 0.1 (nose-up), TRIM_ALPHA_DOWN 0.015 (nose-down), cap 0.8 × stall angle; trimForAlpha(spec, flaps, alpha). input.ts: trim state, stepTrim, wheel listener on the canvas (forward = nose down) drained every frame. game.ts: [ / ] / wheel / LB / RB steps of 0.1, T sets trimForAlpha(current alpha) airborne only, toast + click, reset at sortie start. hud.ts: TRIM row (bar, marker, &#39;NOSE UP 3&#39;), panel 218 → 270 px. Controls table + README. tests/trim.test.ts (5 tests); 102/102 pass, existing flight/loadout tests unchanged; tsc clean. Tuning found by tracing hands-off flights: nose-down at 0.1 rad made the wing stop lifting and every plane dived into the ground; at 0.03 the biplane still trimmed past its level top speed at full power (~230 km/h descending); 0.015 holds height at full power for all three. First T design (trim away the held stick) saturated to full nose-up on the keyboard because S ramps to full in ~0.25 s; replaced with &#39;trim for the current angle of attack&#39;. Browser (1440×816): ] ×3 → NOSE UP 3, wheel forward ×2 → NOSE UP 1, [ ×3 → NOSE DN 2, T in a 60% cruise → NOSE UP 1; HUD crop shows the TRIM row under FLAPS. Touch has no trim controls." dai:agentStatus="done" dai:planRef="task_7fg7ydu6">
+      <bpmn:incoming>flow_f2ayzm0g</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_f2ayzm0g" sourceRef="task_fwcjedln" targetRef="task_wx2bntta" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -809,6 +814,13 @@
         <di:waypoint x="1578" y="1150" />
         <di:waypoint x="318" y="1150" />
         <di:waypoint x="318" y="1180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_wx2bntta_di" bpmnElement="task_wx2bntta">
+        <dc:Bounds x="448" y="1180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_f2ayzm0g_di" bpmnElement="flow_f2ayzm0g">
+        <di:waypoint x="368" y="1220" />
+        <di:waypoint x="448" y="1220" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
