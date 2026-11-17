@@ -1,3 +1,4 @@
+import { fmtRun, fmtSpeed, fmtVs, getUnits, speedOf, vsOf } from '../core/units';
 import {
   PAINTS,
   STYLES,
@@ -50,11 +51,11 @@ interface StatRow {
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const STATS: StatRow[] = [
-  { key: 'topSpeed', label: 'Top speed', bar: (s) => clamp01((s.topSpeed * 3.6) / 500), text: (s) => `${Math.round(s.topSpeed * 3.6)} km/h`, delta: (s) => Math.round(s.topSpeed * 3.6), better: 1 },
-  { key: 'climb', label: 'Climb', bar: (s) => clamp01(s.climb / 20), text: (s) => `${s.climb.toFixed(1)} m/s`, delta: (s) => Math.round(s.climb * 10) / 10, better: 1 },
+  { key: 'topSpeed', label: 'Top speed', bar: (s) => clamp01((s.topSpeed * 3.6) / 500), text: (s) => fmtSpeed(s.topSpeed), delta: (s) => Math.round(speedOf(s.topSpeed)), better: 1 },
+  { key: 'climb', label: 'Climb', bar: (s) => clamp01(s.climb / 20), text: (s) => fmtVs(s.climb), delta: (s) => (getUnits() === 'imperial' ? Math.round(vsOf(s.climb) / 10) * 10 : Math.round(s.climb * 10) / 10), better: 1 },
   { key: 'handling', label: 'Handling', bar: (s) => s.handling, text: (s) => `${Math.round(s.handling * 10)}/10`, delta: (s) => Math.round(s.handling * 10), better: 1 },
-  { key: 'takeoffRun', label: 'Short takeoff', bar: (s) => clamp01(1 - s.takeoffRun / 650), text: (s) => `${Math.round(s.takeoffRun / 10) * 10} m run`, delta: (s) => Math.round(s.takeoffRun / 10) * 10, better: -1 },
-  { key: 'landing', label: 'Easy landing', bar: (s) => s.landing, text: (s) => `stall ${Math.round(s.stall * 3.6)} km/h`, delta: (s) => Math.round(s.landing * 10), better: 1 },
+  { key: 'takeoffRun', label: 'Short takeoff', bar: (s) => clamp01(1 - s.takeoffRun / 650), text: (s) => `${fmtRun(s.takeoffRun)} run`, delta: (s) => parseInt(fmtRun(s.takeoffRun), 10), better: -1 },
+  { key: 'landing', label: 'Easy landing', bar: (s) => s.landing, text: (s) => `stall ${fmtSpeed(s.stall)}`, delta: (s) => Math.round(s.landing * 10), better: 1 },
 ];
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -156,6 +157,11 @@ export class Hangar {
     this.renderCards();
     this.refreshStats(true);
     this.onChange(this.loadout);
+  }
+
+  /** Re-label the stats after a units change (metric / imperial). */
+  refreshUnits() {
+    this.refreshStats(false);
   }
 
   private refreshStats(showDelta: boolean) {

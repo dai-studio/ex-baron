@@ -311,8 +311,28 @@
     <bpmn:sequenceFlow id="flow_y8cx3pz7" sourceRef="task_xagxikxo" targetRef="task_mcnsgw7d" />
     <bpmn:task id="task_1y8693yq" name="46. Number-key throttle only" dai:notes="Removed the Shift (up) / Ctrl (down) throttle keys from Input.sample (src/core/input.ts). New pure digitThrottle(): 1 = idle (0%), 2–9 in steps of 1/9, 0 = full (100%); previously 1–9 gave 10–90%. Gamepad right-stick and touch lever throttle unchanged. Take-off tip now says &#39;press 0 for full power (1 is idle)&#39;; controls table in index.html and README updated. New tests/input.test.ts (2 tests). tsc clean, 90/90 tests pass. design.dai §3 Controls &#38; input updated." dai:agentStatus="done" dai:planRef="task_pur6z8jw">
       <bpmn:incoming>flow_gj6qbt3p</bpmn:incoming>
+      <bpmn:outgoing>flow_3qcy5h9h</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_gj6qbt3p" sourceRef="task_mcnsgw7d" targetRef="task_1y8693yq" />
+    <bpmn:task id="task_efhvaply" name="47. Imperial units toggle" dai:notes="New src/core/units.ts (setUnits/getUnits, speed km/h|kt, altitude m|ft, vertical speed m/s|ft/min, distance km|nm, plus rounded formatters). Settings.units, default &#39;metric&#39;, validated on load. Pause menu &#39;Units&#39; segmented control (Metric / Imperial) → unitsChanged re-labels hangar stats and re-plans the route info. Converted: HUD speed/ALT/AGL, touch status card, glide-slope sink, ASI (asiScale(spec, units), KNOTS face, 10-unit step added), altimeter (hands in m or ft, ×100 FEET face, low-alt flag &#60; 10 000 ft), hangar stats + deltas, route info, objective, route-map scale bar, take-off rotate-speed tip, debrief touchdown sink. CSS: segmented buttons in the small Pause panel stay side by side (were stretched full width and stacked). tests/units.test.ts (5 tests). tsc clean, 95/95 tests pass. Browser (dev server): Units control 159×38 px in Pause; switching saves and survives reload in both directions; route info reads &#39;5.4 nm N · about 4 min · up to 1300 ft&#39; in imperial; no console errors. Screenshots of the in-flight HUD timed out, so gauge faces were not inspected visually. The first imperial→reload try came back metric and could not be reproduced on two later tries." dai:agentStatus="done" dai:planRef="task_lzj8fxri">
+      <bpmn:incoming>flow_3qcy5h9h</bpmn:incoming>
+      <bpmn:outgoing>flow_hlatmnuz</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_3qcy5h9h" sourceRef="task_1y8693yq" targetRef="task_efhvaply" />
+    <bpmn:task id="task_dnwksuf9" name="48. Units on the main menu" dai:notes="index.html: &#39;Units&#39; row (#units-seg-menu, Metric / Imperial) on the main menu below Graphics. menus.ts: bindSeg now returns its highlight sync; the main-menu and Pause unit controls are bound together and re-sync each other on change. README note says main menu or Pause. tsc clean, 95/95 tests pass. Browser (dev server): choosing Imperial on the main menu highlights it in Pause too and saves; switching back in Pause updates the main menu. Layout measured in same-origin iframes: 667×375 and 844×390 — the title panel already scrolled inside itself; the Units row (y 260) and FLY! stay visible without scrolling, no page scroll; 1180×820 — panel fits with no inner scroll. Screenshots still time out while the game renders, so this was checked by measurement, not by eye." dai:agentStatus="done" dai:planRef="task_t1in0a48">
+      <bpmn:incoming>flow_hlatmnuz</bpmn:incoming>
+      <bpmn:outgoing>flow_860wkust</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_hlatmnuz" sourceRef="task_efhvaply" targetRef="task_dnwksuf9" />
+    <bpmn:task id="task_9etudnz0" name="49. Vertical speed always shown" dai:notes="instruments.ts: fourth gauge, Vertical Speed Indicator (vsiMax, vsiAngle: level at 9 o&#39;clock, ±160° at full scale; ±10 m/s or ±2000 ft/min), cached face with ticks, labels, UP/DN, &#39;VERT SPEED&#39; and M/S or ×1000 FT/MIN; InstrumentData.vs from vel.y; CLUSTER_W = 8R + 3 gaps. hud.ts: compact side panels below 800 px (was 700) and cluster minimum scale 0.35 (was 0.45) so four gauges fit between them wherever three did; trade-off: gauges are smaller on narrow windows (radius 59 vs 72 px at 1024 wide). Touch status card: V/S row (signed, units.vsValue), card 84 → 106 px. tests/units.test.ts: +2 tests. tsc clean, 97/97 tests pass. Browser: first in-flight capture showed blank VSI numbers (text colour left as the face gradient) — fixed; first face draft had both full-scale labels stacked at 3 o&#39;clock and UP/DN on top of the 0.5 labels — sweep narrowed 170° → 160° and text moved. Checked by exporting HUD canvas crops: desktop 1440×816 imperial cluster in a climb (VSI ≈ +1200 ft/min), and touch HUD at 667×375 (V/S &#39;+10 ft/min&#39; on the take-off roll; card clears the objective banner and stick)." dai:agentStatus="done" dai:planRef="task_gf83x58k">
+      <bpmn:incoming>flow_860wkust</bpmn:incoming>
+      <bpmn:outgoing>flow_937qfn1c</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_860wkust" sourceRef="task_dnwksuf9" targetRef="task_9etudnz0" />
+    <bpmn:task id="task_fwcjedln" name="50. In-flight key list" dai:notes="index.html: &#60;details id=&#34;flight-keys&#34; class=&#34;controls desktop-only hidden&#34;&#62; with summary &#39;Keys [K]&#39;; main-menu Controls gains &#39;Key list in flight — K (top-left)&#39;. menus.ts: clones the main menu&#39;s keyboard table into it (drops the &#39;on the menu&#39; Destination row and its own row), blurs focus on toggle, setFlightKeys(show) / toggleFlightKeys(). game.ts: K toggles in sortie/ending; each frame shows it only while the HUD is visible, not paused, in sortie or ending. style.css: fixed top-left inside the safe area, paper panel with ink border, max-width min(360px, 40vw), scrolls if tall. README row. tsc clean, 97/97 tests pass. Browser (1440×816): hidden on the main menu; collapsed 101×41 at (12,12) on take-off; K opens it (331×333, 11 rows: Pitch … Gamepad); hidden while paused and comes back open after resume; K closes; clicking the summary opens it and focus returns to the page. Touch (844×390 iframe, simulated touch): display none while flying. Known overlap: when opened on a desktop window narrower than ~1100 px, the panel covers the left end of the compass ribbon." dai:agentStatus="done" dai:planRef="task_vzhb191d">
+      <bpmn:incoming>flow_937qfn1c</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_937qfn1c" sourceRef="task_9etudnz0" targetRef="task_fwcjedln" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -759,6 +779,36 @@
       <bpmndi:BPMNEdge id="flow_gj6qbt3p_di" bpmnElement="flow_gj6qbt3p">
         <di:waypoint x="908" y="1080" />
         <di:waypoint x="988" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_efhvaply_di" bpmnElement="task_efhvaply">
+        <dc:Bounds x="1168" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_3qcy5h9h_di" bpmnElement="flow_3qcy5h9h">
+        <di:waypoint x="1088" y="1080" />
+        <di:waypoint x="1168" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_dnwksuf9_di" bpmnElement="task_dnwksuf9">
+        <dc:Bounds x="1348" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_hlatmnuz_di" bpmnElement="flow_hlatmnuz">
+        <di:waypoint x="1268" y="1080" />
+        <di:waypoint x="1348" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_9etudnz0_di" bpmnElement="task_9etudnz0">
+        <dc:Bounds x="1528" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_860wkust_di" bpmnElement="flow_860wkust">
+        <di:waypoint x="1448" y="1080" />
+        <di:waypoint x="1528" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_fwcjedln_di" bpmnElement="task_fwcjedln">
+        <dc:Bounds x="268" y="1180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_937qfn1c_di" bpmnElement="flow_937qfn1c">
+        <di:waypoint x="1578" y="1120" />
+        <di:waypoint x="1578" y="1150" />
+        <di:waypoint x="318" y="1150" />
+        <di:waypoint x="318" y="1180" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

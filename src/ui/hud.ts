@@ -6,6 +6,7 @@ import type { World } from '../world/world';
 import type { Route } from '../game/route';
 import type { Airfield } from '../world/terrain';
 import { CLUSTER_H, CLUSTER_W, Instruments } from './instruments';
+import { altOf, altUnit, fmtVs, speedOf, speedUnit, vsUnit, vsValue } from '../core/units';
 import { MINI_TOP, MINI_TOUCH, type Circle, type Control, type TouchLayout } from '../core/touch';
 
 /**
@@ -124,7 +125,7 @@ export class Hud {
     const g = this.g;
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const s = c.player.s;
-    const compact = this.w < 700;
+    const compact = this.w < 800; // narrow desktop: smaller side panels so the four-gauge cluster fits between them
     const sc = compact ? 0.8 : 1;
 
     const tv = c.touch ?? null;
@@ -154,7 +155,7 @@ export class Hud {
     g.translate(16, this.h - 16 - 218 * sc);
     g.scale(sc, sc);
     panel(g, 0, 0, 220, 218);
-    const kmh = s.airspeed * 3.6;
+    const spd = speedOf(s.airspeed);
     const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
     g.fillStyle = INK;
     g.font = `800 14px ${FONT}`;
@@ -162,14 +163,14 @@ export class Hud {
     g.fillText('ALT', 120, 24);
     g.font = `800 30px ${FONT}`;
     g.fillStyle = c.stallWarn ? RED : INK;
-    const kmhStr = `${Math.round(kmh)}`;
-    g.fillText(kmhStr, 14, 56);
-    const kw = g.measureText(kmhStr).width;
+    const spdStr = `${Math.round(spd)}`;
+    g.fillText(spdStr, 14, 56);
+    const kw = g.measureText(spdStr).width;
     g.fillStyle = INK;
-    g.fillText(`${Math.round(s.pos.y)}`, 120, 56);
+    g.fillText(`${Math.round(altOf(s.pos.y))}`, 120, 56);
     g.font = `700 13px ${FONT}`;
-    g.fillText('km/h', 14 + kw + 4, 56);
-    g.fillText(`m  (${Math.round(agl)} AGL)`, 120, 74);
+    g.fillText(speedUnit(), 14 + kw + 4, 56);
+    g.fillText(`${altUnit()}  (${Math.round(altOf(agl))} AGL)`, 120, 74);
     if (c.stallWarn) {
       g.fillStyle = RED;
       g.font = `800 15px ${FONT}`;
@@ -207,7 +208,7 @@ export class Hud {
     this.drawDamage(g, 60, 92, s.health);
     g.restore();
 
-    // ---------- bottom-centre: airspeed, attitude, altimeter
+    // ---------- bottom-centre: airspeed, attitude, altimeter, vertical speed
     this.drawInstruments(c, cl);
 
     // ---------- top: compass ribbon + objective
@@ -241,7 +242,7 @@ export class Hud {
       return { k: 0, cx: (l.leftEdge + l.rightEdge) / 2, y: this.h - l.safe.b - 12 };
     }
     const side = Math.max(16 + 220 * sc, 16 + 120 * sc) + 12;
-    const k = THREE.MathUtils.clamp((this.w - 2 * side) / CLUSTER_W, 0.45, 1);
+    const k = THREE.MathUtils.clamp((this.w - 2 * side) / CLUSTER_W, 0.35, 1);
     return { k, cx: this.w / 2, y: this.h - 16 - CLUSTER_H * k };
   }
 
@@ -257,7 +258,7 @@ export class Hud {
     g.save();
     g.translate(cl.cx - (CLUSTER_W * k) / 2, cl.y);
     g.scale(k, k);
-    this.instruments.draw(g, 0, 0, k * this.dpr, { airspeed: p.s.airspeed, altitude: p.s.pos.y, pitch, bank, spec: p.spec });
+    this.instruments.draw(g, 0, 0, k * this.dpr, { airspeed: p.s.airspeed, altitude: p.s.pos.y, vs: p.s.vel.y, pitch, bank, spec: p.spec });
     g.restore();
   }
 
@@ -512,7 +513,7 @@ export class Hud {
       const msg = diff > 25 ? 'HIGH ▼' : diff < -18 ? 'LOW ▲' : 'ON SLOPE ●';
       const sink = -s.vel.y;
       g.font = `800 15px ${FONT}`;
-      const text = `${msg}   sink ${sink.toFixed(1)} m/s`;
+      const text = `${msg}   sink ${fmtVs(sink)}`;
       const tw = g.measureText(text).width + 24;
       const y = this.clusterTop - 44;
       const cx = this.clusterCx;
@@ -644,7 +645,7 @@ export class Hud {
     const y = p.y + p.r + 10 * l.u;
     // narrow enough to clear the objective banner on a 667 px phone
     const w = 158;
-    const h = 84;
+    const h = 106;
     panel(g, x, y, w, h);
     const agl = s.pos.y - Math.max(c.world.groundHeight(s.pos.x, s.pos.z), 0);
     const row = (label: string, value: string, unit: string, yy: number, color = INK) => {
@@ -659,18 +660,19 @@ export class Hud {
       g.font = `700 11px ${FONT}`;
       g.fillText(unit, x + 42 + vw + 4, yy + 1);
     };
-    row('SPD', `${Math.round(s.airspeed * 3.6)}`, 'km/h', y + 22, c.stallWarn ? RED : INK);
-    row('ALT', `${Math.round(s.pos.y)}`, `m · ${Math.round(agl)} AGL`, y + 45);
+    row('SPD', `${Math.round(speedOf(s.airspeed))}`, speedUnit(), y + 22, c.stallWarn ? RED : INK);
+    row('ALT', `${Math.round(altOf(s.pos.y))}`, `${altUnit()} · ${Math.round(altOf(agl))} AGL`, y + 45);
+    row('V/S', vsValue(s.vel.y), vsUnit(), y + 68);
     g.font = `800 12px ${FONT}`;
     if (c.stallWarn) {
       g.fillStyle = RED;
-      g.fillText('STALL!', x + 10, y + 70);
+      g.fillText('STALL!', x + 10, y + 93);
     } else if (s.flapsBlown) {
       g.fillStyle = RED;
-      g.fillText('TOO FAST for flaps!', x + 10, y + 70);
+      g.fillText('TOO FAST for flaps!', x + 10, y + 93);
     } else {
       g.fillStyle = '#6b4b2a';
-      g.fillText(`FLAPS ${FLAP_LABELS[c.flapNotch]}`, x + 10, y + 70);
+      g.fillText(`FLAPS ${FLAP_LABELS[c.flapNotch]}`, x + 10, y + 93);
     }
     g.save();
     g.translate(x + w - 20, y + h - 22);

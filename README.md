@@ -51,7 +51,10 @@ Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, 
 | Hangar (main menu) | H |
 | Cross-country destination (main menu) | ← / → |
 | Pause (restart from the Pause menu) | Esc |
+| Key list while flying (top-left, starts collapsed) | K |
 | Gamepad | Left stick to fly, right stick X for rudder and Y for throttle |
+
+**Units** (main menu or Pause menu): Metric (km/h, m, m/s, km) or Imperial (knots, feet, feet per minute, nautical miles). The choice is saved.
 
 ## Phones, tablets and the app
 

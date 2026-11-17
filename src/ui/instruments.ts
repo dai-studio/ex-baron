@@ -1,9 +1,10 @@
 import type { PlaneSpec } from '../plane/flight';
 import { loadoutStats, stallSpeed } from '../plane/loadout';
+import { altOf, getUnits, speedOf, vsOf, type Units } from '../core/units';
 
 /**
  * Round "steam gauge" instruments drawn centre-bottom in flight (design §3 HUD & UI):
- * Airspeed Indicator (left), Attitude Indicator (centre), Altimeter (right).
+ * Airspeed Indicator, Attitude Indicator, Altimeter and Vertical Speed Indicator, left to right.
  * Static dial faces are cached in offscreen canvases; only needles and the
  * attitude ball are drawn each frame.
  */
@@ -22,16 +23,16 @@ const YELLOW = '#f5c51b';
 export const GAUGE_R = 72;
 const GAP = 14;
 const PAD = 12;
-export const CLUSTER_W = 6 * GAUGE_R + 2 * GAP + 2 * PAD;
+export const CLUSTER_W = 8 * GAUGE_R + 3 * GAP + 2 * PAD;
 export const CLUSTER_H = 2 * GAUGE_R + 2 * PAD;
 
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 
 export interface AsiScale {
-  /** top of the dial (km/h) */
+  /** top of the dial (km/h or knots) */
   max: number;
-  /** labelled step (km/h) */
+  /** labelled step (km/h or knots) */
   step: number;
   /** white arc: full-flap stall → max flap speed */
   white: [number, number];
@@ -43,17 +44,17 @@ export interface AsiScale {
   vne: number;
 }
 
-/** Airspeed markings for a plane (km/h), from its stall, flap and top speeds. */
-export function asiScale(spec: PlaneSpec): AsiScale {
-  const kmh = 3.6;
-  const vs0 = stallSpeed(spec, 1) * kmh;
-  const vs1 = stallSpeed(spec) * kmh;
-  const vfe = spec.flapSpeed * kmh;
-  const top = loadoutStats(spec).topSpeed * kmh;
+/** Airspeed markings for a plane (km/h, or knots in imperial), from its stall, flap and top speeds. */
+export function asiScale(spec: PlaneSpec, units: Units = 'metric'): AsiScale {
+  const v = (ms: number) => speedOf(ms, units);
+  const vs0 = v(stallSpeed(spec, 1));
+  const vs1 = v(stallSpeed(spec));
+  const vfe = v(spec.flapSpeed);
+  const top = v(loadoutStats(spec).topSpeed);
   const vno = top * 0.92;
   const vne = top * 1.12;
   let step = 20;
-  for (const s of [20, 40, 50, 100]) {
+  for (const s of [10, 20, 40, 50, 100]) {
     step = s;
     if ((vne * 1.12) / s <= 7) break;
   }
@@ -67,10 +68,21 @@ export function asiAngle(kmh: number, max: number): number {
   return -Math.PI / 2 + t * 330 * DEG;
 }
 
-/** Altimeter hand angles: long hand one turn per 1000 m, short hand one turn per 10 000 m. */
+/** Altimeter hand angles: long hand one turn per 1000, short hand one turn per 10 000 (m or ft). */
 export function altimeterAngles(m: number): { hundreds: number; thousands: number } {
   const a = (turns: number) => -Math.PI / 2 + turns * TAU;
   return { hundreds: a(m / 1000), thousands: a(m / 10000) };
+}
+
+/** Vertical speed dial: full scale ±10 m/s (metric) or ±2000 ft/min (imperial). */
+export function vsiMax(units: Units): number {
+  return units === 'imperial' ? 2000 : 10;
+}
+
+/** VSI needle angle (rad, canvas: 0 = 3 o'clock, clockwise): level at 9 o'clock, climb turns it up, sink down, ±160° at full scale. */
+export function vsiAngle(vs: number, max: number): number {
+  const t = Math.min(Math.max(vs / max, -1), 1);
+  return Math.PI + t * 160 * DEG;
 }
 
 export interface InstrumentData {
@@ -78,6 +90,8 @@ export interface InstrumentData {
   airspeed: number;
   /** altitude above sea level (m) */
   altitude: number;
+  /** vertical speed, climb + (m/s) */
+  vs: number;
   /** nose up + (rad) */
   pitch: number;
   /** right wing down + (rad) */
@@ -179,23 +193,28 @@ function hub(g: CanvasRenderingContext2D, r: number) {
 export class Instruments {
   private asiFace: HTMLCanvasElement | null = null;
   private altFace: HTMLCanvasElement | null = null;
+  private vsiFace: HTMLCanvasElement | null = null;
   private faceKey = '';
   private scale: AsiScale | null = null;
   private scaleSpec: PlaneSpec | null = null;
+  private scaleUnits: Units | null = null;
 
   /** Draw the cluster with its top-left at (x, y), already scaled by the caller's transform. */
   draw(g: CanvasRenderingContext2D, x: number, y: number, pxScale: number, d: InstrumentData) {
-    if (d.spec !== this.scaleSpec) {
-      this.scale = asiScale(d.spec);
+    const units = getUnits();
+    if (d.spec !== this.scaleSpec || units !== this.scaleUnits) {
+      this.scale = asiScale(d.spec, units);
       this.scaleSpec = d.spec;
+      this.scaleUnits = units;
       this.faceKey = '';
     }
     const R = GAUGE_R;
     const size = Math.ceil((2 * R + 8) * pxScale);
-    const key = `${size}:${this.scale!.max}`;
+    const key = `${size}:${this.scale!.max}:${units}`;
     if (key !== this.faceKey) {
-      this.asiFace = this.buildAsiFace(size, pxScale, this.scale!);
-      this.altFace = this.buildAltFace(size, pxScale);
+      this.asiFace = this.buildAsiFace(size, pxScale, this.scale!, units);
+      this.altFace = this.buildAltFace(size, pxScale, units);
+      this.vsiFace = this.buildVsiFace(size, pxScale, units);
       this.faceKey = key;
     }
 
@@ -230,14 +249,14 @@ export class Instruments {
     }
 
     const cy = PAD + R;
-    const cx = [PAD + R, PAD + 3 * R + GAP, PAD + 5 * R + 2 * GAP];
+    const cx = [PAD + R, PAD + 3 * R + GAP, PAD + 5 * R + 2 * GAP, PAD + 7 * R + 3 * GAP];
     const half = size / pxScale / 2;
 
     // ---- airspeed
     g.save();
     g.translate(cx[0], cy);
     g.drawImage(this.asiFace!, -half, -half, size / pxScale, size / pxScale);
-    needle(g, asiAngle(d.airspeed * 3.6, this.scale!.max), R * 0.76, 3.2, R * 0.2);
+    needle(g, asiAngle(speedOf(d.airspeed, units), this.scale!.max), R * 0.76, 3.2, R * 0.2);
     hub(g, R * 0.1);
     drawGlass(g, R * 0.88);
     g.restore();
@@ -252,9 +271,10 @@ export class Instruments {
     g.save();
     g.translate(cx[2], cy);
     g.drawImage(this.altFace!, -half, -half, size / pxScale, size / pxScale);
-    const hands = altimeterAngles(Math.max(d.altitude, 0));
-    // low-altitude flag: the hatched window shows below 3000 m (like the 10 000 ft flag)
-    if (d.altitude < 3000) this.drawLowAltFlag(g, R);
+    const alt = altOf(Math.max(d.altitude, 0), units);
+    const hands = altimeterAngles(alt);
+    // low-altitude flag: the hatched window shows below 3000 m / 10 000 ft
+    if (alt < (units === 'imperial' ? 10000 : 3000)) this.drawLowAltFlag(g, R);
     // short (thousands) hand: wide, short, arrow-tipped
     g.save();
     g.rotate(hands.thousands);
@@ -273,6 +293,15 @@ export class Instruments {
     g.restore();
     needle(g, hands.hundreds, R * 0.78, 2.6, R * 0.12);
     hub(g, R * 0.09);
+    drawGlass(g, R * 0.88);
+    g.restore();
+
+    // ---- vertical speed
+    g.save();
+    g.translate(cx[3], cy);
+    g.drawImage(this.vsiFace!, -half, -half, size / pxScale, size / pxScale);
+    needle(g, vsiAngle(vsOf(d.vs, units), vsiMax(units)), R * 0.78, 3.2, R * 0.2);
+    hub(g, R * 0.1);
     drawGlass(g, R * 0.88);
     g.restore();
 
@@ -447,7 +476,7 @@ export class Instruments {
     drawGlass(g, rRing);
   }
 
-  private buildAsiFace(size: number, k: number, sc: AsiScale): HTMLCanvasElement {
+  private buildAsiFace(size: number, k: number, sc: AsiScale, units: Units): HTMLCanvasElement {
     const [c, g] = makeCanvas(size);
     const R = GAUGE_R;
     g.setTransform(k, 0, 0, k, size / 2, size / 2);
@@ -486,11 +515,47 @@ export class Instruments {
     g.font = `800 ${Math.round(R * 0.12)}px ${FONT}`;
     g.fillText('AIRSPEED', 0, -r * 0.22);
     g.font = `700 ${Math.round(R * 0.11)}px ${FONT}`;
-    g.fillText('KM/H', 0, r * 0.3);
+    g.fillText(units === 'imperial' ? 'KNOTS' : 'KM/H', 0, r * 0.3);
     return c;
   }
 
-  private buildAltFace(size: number, k: number): HTMLCanvasElement {
+  private buildVsiFace(size: number, k: number, units: Units): HTMLCanvasElement {
+    const [c, g] = makeCanvas(size);
+    const R = GAUGE_R;
+    g.setTransform(k, 0, 0, k, size / 2, size / 2);
+    drawBezel(g, R);
+    const r = R * 0.88;
+    drawFace(g, r);
+    const max = vsiMax(units);
+    // metric: minor every 1 m/s, major every 5; imperial: minor every 100 ft/min, major every 500
+    const minor = units === 'imperial' ? 100 : 1;
+    const major = units === 'imperial' ? 500 : 5;
+    for (let v = -max; v <= max + 1e-6; v += minor) {
+      const a = vsiAngle(v, max);
+      if (Math.round(v / minor) % (major / minor) === 0) tick(g, a, r * 0.8, r * 0.97, 2.4);
+      else tick(g, a, r * 0.88, r * 0.97, 1.2);
+    }
+    g.fillStyle = MARK;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `800 ${Math.round(R * 0.2)}px ${FONT}`;
+    for (let v = 0; v <= max + 1e-6; v += major) {
+      const label = units === 'imperial' ? String(v / 1000) : String(v);
+      for (const sgn of v === 0 ? [1] : [1, -1]) {
+        const a = vsiAngle(sgn * v, max);
+        g.fillText(label, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62);
+      }
+    }
+    g.font = `800 ${Math.round(R * 0.11)}px ${FONT}`;
+    g.fillText('UP', -r * 0.3, -r * 0.13);
+    g.fillText('DN', -r * 0.3, r * 0.13);
+    g.fillText('VERT SPEED', r * 0.12, -r * 0.3);
+    g.font = `700 ${Math.round(R * 0.085)}px ${FONT}`;
+    g.fillText(units === 'imperial' ? '×1000 FT/MIN' : 'M/S', r * 0.14, r * 0.3);
+    return c;
+  }
+
+  private buildAltFace(size: number, k: number, units: Units): HTMLCanvasElement {
     const [c, g] = makeCanvas(size);
     const R = GAUGE_R;
     g.setTransform(k, 0, 0, k, size / 2, size / 2);
@@ -520,7 +585,7 @@ export class Instruments {
     g.font = `800 ${Math.round(R * 0.14)}px ${FONT}`;
     g.fillText('ALT', 0, -r * 0.24);
     g.font = `700 ${Math.round(R * 0.085)}px ${FONT}`;
-    g.fillText('×100 METRES', 0, -r * 0.4);
+    g.fillText(units === 'imperial' ? '×100 FEET' : '×100 METRES', 0, -r * 0.4);
     return c;
   }
 }
