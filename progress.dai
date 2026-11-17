@@ -306,8 +306,13 @@
     <bpmn:sequenceFlow id="flow_1c6t47h8" sourceRef="task_te6i8660" targetRef="task_xagxikxo" />
     <bpmn:task id="task_mcnsgw7d" name="45. Esc is the only pause key" dai:notes="Removed KeyP from the pause check and the KeyR restart in Game.handleKeys (src/game/game.ts); Esc still toggles pause in a sortie, gamepad Start and the touch pause button unchanged. Restart is only via the Pause menu&#39;s &#39;Restart sortie&#39; button. Controls table in index.html now reads &#39;Pause — Esc&#39;; README controls row updated. design.dai §3 Controls &#38; input updated. tsc clean, 88/88 tests pass." dai:agentStatus="done" dai:planRef="task_r08m1dby">
       <bpmn:incoming>flow_y8cx3pz7</bpmn:incoming>
+      <bpmn:outgoing>flow_gj6qbt3p</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_y8cx3pz7" sourceRef="task_xagxikxo" targetRef="task_mcnsgw7d" />
+    <bpmn:task id="task_1y8693yq" name="46. Number-key throttle only" dai:notes="Removed the Shift (up) / Ctrl (down) throttle keys from Input.sample (src/core/input.ts). New pure digitThrottle(): 1 = idle (0%), 2–9 in steps of 1/9, 0 = full (100%); previously 1–9 gave 10–90%. Gamepad right-stick and touch lever throttle unchanged. Take-off tip now says &#39;press 0 for full power (1 is idle)&#39;; controls table in index.html and README updated. New tests/input.test.ts (2 tests). tsc clean, 90/90 tests pass. design.dai §3 Controls &#38; input updated." dai:agentStatus="done" dai:planRef="task_pur6z8jw">
+      <bpmn:incoming>flow_gj6qbt3p</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_gj6qbt3p" sourceRef="task_mcnsgw7d" targetRef="task_1y8693yq" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -747,6 +752,13 @@
       <bpmndi:BPMNEdge id="flow_y8cx3pz7_di" bpmnElement="flow_y8cx3pz7">
         <di:waypoint x="728" y="1080" />
         <di:waypoint x="808" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_1y8693yq_di" bpmnElement="task_1y8693yq">
+        <dc:Bounds x="988" y="1040" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_gj6qbt3p_di" bpmnElement="flow_gj6qbt3p">
+        <di:waypoint x="908" y="1080" />
+        <di:waypoint x="988" y="1080" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

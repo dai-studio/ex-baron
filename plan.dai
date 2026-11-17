@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_b71l3ony</bpmn:incoming>
+      <bpmn:incoming>flow_u2oxajsx</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -234,10 +234,15 @@
     <bpmn:sequenceFlow id="flow_07jlf29z" sourceRef="task_6gx8cq89" targetRef="task_i6pkr3dk" />
     <bpmn:task id="task_r08m1dby" name="45. Esc is the only pause key" dai:notes="Owner request: remove the P (pause) and R (restart sortie) keyboard shortcuts; Esc pauses and resumes. Restart stays on the Pause menu&#39;s &#39;Restart sortie&#39; button; gamepad Start and the touch pause button unchanged. Controls table (index.html) and README updated. tsc + tests. (design §3 Controls &#38; input)" dai:agentStatus="done">
       <bpmn:incoming>flow_hqy5dzzo</bpmn:incoming>
-      <bpmn:outgoing>flow_b71l3ony</bpmn:outgoing>
+      <bpmn:outgoing>flow_7qzw23yu</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_hqy5dzzo" sourceRef="task_i6pkr3dk" targetRef="task_r08m1dby" />
-    <bpmn:sequenceFlow id="flow_b71l3ony" sourceRef="task_r08m1dby" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_pur6z8jw" name="46. Number-key throttle only" dai:notes="Hacker News feedback: Ctrl (throttle down) collided with browser shortcuts — Ctrl+S opened Save, Ctrl+W (with W = pitch down) closed the tab. Remove the Shift/Ctrl throttle keys; the number row sets the throttle: 1 = idle, 2–9 in even steps, 0 = full (digitThrottle in src/core/input.ts). Gamepad and touch throttle unchanged. Take-off tip, controls table and README updated. Unit test for the mapping; tsc + tests. (design §3 Controls &#38; input)" dai:agentStatus="done">
+      <bpmn:incoming>flow_7qzw23yu</bpmn:incoming>
+      <bpmn:outgoing>flow_u2oxajsx</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_7qzw23yu" sourceRef="task_r08m1dby" targetRef="task_pur6z8jw" />
+    <bpmn:sequenceFlow id="flow_u2oxajsx" sourceRef="task_pur6z8jw" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -570,11 +575,18 @@
         <di:waypoint x="2120" y="791" />
         <di:waypoint x="2160" y="791" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_b71l3ony_di" bpmnElement="flow_b71l3ony">
-        <di:waypoint x="2210" y="751" />
-        <di:waypoint x="2210" y="726" />
-        <di:waypoint x="2226" y="726" />
-        <di:waypoint x="2226" y="701" />
+      <bpmndi:BPMNShape id="task_pur6z8jw_di" bpmnElement="task_pur6z8jw">
+        <dc:Bounds x="2340" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_7qzw23yu_di" bpmnElement="flow_7qzw23yu">
+        <di:waypoint x="2260" y="791" />
+        <di:waypoint x="2340" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_u2oxajsx_di" bpmnElement="flow_u2oxajsx">
+        <di:waypoint x="2340" y="791" />
+        <di:waypoint x="2293" y="791" />
+        <di:waypoint x="2293" y="681" />
+        <di:waypoint x="2246" y="681" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
