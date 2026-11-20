@@ -128,6 +128,21 @@ body.touch.flying #built-with { pointer-events: none; }
 }
 .route-info { margin-top: 8px; font-weight: 800; text-align: center; font-size: 14px; min-height: 1.3em; }
 .route-note { margin: 4px 0 0; font-size: 13px; font-weight: 700; color: #6b4b2a; text-align: center; }
+/* skywriting (plan step 52): replaces the flight plan beside the menu */
+.sky-panel.hidden { display: none; }
+#title:has(#sky-panel:not(.hidden)) #route-panel { display: none; }
+.sky-pick { margin-bottom: 10px; }
+#sky-input {
+  width: 100%; box-sizing: border-box; font: 800 24px 'Luckiest Guy', 'Baloo 2', sans-serif; letter-spacing: 2px;
+  text-transform: uppercase; text-align: center; padding: 6px 10px;
+  border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink);
+}
+#sky-map {
+  display: block; width: 100%; flex: 1 1 0; min-height: 240px;
+  border: 3px solid var(--ink); border-radius: 14px; background: #9fd3ef;
+}
+#debrief-sky { display: block; width: 100%; height: 150px; margin: 4px 0 8px; border: 3px solid var(--ink); border-radius: 12px; background: #9fd3ef; }
+#debrief-sky.hidden { display: none; }
 
 /* the hangar screen leaves the middle free for the plane preview (drag to rotate) */
 #hangar-screen { justify-content: flex-end; padding-right: clamp(16px, 4vw, 64px); pointer-events: none; }
@@ -280,9 +295,10 @@ body.touch .seed input { min-height: 44px; }
   }
   /* free flight: no flight plan, the menu gets the full width */
   .route-panel.hidden { display: none; }
-  #title:has(.route-panel.hidden) .title-panel { width: min(440px, 100%); }
+  #title:not(:has(.route-panel:not(.hidden))) .title-panel { width: min(440px, 100%); }
   .panel.route-panel { padding: 12px 14px; }
-  #route-map { min-height: 110px; }
+  #route-map, #sky-map { min-height: 110px; }
+  #sky-input { font-size: 18px; padding: 4px 8px; }
   .logo { font-size: 46px; -webkit-text-stroke-width: 2px; text-shadow: 3px 4px 0 var(--ink); }
   .tagline { display: none; }
   /* FLY! stays in reach while the menu scrolls */

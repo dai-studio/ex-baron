@@ -31,6 +31,14 @@ Pick **Mission → Cross-country** on the main menu to fly from your home field 
 
 In the air, transparent white arrows mark the path ahead. If you stray more than about 150 m from it, a **PATH** marker (or an arrow at the screen edge) shows where to rejoin. The destination is the gold caret on the compass and the gold strip on the minimap. Land at the destination to finish. Your medal depends on the landing grade and how much of the flight you spent on the path (75% for gold, 50% for silver), and records are kept per world and destination.
 
+## Skywriting
+
+Pick **Mission → Skywriting** and type a message (two words, up to 12 letters; A–Z, 0–9, ! and ?). The **Skywriting** panel shows the letters and the flight path: the plane writes the message flat in the sky over the home field, the letters sized from its turning circle (about 470 m tall for the biplane, much bigger for the jet), with the length and rough time of the flight.
+
+The sortie starts in the air at writing altitude, lined up with the first letter. Follow the arrows and hold **Space** (gamepad A, the SMOKE button on touch) on the orange ones: those are the letter strokes. Between strokes the plane loops round with the smoke off, as real skywriters do at every corner. The cue under the objective counts down to SMOKE ON and warns when the smoke should be off, and the card in the top-right shows the nearby letters, the smoke written so far and the plane.
+
+After the last stroke the camera rises to show the whole message. The score (0–100) is how much of the letters you drew times how much of your smoke landed on them (stray smoke costs up to 40%). The debrief shows a picture of your writing, the score and how much of the letters you drew. Medals: gold from 85, silver from 70, bronze from 50. Records are kept per world and message.
+
 ## Flaps
 
 Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, and **LAND** (full) lowers the stall speed by about 15% and adds drag, so the approach is slower and steeper and the landing roll shorter. Press F for more flap and V for less. The flaps take a second or two to move, and above the plane's flap speed (about 1.6× its clean stall speed) the airflow blows them back; the HUD shows **FLAPS — TOO FAST!** until you slow down.
@@ -49,6 +57,7 @@ Flaps add lift so you can fly slower: **T/O** (half) shortens the take-off run, 
 | Camera | C (chase / cockpit) |
 | Mouse stick | M toggles |
 | Bail out | X |
+| Smoke (Skywriting) | Hold Space; gamepad A; touch SMOKE |
 | Hangar (main menu) | H |
 | Cross-country destination (main menu) | ← / → |
 | Pause (restart from the Pause menu) | Esc |
@@ -73,9 +82,9 @@ The service worker is only built by `npm run build` (from `src/pwa/sw.template.j
 | `src/world` | seeded RNG and noise, terrain, biomes, airfields, chunk workers with LOD rings, props, clouds | §4 |
 | `src/render` | toon material with rim light, inverted-hull outlines, depth-edge ink pass + FXAA, sky, water | §5 |
 | `src/plane` | hangar loadouts and spec composer, procedural plane meshes, flight model, assist helpers | §3, §8 |
-| `src/fx` | instanced cartoon particles, POW! bursts | §5 |
+| `src/fx` | instanced cartoon particles, POW! bursts, skywriting smoke | §5, §12 |
 | `src/ui`, `src/audio` | canvas HUD and minimap, menus, hangar screen, synthesised Web Audio | §3, §8 |
-| `src/game` | game state machine (core loop §2), camera rig | §2, §6 |
+| `src/game` | game state machine (core loop §2), camera rig, cross-country route planner, skywriting font, planner and score | §2, §6, §11, §12 |
 
 All art and audio are generated in code. There are no external asset files.
 

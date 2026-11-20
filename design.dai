@@ -446,6 +446,35 @@
       </bpmn:task>
       <bpmn:sequenceFlow id="flow_1nkd12oc" sourceRef="task_rgcdj4vu" targetRef="task_29kzxi0q" />
     </bpmn:subProcess>
+    <bpmn:subProcess id="task_javclsu5" name="12. Skywriting" dai:notes="A third mission type next to Free flight and Cross-country: the pilot types a short message (two words) and writes it in smoke in the sky over the home field. The message becomes a flight path; the pilot flies it and releases smoke only on the marked segments (the letter strokes). The writing is scored for how much of each letter was drawn and how cleanly.">
+      <bpmn:task id="task_cdcl3odj" name="Skywriting mission" dai:type="dai.types.product.feature" dai:stepType="feature" dai:acceptanceCriteria="- Main menu Mission choice gains Skywriting, saved in settings.&#10;- Skywriting panel beside the menu: message box (letters A–Z, digits, ! ?; at most two words and 12 characters, saved), a preview of the letters and the flight path, letter size, path length and rough time.&#10;- The sortie starts in the air at writing altitude, lined up with the first stroke.&#10;- Hold Space (gamepad A, touch SMOKE) to release smoke. Arrows mark the path: orange where smoke goes, white between strokes. The objective and a cue pill count down to SMOKE ON / OFF; a HUD card shows the nearby letters, the smoke written so far and the plane.&#10;- After the last stroke: a reveal shot of the whole message, then a debrief with a picture of the writing, the result, message, writing score and grade, letters drawn, flight time, aircraft and seed (kept short: no neatness, per-letter or damage rows). Medal from the score.&#10;- Best record per seed + message." dai:valueStatement="A playful, creative goal: write your own words in the sky and see how well you did.">
+        <bpmn:outgoing>flow_tzrtyllb</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="task_a5byq3dn" name="Stroke font &#38; path planner (game/skywriting.ts)" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Pure, three-free. A single-stroke font (A–Z, 0–9, ! ?) in em units, made of lines and elliptical arcs sampled every 2°, with curves no tighter than 0.18 em. Strokes split at corners sharper than 35°, as real skywriters lift the smoke at corners. Writing speed = 2 × the clean stall speed; writing turn radius r = that speed in a 50° bank (biplane about 105 m, jet about 530 m); letter height H = 4.5 r, so every stroke curve is at least 0.8 r. The text lies flat at one altitude (950 m above the highest ground under it, above the cloud tops), its baseline 800 m out from the home field along the into-wind runway direction, readable from above. Path: a 900 m straight approach (the air start), then per stroke a straight lead-in (0.2 H), the stroke (smoke on), a lead-out (0.08 H) and a Dubins connector at 0.8 r (smoke off). Strokes in each letter are ordered and directed greedily for the shortest connectors. HELLO WORLD! is about 32 km for the biplane (≈14 min) and 133 km for the jet. SkyTracker follows progress with a 120 m forward window so loops that cross the path never skip ahead; when lost (&#62;250 m) it searches ahead for a stretch near the plane running the same way.">
+        <bpmn:incoming>flow_tzrtyllb</bpmn:incoming>
+        <bpmn:outgoing>flow_okg0islm</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_tzrtyllb" sourceRef="task_cdcl3odj" targetRef="task_a5byq3dn" />
+      <bpmn:task id="task_e0xpyvg7" name="Persistent smoke trail (fx/skysmoke.ts)" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Instanced toon puffs with ink outlines, separate from the short-lived effect particles: a puff every 2.5% of H while smoke is on, growing to about 4% of H and staying for the whole sortie (ring buffer of 5000). Not fogged, so the whole message stays visible from far away.">
+        <bpmn:incoming>flow_okg0islm</bpmn:incoming>
+        <bpmn:outgoing>flow_tjoezw07</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_okg0islm" sourceRef="task_a5byq3dn" targetRef="task_e0xpyvg7" />
+      <bpmn:task id="task_zfrrcb0v" name="Writing score" dai:type="dai.types.software.component" dai:stepType="component" dai:notes="Compares the smoke released (its positions, within an altitude band) with points along the letter strokes, in text space. Tolerance T = 5% of H with partial credit out to 2.5T. Coverage = share of the letters drawn; neatness = share of the smoke on a letter. Score = 100 × coverage × (0.4 + 0.6 × neatness), also per letter. Grades A+ ≥ 90, A ≥ 80, B ≥ 65, C ≥ 50; medals gold ≥ 85, silver ≥ 70, bronze ≥ 50.">
+        <bpmn:incoming>flow_tjoezw07</bpmn:incoming>
+        <bpmn:outgoing>flow_cpyhb9mv</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_tjoezw07" sourceRef="task_e0xpyvg7" targetRef="task_zfrrcb0v" />
+      <bpmn:task id="task_5cx1s74x" name="Skywriting tests" dai:type="dai.types.software.test" dai:stepType="test" dai:testType="unit" dai:testSteps="tests/skywriting.test.ts: every glyph, messages on several seeds and airframes.">
+        <bpmn:extensionElements>
+          <dai:fields>
+            <dai:field key="expectedResult">Message sanitising keeps two words and 12 characters; every stroke's curves are flyable at the turn radius; the path is continuous with smoke segments on the strokes; the writing clears the terrain; perfect smoke scores 100, no smoke 0, stray smoke lowers neatness; the tracker does not skip loops.</dai:field>
+          </dai:fields>
+        </bpmn:extensionElements>
+        <bpmn:incoming>flow_cpyhb9mv</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="flow_cpyhb9mv" sourceRef="task_zfrrcb0v" targetRef="task_5cx1s74x" />
+    </bpmn:subProcess>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -991,6 +1020,40 @@
       <bpmndi:BPMNShape id="task_t919q58c_di" bpmnElement="task_t919q58c">
         <dc:Bounds x="1300" y="730" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_javclsu5_di" bpmnElement="task_javclsu5" isExpanded="true">
+        <dc:Bounds x="30" y="3490" width="1335" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_cdcl3odj_di" bpmnElement="task_cdcl3odj">
+        <dc:Bounds x="515" y="3600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_a5byq3dn_di" bpmnElement="task_a5byq3dn">
+        <dc:Bounds x="695" y="3600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_tzrtyllb_di" bpmnElement="flow_tzrtyllb">
+        <di:waypoint x="615" y="3640" />
+        <di:waypoint x="695" y="3640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_e0xpyvg7_di" bpmnElement="task_e0xpyvg7">
+        <dc:Bounds x="875" y="3600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_okg0islm_di" bpmnElement="flow_okg0islm">
+        <di:waypoint x="795" y="3640" />
+        <di:waypoint x="875" y="3640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_zfrrcb0v_di" bpmnElement="task_zfrrcb0v">
+        <dc:Bounds x="1055" y="3600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_tjoezw07_di" bpmnElement="flow_tjoezw07">
+        <di:waypoint x="975" y="3640" />
+        <di:waypoint x="1055" y="3640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="task_5cx1s74x_di" bpmnElement="task_5cx1s74x">
+        <dc:Bounds x="1235" y="3600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_cpyhb9mv_di" bpmnElement="flow_cpyhb9mv">
+        <di:waypoint x="1155" y="3640" />
+        <di:waypoint x="1235" y="3640" />
+      </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>

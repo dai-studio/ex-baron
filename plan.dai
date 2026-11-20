@@ -65,7 +65,7 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_koi4rn68" sourceRef="task_nzky8od5" targetRef="task_44e737qz" />
     <bpmn:endEvent id="event_blqfau9s" name="Playable build">
-      <bpmn:incoming>flow_asv5zgd5</bpmn:incoming>
+      <bpmn:incoming>flow_i477k49x</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="task_dm9i0pir" name="12. Loadout &#38; spec composer" dai:notes="Loadout type, airframe/engine/wheel definitions, composeSpec(), per-airframe gear and crash points in the flight model, engine spool and thrust curves, jet flame input. Saved in localStorage and ?plane= URL param. (design §8.1)" dai:agentStatus="done">
       <bpmn:incoming>flow_ry7d50pd</bpmn:incoming>
@@ -264,10 +264,15 @@
     <bpmn:sequenceFlow id="flow_tvk9whid" sourceRef="task_gf83x58k" targetRef="task_vzhb191d" />
     <bpmn:task id="task_7fg7ydu6" name="51. Elevator trim" dai:notes="Hacker News requests (leetrout, piloto_ciego, kqr, hypertexthero). ControlInput.pitchTrim shifts the hands-off angle of attack (trimmedAlpha): +0.1 rad nose-up, −0.015 rad nose-down, capped at 80% of stall. [ / ], mouse wheel, gamepad LB / RB in tenths; T = trim for the current speed (trimForAlpha). Reset each sortie; TRIM row on the HUD; toasts. Controls table, README. Tests: hands-off speed ordering for every plane, T holds speed, stall cap, existing tests unchanged. Browser check. (design §3 Elevator trim)" dai:agentStatus="done">
       <bpmn:incoming>flow_6milwahr</bpmn:incoming>
-      <bpmn:outgoing>flow_asv5zgd5</bpmn:outgoing>
+      <bpmn:outgoing>flow_qeuwxsbe</bpmn:outgoing>
     </bpmn:task>
     <bpmn:sequenceFlow id="flow_6milwahr" sourceRef="task_vzhb191d" targetRef="task_7fg7ydu6" />
-    <bpmn:sequenceFlow id="flow_asv5zgd5" sourceRef="task_7fg7ydu6" targetRef="event_blqfau9s" />
+    <bpmn:task id="task_d8uezt34" name="52. Skywriting mission" dai:notes="Mission → Skywriting (design §12). The pilot types a message (two words, up to 12 characters); a single-stroke font lays it flat in the sky at a safe altitude out past the home field, letters 4.5 writing turn radii tall. Strokes split at sharp corners; smoke-off Dubins connectors with lead-in / lead-out join them. Air start at writing altitude. Hold Space (pad A, touch SMOKE) to release persistent smoke; orange arrows mark the smoke segments, a cue counts down to SMOKE ON / OFF and a HUD card shows the nearby letters and what has been written. Score = coverage × (0.4 + 0.6 × neatness), per-letter scores, medal, reveal shot and a debrief picture. Records per world and message. Tests: tests/skywriting.test.ts." dai:agentStatus="done">
+      <bpmn:incoming>flow_qeuwxsbe</bpmn:incoming>
+      <bpmn:outgoing>flow_i477k49x</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="flow_qeuwxsbe" sourceRef="task_7fg7ydu6" targetRef="task_d8uezt34" />
+    <bpmn:sequenceFlow id="flow_i477k49x" sourceRef="task_d8uezt34" targetRef="event_blqfau9s" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -642,10 +647,17 @@
         <di:waypoint x="3160" y="791" />
         <di:waypoint x="3240" y="791" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_asv5zgd5_di" bpmnElement="flow_asv5zgd5">
-        <di:waypoint x="3240" y="791" />
-        <di:waypoint x="2743" y="791" />
-        <di:waypoint x="2743" y="681" />
+      <bpmndi:BPMNShape id="task_d8uezt34_di" bpmnElement="task_d8uezt34">
+        <dc:Bounds x="3420" y="751" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_qeuwxsbe_di" bpmnElement="flow_qeuwxsbe">
+        <di:waypoint x="3340" y="791" />
+        <di:waypoint x="3420" y="791" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_i477k49x_di" bpmnElement="flow_i477k49x">
+        <di:waypoint x="3420" y="791" />
+        <di:waypoint x="2833" y="791" />
+        <di:waypoint x="2833" y="681" />
         <di:waypoint x="2246" y="681" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>

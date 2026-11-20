@@ -7,6 +7,7 @@ import { Pwa } from '../core/pwa';
 import { Loop } from '../core/loop';
 import { bestKey, loadSettings, saveSettings, randomSeed, submitBest, type Settings } from '../core/settings';
 import { Effects } from '../fx/effects';
+import { SkySmoke } from '../fx/skysmoke';
 import { DEFAULT_SPEC, FLAP_LABELS, LANDING_FORGIVENESS, groundAttitude, restHeight, stallAlphaAt, stepFlight, trimForAlpha, type Env, type PlaneSpec } from '../plane/flight';
 import { AIRFRAMES, composeSpec, describeLoadout, engineOf, loadLoadout, stallSpeed, type Loadout } from '../plane/loadout';
 import { Plane } from '../plane/plane';
@@ -21,10 +22,12 @@ import { Hangar } from '../ui/hangar';
 import { Hud, trimText } from '../ui/hud';
 import { Menus } from '../ui/menus';
 import { drawRouteMap } from '../ui/routeMap';
+import { drawSkyCanvas } from '../ui/skyMap';
 import { CHUNK_SIZE } from '../world/terrain';
 import { World } from '../world/world';
 import { CameraRig } from './camera';
 import { CRUISE_SPEED, TURN_RADIUS, RouteTracker, airfieldNames, bearing, planRoute, pointAt, runwayDir, type Route } from './route';
+import { SkyTracker, planSkywriting, scoreWriting, skyCue, toText, toWorld, writingRadius, writingSpeed, type SkyPlan, type SkyScore, type SmokePoint } from './skywriting';
 
 /**
  * GameStateMachine (design §6) implementing the Core Gameplay Loop (§2):
@@ -34,7 +37,7 @@ import { CRUISE_SPEED, TURN_RADIUS, RouteTracker, airfieldNames, bearing, planRo
  */
 type State = 'title' | 'hangar' | 'loading' | 'sortie' | 'ending' | 'debrief';
 type TierName = 'mobile' | 'low' | 'medium' | 'high';
-type Result = 'landed' | 'field landing' | 'crashed' | 'ditched' | 'bailed out';
+type Result = 'landed' | 'field landing' | 'crashed' | 'ditched' | 'bailed out' | 'message written';
 
 interface Tier {
   radius: number;
@@ -79,6 +82,8 @@ interface Mission {
   offPathHintT: number;
   /** the 'full flaps for landing' tip has been shown */
   flapHint: boolean;
+  /** skywriting: every stroke has been flown (the reveal shot is running) */
+  skyDone: boolean;
 }
 
 /** pilot eye point per airframe (body space) */
@@ -145,6 +150,18 @@ export class Game {
   private tracker: RouteTracker | null = null;
   private names: string[] = [];
   private readonly rejoin = new THREE.Vector3();
+  /** skywriting (plan step 52): the menu's plan, the sortie's plan, progress, smoke and score */
+  private skyPlan: SkyPlan | null = null;
+  private sortieSky: SkyPlan | null = null;
+  private skyTracker: SkyTracker | null = null;
+  private skySmoke = new SkySmoke();
+  private skyLog: SmokePoint[] = [];
+  /** metres flown since the last puff */
+  private skyDist = 0;
+  private smoking = false;
+  private skyScore: SkyScore | null = null;
+  /** the reveal shot after the last stroke: where the camera is going */
+  private reveal: { pos: THREE.Vector3; look: THREE.Vector3; dist: number } | null = null;
   private contextLost = false;
   private stats: HTMLDivElement | null = null;
   private wakeLock = new WakeLock();
@@ -193,6 +210,7 @@ export class Game {
         this.hangar.refreshUnits();
         this.refreshRoute();
       },
+      skyMessageChanged: () => this.refreshRoute(),
     });
     // redraw the flight-plan map when its size changes (window resize, controls list opened)
     let mapTimer = 0;
@@ -205,6 +223,14 @@ export class Game {
       clearTimeout(mapTimer);
       mapTimer = window.setTimeout(() => this.drawMap(), 80);
     }).observe(this.ui.routeCanvas);
+    let skySize = '';
+    new ResizeObserver(() => {
+      const c = this.ui.skyCanvas;
+      const size = `${c.clientWidth}x${c.clientHeight}`;
+      if (size === skySize) return;
+      skySize = size;
+      this.drawSkyPreview();
+    }).observe(this.ui.skyCanvas);
     this.hangar = new Hangar(
       this.loadout,
       () => this.buildPreview(),
@@ -222,7 +248,7 @@ export class Game {
     window.addEventListener('pointerup', () => (this.previewDrag = null));
     this.audio.setVolume(this.settings.volume);
 
-    this.scene.add(this.sky.mesh, this.water.mesh, this.hemi, this.sun, this.sun.target, this.fx.group);
+    this.scene.add(this.sky.mesh, this.water.mesh, this.hemi, this.sun, this.sun.target, this.fx.group, this.skySmoke.group);
     this.sun.castShadow = true;
     const sc = this.sun.shadow.camera;
     sc.left = -130;
@@ -391,6 +417,7 @@ export class Game {
     this.previewCamReady = false;
     if (this.state === 'hangar') this.buildPreview();
     this.clearGuide();
+    this.clearSky();
     this.refreshRoute();
   }
 
@@ -405,7 +432,10 @@ export class Game {
     this.names = airfieldNames(fields);
     if (st.dest < 1 || st.dest >= fields.length) st.dest = 1;
     this.ui.setRoutePanel(st.mode === 'route');
+    this.ui.setSkyPanel(st.mode === 'sky');
     this.ui.refreshBest();
+    if (st.mode === 'sky') this.refreshSky();
+    else this.skyPlan = null;
     if (st.mode !== 'route') {
       this.route = null;
       return;
@@ -430,6 +460,148 @@ export class Game {
     drawRouteMap(c, this.world.gen, this.route, this.names);
   }
 
+  // --------------------------------------------------------- skywriting
+
+  /** Writing speed for the current plane. */
+  private skySpeed(): number {
+    return writingSpeed(stallSpeed(composeSpec(this.loadout)));
+  }
+
+  /** Re-plan the menu's skywriting message (message, world or plane changed). */
+  private refreshSky() {
+    const w = this.world!;
+    const st = this.settings;
+    const plan = planSkywriting(w.gen, w.home, st.skyMessage, writingRadius(stallSpeed(composeSpec(this.loadout))), w.baseWind);
+    this.skyPlan = plan;
+    this.drawSkyPreview();
+    const min = Math.max(1, Math.round(plan.end / this.skySpeed() / 60));
+    this.ui.setSkyInfo(`Letters ${fmtAltRounded(plan.H)} tall · ${fmtDist(plan.end)} of flying · about ${min} min`);
+  }
+
+  private drawSkyPreview() {
+    const c = this.ui.skyCanvas;
+    if (!this.skyPlan || !c.clientWidth || !c.clientHeight) return;
+    drawSkyCanvas(c, this.skyPlan, { path: true, letters: 'smoke' });
+  }
+
+  /** Forget the written smoke. */
+  private clearSky() {
+    this.skySmoke.clear();
+    this.skyLog = [];
+    this.skyDist = 0;
+    this.smoking = false;
+    this.skyScore = null;
+    this.reveal = null;
+  }
+
+  /** Skywriting, every tick in the air: smoke on / off, puffs and the log, progress, the finish. */
+  private stepSky(dt: number, p: Plane) {
+    const plan = this.sortieSky!;
+    const tr = this.skyTracker!;
+    const m = this.mission;
+    const i = this.input;
+    const held = i.keys.has('Space') || i.padHeld(0) || (i.touch.enabled && i.touch.model.brake);
+    this.smoking = held && !p.s.onGround;
+    tr.update(p.s.pos.x, p.s.pos.y, p.s.pos.z, p.s.vel.x, p.s.vel.z);
+    if (this.smoking) {
+      this.skyDist += p.s.vel.length() * dt;
+      const spacing = plan.H * 0.025;
+      while (this.skyDist >= spacing) {
+        this.skyDist -= spacing;
+        // from just behind the tail
+        _v.set(0, 0, 5).applyQuaternion(p.s.quat).add(p.s.pos);
+        const t = toText(plan, p.s.pos.x, p.s.pos.z);
+        if (this.skyLog.length < 20000) this.skyLog.push({ u: t.u, v: t.v, dy: p.s.pos.y - plan.alt });
+        this.skySmoke.add(_v, plan.H * 0.028);
+      }
+    } else this.skyDist = 0;
+    m.offPathHintT -= dt;
+    if (tr.lateral > 400 && m.offPathHintT <= 0) {
+      m.offPathHintT = 20;
+      this.ui.hint('Off the path! Turn toward the PATH marker and pick up the arrows again.', 5000);
+    }
+    if (!m.skyDone && skyCue(plan, tr.progress).state === 'done') this.finishSky();
+  }
+
+  /** Every stroke flown: score it, then a reveal shot of the whole message. */
+  private finishSky() {
+    const m = this.mission;
+    const plan = this.sortieSky!;
+    m.skyDone = true;
+    this.smoking = false;
+    const sc = scoreWriting(plan, this.skyLog);
+    this.skyScore = sc;
+    m.result = 'message written';
+    m.resultText = `"${plan.message}"`;
+    m.grade = sc.grade;
+    this.ui.toast(`${sc.score >= 85 ? 'PICTURE PERFECT!' : sc.score >= 70 ? 'NICE WRITING!' : sc.score >= 50 ? 'LEGIBLE!' : 'HMM...'}  ${sc.score}`, 2500);
+    this.audio.fanfare(sc.medal >= 2);
+    // look down at the message from the home-field side, the whole width in view
+    const c = toWorld(plan, { u: plan.width / 2, v: plan.H / 2 });
+    const look = new THREE.Vector3(c.x, plan.alt, c.z);
+    const vfov = (this.camera.fov * Math.PI) / 180;
+    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * this.camera.aspect);
+    const dist = Math.max((plan.width / 2 + plan.H * 0.5) / Math.tan(hfov / 2), (plan.H * 1.4) / Math.tan(vfov / 2)) * 1.1;
+    const pitch = (55 * Math.PI) / 180;
+    const pos = new THREE.Vector3(c.x - plan.up.x * dist * Math.cos(pitch), plan.alt + dist * Math.sin(pitch), c.z - plan.up.z * dist * Math.cos(pitch));
+    this.reveal = { pos, look, dist };
+    this.endSortie(7, null);
+    this.hud.visible = false;
+    this.ui.hint(`"${plan.message}" — ${sc.score} points`, 6000);
+  }
+
+  /** The reveal shot: glide the camera up to the viewpoint, fog pushed back so the whole message shows. */
+  private updateReveal(dt: number) {
+    const r = this.reveal!;
+    const k = 1 - Math.exp(-dt * 1.2);
+    this.camera.position.lerp(r.pos, k);
+    this.camera.up.set(0, 1, 0);
+    const q0 = this.camera.quaternion.clone();
+    this.camera.lookAt(r.look);
+    const q1 = this.camera.quaternion.clone();
+    this.camera.quaternion.copy(q0).slerp(q1, Math.min(1, k * 2.5));
+    const fog = this.scene.fog as THREE.Fog;
+    const d = this.camera.position.distanceTo(r.look);
+    fog.near = Math.max(fog.near, d * 0.9);
+    fog.far = Math.max(fog.far, d * 2);
+    if (this.camera.far < d * 2.5) {
+      this.camera.far = d * 2.5;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  private skyObjective(): string {
+    const plan = this.sortieSky!;
+    const tr = this.skyTracker!;
+    const cue = skyCue(plan, tr.progress);
+    if (cue.state === 'done') return `"${plan.message}" written!`;
+    if (tr.lateral > 250) return 'Back to the path!';
+    const li = plan.smoke[cue.seg].letter;
+    return `Writing "${plan.message}" — letter ${plan.letters[li].ch} (${li + 1} of ${plan.letters.length})`;
+  }
+
+  private hudSky() {
+    const plan = this.sortieSky;
+    const tr = this.skyTracker;
+    const p = this.player;
+    if (!plan || !tr || !p) return undefined;
+    const at = toText(plan, p.s.pos.x, p.s.pos.z);
+    const ahead = toText(plan, p.s.pos.x + p.s.vel.x, p.s.pos.z + p.s.vel.z);
+    let rejoin: THREE.Vector3 | null = null;
+    if (this.state === 'sortie' && tr.lateral > 250) {
+      const q = plan.pts[Math.min(plan.pts.length - 1, tr.idx + 30)];
+      rejoin = this.rejoin.set(q.x, q.y, q.z);
+    }
+    return {
+      plan,
+      smoke: this.skyLog,
+      cue: skyCue(plan, tr.progress),
+      smoking: this.smoking,
+      at: { u: at.u, v: at.v, h: Math.atan2(ahead.v - at.v, ahead.u - at.u) },
+      rejoin,
+    };
+  }
+
   private stepDest(d: number) {
     const w = this.world;
     if (!w || this.settings.mode !== 'route') return;
@@ -447,6 +619,8 @@ export class Game {
     this.guide = null;
     this.tracker = null;
     this.sortieRoute = null;
+    this.sortieSky = null;
+    this.skyTracker = null;
   }
 
   // ------------------------------------------------------------ hangar
@@ -593,7 +767,7 @@ export class Game {
     this.ui.setAircraft(describeLoadout(this.loadout));
     this.ui.show('title');
     this.camera.fov = 70;
-    this.camera.updateProjectionMatrix();
+    this.updateDistances();
   }
 
   private setPaused(p: boolean) {
@@ -629,11 +803,20 @@ export class Game {
     const af = w.home;
     // cross-country: fly the planned route (its take-off direction); free flight: into the wind
     this.clearGuide();
-    if (this.settings.mode === 'route') {
+    this.clearSky();
+    this.updateDistances();
+    if (this.settings.mode === 'sky') {
+      if (!this.skyPlan) this.refreshRoute();
+      const plan = this.skyPlan!;
+      this.sortieSky = plan;
+      this.guide = new GuideArrows(plan.pts, plan.end + 200, { spacing: 50, ahead: 1400, hot: plan.smoke });
+      this.scene.add(this.guide.mesh);
+      this.skyTracker = new SkyTracker(plan);
+    } else if (this.settings.mode === 'route') {
       if (!this.route) this.refreshRoute();
       const r = this.route!;
       this.sortieRoute = r;
-      this.guide = new GuideArrows(r);
+      this.guide = new GuideArrows(r.pts, r.sAim + 100);
       this.scene.add(this.guide.mesh);
       this.tracker = new RouteTracker(r);
     }
@@ -645,8 +828,25 @@ export class Game {
     p.s.quat.copy(groundAttitude(dx, dz, p.gear));
     p.s.pos.set(x, w.groundHeight(x, z) + restHeight(p.s.quat, p.gear), z);
     p.s.rpm = 0.15;
-    p.teleport();
     this.input.resetThrottle(0);
+    const sky = this.sortieSky;
+    if (sky) {
+      // skywriting starts in the air at the writing altitude, lined up with the approach
+      const a = sky.pts[0];
+      const b = sky.pts[5];
+      const hx = b.x - a.x;
+      const hz = b.z - a.z;
+      const hl = Math.hypot(hx, hz) || 1;
+      p.s.quat.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, Math.atan2(-hx / hl, -hz / hl));
+      p.s.pos.set(a.x, a.y, a.z);
+      p.s.vel.set(hx / hl, 0, hz / hl).multiplyScalar(this.skySpeed());
+      p.s.airspeed = this.skySpeed();
+      p.s.onGround = false;
+      p.s.airTime = 10;
+      p.s.rpm = 0.7;
+      this.input.resetThrottle(0.7);
+    }
+    p.teleport();
     this.input.flapNotch = 0;
     this.input.trim = 0;
     this.planes.push(p);
@@ -671,7 +871,12 @@ export class Game {
       atDest: false,
       offPathHintT: 0,
       flapHint: false,
+      skyDone: false,
     };
+    if (sky) {
+      this.mission.tookOff = true;
+      this.mission.hintStage = 1;
+    }
     this.rig.reset();
     this.rig.mode = 'chase';
     this.state = 'loading';
@@ -691,6 +896,16 @@ export class Game {
     this.input.touch.recentre();
     const jet = this.loadout.style === 'jet' ? ' The jet takes a few seconds to spool up.' : this.say(' Take-off flaps: F.', ' Take-off flaps: tap FLAP +.');
     const follow = this.sortieRoute ? ` Follow the arrows to ${this.destName()}.` : '';
+    if (this.sortieSky) {
+      this.ui.hint(
+        this.say(
+          `Skywriting "${this.sortieSky.message}": follow the arrows and hold Space for smoke on the orange ones. Throttle 1 – 0.`,
+          `Skywriting "${this.sortieSky.message}": follow the arrows and hold SMOKE on the orange ones.`,
+        ),
+        7000,
+      );
+      return;
+    }
     this.ui.hint(
       this.say(
         `Open the throttle: press 0 for full power (1 is idle). Steer with Q / E.${jet}${follow}`,
@@ -785,6 +1000,12 @@ export class Game {
     this.wakeLock.set(false);
     this.hud.visible = false;
     this.hud.clear();
+    this.reveal = null;
+    this.updateDistances();
+    if (this.sortieSky) {
+      this.showSkyDebrief();
+      return;
+    }
     const landedOk = m.result === 'landed' || m.result === 'field landing';
     const damage = 1 - p.integrity;
     const gradeA = m.grade === 'A' || m.grade === 'A+';
@@ -817,6 +1038,33 @@ export class Game {
     let title = landedOk ? (medal >= 2 ? 'Nicely done!' : 'Back on the ground') : m.result === 'bailed out' ? 'Hit the silk!' : 'Better luck next time';
     if (route && landedOk) title = !m.atDest ? 'Wrong airfield!' : medal >= 2 ? `Welcome to ${this.destName()}!` : 'Made it!';
     this.ui.showDebrief({ title, medal, rows, newBest, bestOf: route ? 'route' : 'world' });
+    this.audio.fanfare(medal >= 2);
+  }
+
+  private showSkyDebrief() {
+    const m = this.mission;
+    const p = this.player!;
+    const plan = this.sortieSky!;
+    const sc = this.skyScore ?? scoreWriting(plan, this.skyLog);
+    const wrecked = m.result === 'crashed' || m.result === 'ditched' || m.result === 'bailed out';
+    const medal = wrecked ? 0 : sc.medal;
+    const pct = (x: number) => `${Math.round(x * 100)}%`;
+    const flight = this.simTime;
+    const mmss = `${Math.floor(flight / 60)}:${String(Math.floor(flight % 60)).padStart(2, '0')}`;
+    const rows: [string, string][] = [
+      ['Result', `${m.result ?? 'unfinished'}${m.resultText && m.result !== 'message written' ? ` (${m.resultText})` : ''}`],
+      ['Message', `"${plan.message}"`],
+      ['Writing score', `${sc.score} / 100 (${sc.grade})`],
+      ['Letters drawn', pct(sc.coverage)],
+      ['Flight time', mmss],
+      ['Aircraft', describeLoadout(p.loadout)],
+      ['World seed', String(this.settings.seed)],
+    ];
+    const key = bestKey(this.settings.seed, 'sky', 0, plan.message);
+    const newBest = !wrecked && submitBest(key, { medal, landing: sc.grade, score: sc.score });
+    const title = wrecked ? 'Better luck next time' : sc.score >= 85 ? 'Picture perfect!' : sc.score >= 70 ? 'Nice writing!' : sc.score >= 50 ? 'Legible!' : 'Back to flight school';
+    const log = this.skyLog;
+    this.ui.showDebrief({ title, medal, rows, newBest, bestOf: 'message', drawSky: (c) => drawSkyCanvas(c, plan, { letters: 'ghost', smoke: log }) });
     this.audio.fanfare(medal >= 2);
   }
 
@@ -956,6 +1204,7 @@ export class Game {
           this.ui.hint(this.say('Landing? Full flaps (press F twice) let you come in slower and steeper.', 'Landing? Full flaps (tap FLAP + twice) let you come in slower and steeper. Hold BRAKE after touchdown.'), 5000);
         }
       }
+      if (this.sortieSky) this.stepSky(dt, p);
       // cross-country: progress along the path and how much of the flight stayed on it
       const tr = this.tracker;
       if (tr) {
@@ -1043,6 +1292,7 @@ export class Game {
 
   private objectiveText(): string {
     const m = this.mission;
+    if (this.sortieSky && this.skyTracker) return this.skyObjective();
     const tr = this.tracker;
     if (this.sortieRoute && tr) {
       const name = this.destName();
@@ -1103,12 +1353,15 @@ export class Game {
         if (p) p.visual.setCockpitView(this.rig.mode === 'cockpit' && !(this.state === 'ending' && m.wreckAt));
         if (this.state === 'ending' && m.wreckAt) {
           this.rig.orbit(dt, m.wreckAt, 45, 18, 0.35);
+        } else if (this.state === 'ending' && this.reveal) {
+          this.updateReveal(dt);
         } else if (p) {
           this.rig.follow(dt, p.visual.root.position, p.visual.root.quaternion, p.s.airspeed, (x, z) => w.groundHeight(x, z));
         }
         w.update(this.camera.position, p ? p.s.vel : null, this.paused ? 0 : dt);
         if (p) w.updatePapi(p.s.pos);
         if (this.guide && this.tracker) this.guide.update(this.tracker.progress, this.time);
+        if (this.guide && this.skyTracker) this.guide.update(this.skyTracker.progress, this.time);
         if (this.state === 'ending' && !this.paused) {
           m.endT -= dt;
           if (m.endT <= 0) this.showDebrief();
@@ -1127,6 +1380,7 @@ export class Game {
     this.sun.position.copy(this.sun.target.position).addScaledVector(sd, 600);
     if (!this.paused) {
       this.fx.update(dt, this.camera.position);
+      this.skySmoke.update(dt, this.camera.position);
     }
 
     // overlays
@@ -1155,6 +1409,7 @@ export class Game {
           // cross-country: the landing guide is for the destination only
           showLanding: m.tookOff && agl < 450 && (!this.sortieRoute || w.gen.nearestAirfield(p.s.pos.x, p.s.pos.z).af === this.sortieRoute.to),
           guide: this.hudGuide(),
+          sky: this.hudSky(),
           flapNotch: this.input.flapNotch,
           trim: this.input.trim,
           touch: this.touchView(),
