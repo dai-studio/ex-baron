@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import type { Route } from '../game/route';
+import type { RoutePoint } from '../game/route';
 
 /**
  * Guide arrows (plan step 21): transparent white chevrons hanging in the air
- * along a cross-country route, pointing the way. One instanced draw call.
+ * along a cross-country route (or a skywriting path, with the smoke
+ * segments in orange), pointing the way. One instanced draw call.
  * Each chevron is tilted up so it reads from behind as well as from above.
  * The shader shows only the stretch just ahead of the plane: arrows behind
  * fade out, distant ones fade in, ones right next to the camera fade so
@@ -11,16 +12,27 @@ import type { Route } from '../game/route';
  * along them in the direction of travel.
  */
 const SPACING = 120; // m between arrows
-const AHEAD = 3600; // m of path shown ahead of the plane
+const AHEAD = 3600; // m of path shown ahead of the plane (cross-country)
+
+export interface GuideOptions {
+  spacing?: number;
+  ahead?: number;
+  /** stretches of the path (s0, s1) drawn in the hot colour: skywriting smoke segments */
+  hot?: { s0: number; s1: number }[];
+  hotColor?: number;
+}
 const TILT = (55 * Math.PI) / 180;
 
 const vert = /* glsl */ `
   attribute float aS;
+  attribute float aHot;
   varying float vS;
+  varying float vHot;
   varying float vDist;
   void main() {
     vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
     vS = aS;
+    vHot = aHot;
     vDist = distance(wp.xyz, cameraPosition);
     gl_Position = projectionMatrix * viewMatrix * wp;
   }
@@ -32,7 +44,9 @@ const frag = /* glsl */ `
   uniform float uTime;
   uniform float uOpacity;
   uniform vec3 uColor;
+  uniform vec3 uHot;
   varying float vS;
+  varying float vHot;
   varying float vDist;
   void main() {
     float a = uOpacity;
@@ -41,7 +55,7 @@ const frag = /* glsl */ `
     a *= smoothstep(12.0, 55.0, vDist);                         // don't white out the camera
     a *= 0.72 + 0.28 * sin(vS * 0.018 - uTime * 3.2);           // a wave running forward
     if (a < 0.01) discard;
-    gl_FragColor = vec4(uColor, a);
+    gl_FragColor = vec4(mix(uColor, uHot, vHot), a);
   }
 `;
 
@@ -64,16 +78,17 @@ function chevronGeometry(grow = 1): THREE.BufferGeometry {
   return g;
 }
 
-function arrowMaterial(color: number, opacity: number): THREE.ShaderMaterial {
+function arrowMaterial(color: number, hot: number, opacity: number, ahead: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     vertexShader: vert,
     fragmentShader: frag,
     uniforms: {
       uProgress: { value: 0 },
-      uAhead: { value: AHEAD },
+      uAhead: { value: ahead },
       uTime: { value: 0 },
       uOpacity: { value: opacity },
       uColor: { value: new THREE.Color(color) },
+      uHot: { value: new THREE.Color(hot) },
     },
     transparent: true,
     depthWrite: false,
@@ -88,19 +103,21 @@ export class GuideArrows {
   private geos: THREE.BufferGeometry[] = [];
   private meshes: THREE.InstancedMesh[] = [];
 
-  constructor(route: Route) {
-    const pts = route.pts;
-    // one arrow every SPACING m, from just after the line-up spot to the touchdown
+  /** Arrows along `pts` from 60 m in to `end` (cross-country: the touchdown + 100 m). */
+  constructor(pts: RoutePoint[], end: number, o: GuideOptions = {}) {
+    const spacing = o.spacing ?? SPACING;
+    const hot = o.hot ?? [];
     const at: number[] = [];
-    for (let d = 60; d < route.sAim + 100; d += SPACING) at.push(d);
+    for (let d = 60; d < end; d += spacing) at.push(d);
     const count = at.length;
     const sAttr = new Float32Array(count);
-    for (const [grow, color, opacity, order] of [
-      [1.14, 0x2b1d1a, 0.3, 4],
-      [1, 0xffffff, 0.8, 5],
+    const hotAttr = new Float32Array(count);
+    for (const [grow, color, hotColor, opacity, order] of [
+      [1.14, 0x2b1d1a, 0x2b1d1a, 0.3, 4],
+      [1, 0xffffff, o.hotColor ?? 0xff7a3d, 0.8, 5],
     ] as const) {
       const geo = chevronGeometry(grow);
-      const mat = arrowMaterial(color, opacity);
+      const mat = arrowMaterial(color, hotColor, opacity, o.ahead ?? AHEAD);
       const im = new THREE.InstancedMesh(geo, mat, count);
       im.frustumCulled = false;
       im.renderOrder = order;
@@ -131,8 +148,12 @@ export class GuideArrows {
       m.makeBasis(right, up, fwd).setPosition(pos);
       for (const im of this.meshes) im.setMatrixAt(k, m);
       sAttr[k] = d;
+      hotAttr[k] = hot.some((h) => d >= h.s0 - 5 && d <= h.s1 + 5) ? 1 : 0;
     }
-    for (const g of this.geos) g.setAttribute('aS', new THREE.InstancedBufferAttribute(sAttr, 1));
+    for (const g of this.geos) {
+      g.setAttribute('aS', new THREE.InstancedBufferAttribute(sAttr, 1));
+      g.setAttribute('aHot', new THREE.InstancedBufferAttribute(hotAttr, 1));
+    }
     for (const im of this.meshes) im.instanceMatrix.needsUpdate = true;
   }
 

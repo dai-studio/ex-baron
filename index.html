@@ -68,6 +68,7 @@
           <div class="seg" id="mode-seg">
             <button data-v="free">Free flight</button>
             <button data-v="route">Cross-country</button>
+            <button data-v="sky">Skywriting</button>
           </div>
         </div>
         <div class="row">
@@ -124,6 +125,7 @@
             <tr><td>Rudder</td><td>Automatic (the stick steers on the ground)</td></tr>
             <tr><td>Camera</td><td>CAM (chase / cockpit)</td></tr>
             <tr><td>Bail out</td><td>Hold BAIL for a second</td></tr>
+            <tr><td>Smoke</td><td>Hold SMOKE (Skywriting)</td></tr>
             <tr><td>Pause</td><td>❚❚ top-left</td></tr>
             <tr><td>Tilt</td><td>Pause → Steer by tilting</td></tr>
           </table>
@@ -138,10 +140,11 @@
             <tr><td>Camera</td><td>C (chase / cockpit)</td></tr>
             <tr><td>Mouse stick</td><td>M toggles</td></tr>
             <tr><td>Bail out</td><td>X</td></tr>
+            <tr><td>Smoke</td><td>Hold Space (Skywriting)</td></tr>
             <tr><td>Destination</td><td>← / → on the menu (Cross-country)</td></tr>
             <tr><td>Pause</td><td>Esc</td></tr>
             <tr><td>Key list in flight</td><td>K (top-left)</td></tr>
-            <tr><td>Gamepad</td><td>L-stick fly, R-stick X rudder / Y throttle, LB / RB trim</td></tr>
+            <tr><td>Gamepad</td><td>L-stick fly, R-stick X rudder / Y throttle, LB / RB trim, hold A smoke</td></tr>
           </table>
         </details>
       </div>
@@ -157,6 +160,17 @@
         <canvas id="route-map" width="720" height="540"></canvas>
         <div class="route-info" id="route-info"></div>
         <p class="route-note">Follow the white arrows from take-off to touchdown.</p>
+      </div>
+
+      <!-- Skywriting: the message and a preview of the letters and the flight path (plan step 52) -->
+      <div class="panel route-panel sky-panel hidden" id="sky-panel">
+        <h2>Skywriting</h2>
+        <div class="sky-pick">
+          <input id="sky-input" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your message" />
+        </div>
+        <canvas id="sky-map" width="720" height="540"></canvas>
+        <div class="route-info" id="sky-info"></div>
+        <p class="route-note">Two words, up to 12 letters. Fly the arrows and hold <b class="desktop-only">Space</b><b class="touch-only">SMOKE</b> on the orange ones.</p>
       </div>
     </section>
 
@@ -216,6 +230,7 @@
       <div class="panel">
         <h2 id="debrief-title">Debrief</h2>
         <div id="medal"></div>
+        <canvas id="debrief-sky" class="hidden"></canvas>
         <table id="debrief-stats"></table>
         <div class="buttons">
           <button id="again-btn" class="big">Fly again</button>

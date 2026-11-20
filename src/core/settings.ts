@@ -1,10 +1,11 @@
 /** Settings & saves in localStorage (design §6 "Settings & saves"). */
 import type { Units } from './units';
+import { sanitizeMessage } from '../game/skyfont';
 
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
 export type Assist = 'arcade' | 'normal' | 'expert';
-/** free flight, or a cross-country flight to another airfield along a guided path */
-export type Mode = 'free' | 'route';
+/** free flight, a cross-country flight to another airfield along a guided path, or skywriting a message */
+export type Mode = 'free' | 'route' | 'sky';
 
 export interface Settings {
   quality: Quality;
@@ -20,6 +21,8 @@ export interface Settings {
   tilt: boolean;
   /** display units: metric (km/h, m) or imperial (knots, ft, ft/min, nm) */
   units: Units;
+  /** skywriting: the message (two words, up to 12 characters) */
+  skyMessage: string;
 }
 
 export interface BestRecord {
@@ -27,6 +30,8 @@ export interface BestRecord {
   landing: string;
   /** cross-country: share of the flight spent on the path (%) */
   path?: number;
+  /** skywriting: writing score 0..100 */
+  score?: number;
 }
 
 const KEY = 'baron.settings.v1';
@@ -48,6 +53,7 @@ export function defaultSettings(): Settings {
     dest: 1,
     tilt: false,
     units: 'metric',
+    skyMessage: 'HELLO',
   };
 }
 
@@ -75,7 +81,8 @@ export function loadSettings(): Settings {
     delete s.mission; // removed with the Dogfight mission
     delete s.difficulty;
     const out = { ...d, ...s };
-    if (out.mode !== 'free' && out.mode !== 'route') out.mode = 'free';
+    if (out.mode !== 'free' && out.mode !== 'route' && out.mode !== 'sky') out.mode = 'free';
+    out.skyMessage = (typeof out.skyMessage === 'string' && sanitizeMessage(out.skyMessage)) || d.skyMessage;
     if (out.units !== 'metric' && out.units !== 'imperial') out.units = 'metric';
     if (!Number.isInteger(out.dest) || out.dest < 1 || out.dest > 4) out.dest = 1;
     return out;
@@ -98,8 +105,9 @@ function loadBest(): Record<string, BestRecord> {
   }
 }
 
-/** Records are per world, and per destination for cross-country flights. */
-export function bestKey(seed: number, mode: Mode = 'free', dest = 0): string {
+/** Records are per world, per destination for cross-country flights and per message for skywriting. */
+export function bestKey(seed: number, mode: Mode = 'free', dest = 0, message = ''): string {
+  if (mode === 'sky') return `sky:${seed}:${message}`;
   return mode === 'route' ? `route:${seed}:${dest}` : `free:${seed}`;
 }
 
@@ -111,7 +119,7 @@ export function getBest(key: string): BestRecord | null {
 export function submitBest(key: string, rec: BestRecord): boolean {
   const all = loadBest();
   const prev = all[key];
-  if (prev && prev.medal >= rec.medal) return false;
+  if (prev && (prev.medal > rec.medal || (prev.medal === rec.medal && (rec.score === undefined || (prev.score ?? 0) >= rec.score)))) return false;
   all[key] = rec;
   safeSet(BEST_KEY, JSON.stringify(all));
   return true;

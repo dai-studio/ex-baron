@@ -1,4 +1,5 @@
 import { bestKey, getBest, randomSeed, saveSettings, type Settings } from '../core/settings';
+import { sanitizeMessage } from '../game/skyfont';
 
 /** Title/hangar, loading, pause and debrief screens (design §2, §3 HUD & UI). */
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -23,6 +24,8 @@ export interface MenuHandlers {
   recentre(): void;
   /** display units changed (metric / imperial) */
   unitsChanged(): void;
+  /** skywriting message changed (already cleaned up and saved) */
+  skyMessageChanged(): void;
 }
 
 export interface DebriefData {
@@ -30,8 +33,10 @@ export interface DebriefData {
   medal: number;
   rows: [string, string][];
   newBest: boolean;
-  /** 'world' or 'route', for the new-best line */
+  /** 'world', 'route' or 'message', for the new-best line */
   bestOf?: string;
+  /** skywriting: draws the picture of the writing on the debrief canvas */
+  drawSky?: (c: HTMLCanvasElement) => void;
 }
 
 const MEDALS = ['🎈', '🥉', '🥈', '🥇'];
@@ -55,6 +60,31 @@ export class Menus {
     $('dest-next').addEventListener('click', () => {
       h.click();
       h.destStep(1);
+    });
+    // skywriting message: re-planned shortly after typing stops; cleaned up in the box on Enter / leaving it
+    const sky = $<HTMLInputElement>('sky-input');
+    sky.value = settings.skyMessage;
+    let skyTimer = 0;
+    const commitSky = (rewrite: boolean) => {
+      clearTimeout(skyTimer);
+      const m = sanitizeMessage(sky.value);
+      if (rewrite) sky.value = m || settings.skyMessage;
+      if (!m || m === settings.skyMessage) return;
+      settings.skyMessage = m;
+      saveSettings(settings);
+      this.refreshBest();
+      h.skyMessageChanged();
+    };
+    sky.addEventListener('input', () => {
+      clearTimeout(skyTimer);
+      skyTimer = window.setTimeout(() => commitSky(false), 300);
+    });
+    sky.addEventListener('change', () => commitSky(true));
+    sky.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        commitSky(true);
+        sky.blur();
+      }
     });
     // Units is on the main menu and in Pause; both controls show the same setting
     const unitSyncs = ['units-seg-menu', 'units-seg'].map((id) =>
@@ -193,7 +223,11 @@ export class Menus {
 
   refreshBest() {
     const st = this.settings;
-    const b = getBest(bestKey(st.seed, st.mode, st.dest));
+    const b = getBest(bestKey(st.seed, st.mode, st.dest, st.skyMessage));
+    if (st.mode === 'sky') {
+      $('best-line').textContent = b ? `Best for this message: ${MEDALS[b.medal]} ${b.score ?? 0} points` : '';
+      return;
+    }
     const where = st.mode === 'route' ? 'Best on this route' : 'Best on this world';
     const path = b?.path !== undefined ? `, ${b.path}% on the path` : '';
     $('best-line').textContent = b ? `${where}: ${MEDALS[b.medal]} landing ${b.landing}${path}` : '';
@@ -202,6 +236,19 @@ export class Menus {
   /** Cross-country flight plan panel beside the main menu. */
   setRoutePanel(visible: boolean) {
     $('route-panel').classList.toggle('hidden', !visible);
+  }
+
+  /** Skywriting panel beside the main menu (replaces the flight plan). */
+  setSkyPanel(visible: boolean) {
+    $('sky-panel').classList.toggle('hidden', !visible);
+  }
+
+  setSkyInfo(info: string) {
+    $('sky-info').textContent = info;
+  }
+
+  get skyCanvas(): HTMLCanvasElement {
+    return $<HTMLCanvasElement>('sky-map');
   }
 
   setRouteInfo(dest: string, info: string) {
@@ -233,6 +280,8 @@ export class Menus {
   showDebrief(d: DebriefData) {
     $('debrief-title').textContent = d.title;
     $('medal').textContent = MEDALS[d.medal];
+    const pic = $<HTMLCanvasElement>('debrief-sky');
+    pic.classList.toggle('hidden', !d.drawSky);
     const t = $('debrief-stats');
     t.innerHTML = '';
     for (const [k, v] of d.rows) {
@@ -254,6 +303,8 @@ export class Menus {
       t.append(tr);
     }
     this.show('debrief');
+    // drawn once the panel is laid out, at its on-screen size
+    if (d.drawSky) d.drawSky(pic);
   }
 
   toast(text: string, ms = 1600) {

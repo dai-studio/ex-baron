@@ -46,6 +46,8 @@ export class Input {
     });
     window.addEventListener('keydown', (e) => {
       this.setKind('desktop');
+      // typing in a text box (seed, skywriting message) is not a game key
+      if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
       if (e.repeat) return;
       this.keys.add(e.code);
       this.pressed.add(e.code);
@@ -91,6 +93,10 @@ export class Input {
   }
   padWasPressed(button: number): boolean {
     return this.padPressed.has(button);
+  }
+  /** Gamepad button held down (as of the last pollPad). */
+  padHeld(button: number): boolean {
+    return !!this.padPrev[button];
   }
 
   endFrame() {

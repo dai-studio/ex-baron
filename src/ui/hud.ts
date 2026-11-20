@@ -4,6 +4,8 @@ import { FLAP_LABELS, FLAP_NOTCHES, LANDING_FORGIVENESS } from '../plane/flight'
 import { engineOf } from '../plane/loadout';
 import type { World } from '../world/world';
 import type { Route } from '../game/route';
+import type { SkyCue, SkyPlan, SmokePoint } from '../game/skywriting';
+import { drawSkyView } from './skyMap';
 import type { Airfield } from '../world/terrain';
 import { CLUSTER_H, CLUSTER_W, Instruments } from './instruments';
 import { altOf, altUnit, fmtVs, speedOf, speedUnit, vsUnit, vsValue } from '../core/units';
@@ -41,8 +43,21 @@ export interface HudContext {
   trim: number;
   /** cross-country flight: the route, destination and (when off the path) where to rejoin it */
   guide?: { route: Route; dest: Airfield; rejoin: THREE.Vector3 | null };
+  /** skywriting: the plan, the smoke so far, the smoke cue (plan step 52) */
+  sky?: SkyHud;
   /** touch play: draw the on-screen controls and keep the gauges clear of the thumbs (design §9.2) */
   touch?: TouchView | null;
+}
+
+export interface SkyHud {
+  plan: SkyPlan;
+  smoke: SmokePoint[];
+  cue: SkyCue;
+  smoking: boolean;
+  /** the plane in text space */
+  at: { u: number; v: number; h: number };
+  /** off the path: where to rejoin it */
+  rejoin: THREE.Vector3 | null;
 }
 
 export interface TouchView {
@@ -148,6 +163,7 @@ export class Hud {
     if (!tv) this.drawMouseStick(c);
     if (c.showLanding) this.drawLandingGuide(c);
     if (c.guide?.rejoin) this.drawRejoin(c.guide.rejoin, c.camera);
+    if (c.sky?.rejoin) this.drawRejoin(c.sky.rejoin, c.camera);
 
     if (tv) {
       // no instrument cluster on touch: on a phone it filled half the screen and hid the plane;
@@ -156,7 +172,10 @@ export class Hud {
       this.drawCompass(c, Math.min(300, this.w * 0.36), tv.layout.safe.t);
       this.drawObjective(c.objective, 14, tv.layout.safe.t);
       this.miniT -= dt;
-      this.drawMinimap(c, MINI_TOUCH, tv.layout.safe.t, tv.layout.safe.r);
+      if (c.sky) {
+        this.drawSkyCard(c.sky, Math.round(MINI_TOUCH * 1.7), MINI_TOUCH, tv.layout.safe.t, tv.layout.safe.r);
+        this.drawSkyCue(c, c.sky, tv.layout.safe.t, true);
+      } else this.drawMinimap(c, MINI_TOUCH, tv.layout.safe.t, tv.layout.safe.r);
       this.drawTouchControls(c, tv);
       return;
     }
@@ -229,7 +248,75 @@ export class Hud {
 
     // ---------- minimap (top-right)
     this.miniT -= dt;
-    this.drawMinimap(c, compact ? 120 : 160, 0, 0);
+    if (c.sky) {
+      this.drawSkyCard(c.sky, compact ? 210 : 300, compact ? 120 : 160, 0, 0);
+      this.drawSkyCue(c, c.sky, 0, false);
+    } else this.drawMinimap(c, compact ? 120 : 160, 0, 0);
+  }
+
+  /** Skywriting card (top-right, in place of the minimap): the letters near the plane, the smoke so far, the plane. */
+  private drawSkyCard(sky: SkyHud, w: number, h: number, top: number, right: number) {
+    const g = this.g;
+    const x0 = this.w - right - w - 16;
+    const y0 = top + MINI_TOP;
+    panel(g, x0, y0, w, h);
+    g.save();
+    roundRect(g, x0 + 3, y0 + 3, w - 6, h - 6, 10);
+    g.clip();
+    g.fillStyle = '#9fd3ef';
+    g.fillRect(x0, y0, w, h);
+    const p = sky.plan;
+    const vh = p.H * 1.7;
+    const uw = (vh * (w - 6)) / (h - 6);
+    const u = THREE.MathUtils.clamp(sky.at.u, Math.min(uw / 2 - p.H * 0.3, p.width / 2), Math.max(p.width - uw / 2 + p.H * 0.3, p.width / 2));
+    drawSkyView(g, p, x0 + 3, y0 + 3, w - 6, h - 6, {
+      letters: 'ghost',
+      smoke: sky.smoke,
+      highlight: sky.cue.seg,
+      plane: sky.at,
+      win: { u0: u - uw / 2, u1: u + uw / 2, v0: p.H * 0.5 - vh / 2, v1: p.H * 0.5 + vh / 2 },
+    });
+    g.restore();
+  }
+
+  /** Under the objective: when to turn the smoke on and off. */
+  private drawSkyCue(c: HudContext, sky: SkyHud, top: number, touch: boolean) {
+    const cue = sky.cue;
+    const key = touch ? 'SMOKE' : 'SPACE';
+    let text = '';
+    let fill = PAPER;
+    let ink = INK;
+    const flash = Math.sin(performance.now() / 120) > 0;
+    if (cue.state === 'on') {
+      if (sky.smoking) {
+        text = '● SMOKE ON';
+        fill = '#ff9a66';
+      } else {
+        text = `HOLD ${key} — SMOKE!`;
+        fill = flash ? RED : '#f6c2b8';
+        ink = flash ? '#ffffff' : INK;
+      }
+    } else if (sky.smoking && cue.state !== 'done') {
+      text = 'SMOKE OFF!';
+      fill = flash ? RED : '#f6c2b8';
+      ink = flash ? '#ffffff' : INK;
+    } else if (cue.state === 'soon') {
+      const secs = Math.max(1, Math.ceil(cue.dist / Math.max(15, c.player.s.airspeed)));
+      text = `SMOKE IN ${secs}`;
+      fill = '#ffd9a8';
+    }
+    if (!text) return;
+    const g = this.g;
+    g.font = `800 ${touch ? 15 : 18}px ${FONT}`;
+    g.textAlign = 'center';
+    const tw = g.measureText(text).width + 30;
+    panel(g, this.w / 2 - tw / 2, top + 100, tw, 32);
+    g.fillStyle = fill;
+    roundRect(g, this.w / 2 - tw / 2 + 3, top + 103, tw - 6, 26, 9);
+    g.fill();
+    g.fillStyle = ink;
+    g.fillText(text, this.w / 2, top + 100 + 23);
+    g.textAlign = 'left';
   }
 
   private drawObjective(text: string, size: number, top: number) {
@@ -858,7 +945,7 @@ export class Hud {
     g.fillStyle = blown ? RED : INK;
     g.fillText(label, b.flapsMore.x, ny);
     g.textAlign = 'left';
-    this.touchButton(b.brake, 'BRAKE', tv.held('brake'), font(13));
+    this.touchButton(b.brake, c.sky ? 'SMOKE' : 'BRAKE', tv.held('brake'), font(13), c.sky && tv.held('brake') ? '#ff9a66' : undefined);
     this.touchButton(b.camera, 'CAM', tv.held('camera'), font(11));
     if (tv.bailShown) {
       this.touchButton(b.bail, 'BAIL', tv.held('bail'), font(11), '#f6c2b8');
